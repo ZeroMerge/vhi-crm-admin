@@ -67,7 +67,7 @@ router.post('/invite', async (req, res, next) => {
       message: 'Admin invited successfully. An email invitation has been sent.',
       data: {
         admin: newAdmin,
-        inviteLink: `http://localhost:5173/admin/setup-password?token=${newAdmin.id}`, // mocked invite link
+        inviteLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/setup-password?token=${newAdmin.id}`,
         tempPassword // included for convenience in testing/local dev
       }
     });
