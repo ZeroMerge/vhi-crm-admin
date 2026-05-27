@@ -177,7 +177,7 @@ export default function ShipmentDetail() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 4 }}>Total Weight</div>
-                <div style={{ fontWeight: 500 }}>{shipment.weight.toLocaleString()} {shipment.weightUnit}</div>
+                <div style={{ fontWeight: 500 }}>{(shipment.weight ?? 0).toLocaleString()} {shipment.weightUnit || ''}</div>
               </div>
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 4 }}>Pickup Option</div>
@@ -191,7 +191,7 @@ export default function ShipmentDetail() {
                   <div key={item.id} style={{ padding: '10px 0', borderTop: '1px solid var(--color-border)' }}>
                     <div style={{ fontWeight: 500 }}>{item.description}</div>
                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-                      Qty: {item.quantity} · {item.weight.toLocaleString()}kg · {item.dimensionL}x{item.dimensionW}x{item.dimensionH} {item.dimensionUnit}
+                      Qty: {item.quantity} · {(item.weight ?? 0).toLocaleString()}kg · {item.dimensionL}x{item.dimensionW}x{item.dimensionH} {item.dimensionUnit}
                     </div>
                   </div>
                 ))}

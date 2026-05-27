@@ -366,7 +366,7 @@ export default function Tracking() {
                     </span>
                   </div>
                   <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, textTransform: 'capitalize' }}>
-                    {selectedShipment.shippingMode.replace('_', ' ')}
+                    {(selectedShipment.shippingMode ?? '').replace(/_/g, ' ')}
                   </div>
                 </div>
                 <div className="card" style={{ padding: 16 }}>
@@ -423,7 +423,7 @@ export default function Tracking() {
                   </div>
                   <div>
                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Weight</div>
-                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{selectedShipment.weight.toLocaleString()} {selectedShipment.weightUnit || 'kg'}</div>
+                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{(selectedShipment.weight ?? 0).toLocaleString()} {selectedShipment.weightUnit || 'kg'}</div>
 
                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Origin Address</div>
                     <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{selectedShipment.originAddress}</div>

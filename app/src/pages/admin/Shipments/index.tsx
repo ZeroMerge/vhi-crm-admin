@@ -124,7 +124,7 @@ export default function Shipments() {
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 20px', background: 'var(--color-primary)', borderRadius: 'var(--border-radius-pill)', marginBottom: 24 }}>
         <Package size={20} color="white" />
         <span style={{ color: 'white', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
-          Total Shipments: {total.toLocaleString()}
+          Total Shipments: {(total ?? 0).toLocaleString()}
         </span>
       </div>
 
@@ -367,7 +367,7 @@ export default function Shipments() {
                     <Badge status={s.shippingMode} type="shipment" size="sm" />
                   </td>
                   <td>
-                    {s.weight.toLocaleString()} {s.weightUnit}
+                    {(s.weight ?? 0).toLocaleString()} {s.weightUnit || ''}
                   </td>
                   <td>
                     {s.originAddress?.split(',')[0] || 'Unknown'} → {s.destinationAddress?.split(',')[0] || 'Unknown'}
