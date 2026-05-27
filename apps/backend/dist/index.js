@@ -21,7 +21,42 @@ const admin_management_routes_1 = __importDefault(require("./modules/admin/admin
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
-app.use((0, cors_1.default)({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'https://vhi-crm-admin.vercel.app',
+    process.env.FRONTEND_URL,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined
+].filter((origin) => Boolean(origin));
+// Basic request logging to help diagnose CORS/preflight and auth issues
+app.use((req, _res, next) => {
+    const origin = req.headers.origin || 'no-origin';
+    console.log(`[REQ] ${req.method} ${req.path} Origin=${origin}`);
+    if (req.method === 'OPTIONS') {
+        console.log('[PRELIGHT] headers:', req.headers);
+    }
+    next();
+});
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        // allow non-browser requests (like curl, server-to-server) which have no origin
+        if (!origin)
+            return callback(null, true);
+        if (allowedOrigins.includes(origin))
+            return callback(null, true);
+        // allow any localhost with different port (development convenience)
+        try {
+            const url = new URL(origin);
+            if (url.hostname === 'localhost')
+                return callback(null, true);
+        }
+        catch (e) {
+            // ignore
+        }
+        return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true,
+}));
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 // Routes

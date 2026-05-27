@@ -14,16 +14,22 @@ const router = (0, express_1.Router)();
 router.post('/admin/login', async (req, res, next) => {
     try {
         const { email, password, selectedRole } = req.body;
+        console.log('[DEBUG] Login attempt received:', { email, passwordLength: password ? password.length : 0, selectedRole });
         if (!email || !password) {
+            console.log('[DEBUG] Missing email or password');
             return res.status(400).json({ success: false, message: 'Email and password required' });
         }
         const result = await db_1.default.query('SELECT * FROM admins WHERE email = $1', [email]);
+        console.log('[DEBUG] Query result rows count:', result.rows.length);
         if (result.rows.length === 0) {
+            console.log('[DEBUG] Admin email not found in database');
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
         const admin = result.rows[0];
         const valid = await bcryptjs_1.default.compare(password, admin.password_hash);
+        console.log('[DEBUG] Password bcrypt comparison result:', valid);
         if (!valid) {
+            console.log('[DEBUG] Password hash mismatch');
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
         const assignedRoles = admin.assigned_roles || ['support_staff'];
@@ -31,9 +37,11 @@ router.post('/admin/login', async (req, res, next) => {
         if (assignedRoles.length > 1 && !selectedRole) {
             return res.json({
                 success: true,
-                requiresRoleSelection: true,
-                assignedRoles,
-                admin: { id: admin.id, name: admin.name, email: admin.email }
+                data: {
+                    requiresRoleSelection: true,
+                    assignedRoles,
+                    admin: { id: admin.id, name: admin.name, email: admin.email }
+                }
             });
         }
         // Determine the active role

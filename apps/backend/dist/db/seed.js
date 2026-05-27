@@ -9,7 +9,15 @@ async function seed() {
     console.log('Seeding database...');
     // Create admin
     const adminHash = await bcryptjs_1.default.hash('Admin@123', 10);
-    const adminResult = await db_1.default.query(`INSERT INTO admins (name, email, password_hash, role) VALUES ($1, $2, $3, $4) ON CONFLICT (email) DO NOTHING RETURNING *`, ['VHI Admin', 'admin@valuehandlers.com', adminHash, 'super_admin']);
+    const adminResult = await db_1.default.query(`INSERT INTO admins (name, email, password_hash, role, assigned_roles, notification_prefs, is_active)
+     VALUES ($1, $2, $3, $4, $5, $6, true)
+     ON CONFLICT (email) DO UPDATE SET
+       password_hash = EXCLUDED.password_hash,
+       role = EXCLUDED.role,
+       assigned_roles = EXCLUDED.assigned_roles,
+       notification_prefs = EXCLUDED.notification_prefs,
+       is_active = true
+     RETURNING *`, ['VHI Admin', 'admin@valuehandlers.com', adminHash, 'super_admin', ['super_admin'], '{}']);
     console.log('Admin created:', adminResult.rows[0]?.email || 'already exists');
     // Create customers
     const customerData = [

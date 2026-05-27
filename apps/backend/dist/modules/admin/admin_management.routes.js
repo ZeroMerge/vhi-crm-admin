@@ -51,7 +51,7 @@ router.post('/invite', async (req, res, next) => {
             message: 'Admin invited successfully. An email invitation has been sent.',
             data: {
                 admin: newAdmin,
-                inviteLink: `http://localhost:5173/admin/setup-password?token=${newAdmin.id}`, // mocked invite link
+                inviteLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/setup-password?token=${newAdmin.id}`,
                 tempPassword // included for convenience in testing/local dev
             }
         });
@@ -123,7 +123,7 @@ router.delete('/:id', async (req, res, next) => {
         const result = await db_1.default.query(`UPDATE admins
        SET deleted_at = NOW(), is_active = false
        WHERE id = $1 AND deleted_at IS NULL
-       RETURNING id, name, email;`);
+       RETURNING id, name, email;`, [id]);
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Admin not found' });
         }
