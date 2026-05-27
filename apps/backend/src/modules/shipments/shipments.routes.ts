@@ -1,0 +1,180 @@
+import { Router } from 'express';
+import pool from '../../config/db';
+import { adminMiddleware } from '../../middleware/adminMiddleware';
+import { logAuditEvent } from '../../utils/audit';
+
+const router = Router();
+
+// GET /api/admin/shipments
+router.get('/', adminMiddleware, async (req, res, next) => {
+  try {
+    const { status, mode, customerId, search, dateFrom, dateTo, sortBy, page = '1', pageSize = '10' } = req.query;
+    let sql = 'SELECT s.*, c.firstname, c.lastname, c.email, c.phone, c.industry FROM shipments s LEFT JOIN customers c ON s.customer_id = c.id WHERE 1=1';
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    if (status && status !== 'all') { sql += ` AND s.status = $${paramIdx}`; params.push(status); paramIdx++; }
+    if (mode && mode !== 'all') { sql += ` AND s.shipping_mode = $${paramIdx}`; params.push(mode); paramIdx++; }
+    if (customerId) { sql += ` AND s.customer_id = $${paramIdx}`; params.push(customerId); paramIdx++; }
+    
+    if (dateFrom) {
+      sql += ` AND s.created_at >= $${paramIdx}`;
+      params.push(dateFrom);
+      paramIdx++;
+    }
+    if (dateTo) {
+      sql += ` AND s.created_at <= $${paramIdx}`;
+      params.push(dateTo);
+      paramIdx++;
+    }
+
+    if (search) {
+      sql += ` AND (s.order_id ILIKE $${paramIdx} OR s.nature_of_item ILIKE $${paramIdx} OR s.awb_number ILIKE $${paramIdx} OR s.bol_number ILIKE $${paramIdx} OR c.firstname ILIKE $${paramIdx} OR c.lastname ILIKE $${paramIdx})`;
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
+
+    const countResult = await pool.query(`SELECT COUNT(*) FROM (${sql}) AS count_query`, params);
+    const total = parseInt(countResult.rows[0].count);
+
+    // Apply sorting
+    let orderSql = ' ORDER BY s.created_at DESC'; // default newest
+    if (sortBy === 'oldest') {
+      orderSql = ' ORDER BY s.created_at ASC';
+    } else if (sortBy === 'price-high-low' || sortBy === 'price_desc') {
+      orderSql = ' ORDER BY s.invoice_value DESC';
+    } else if (sortBy === 'price-low-high' || sortBy === 'price_asc') {
+      orderSql = ' ORDER BY s.invoice_value ASC';
+    }
+
+    sql += orderSql;
+    sql += ` LIMIT $${paramIdx} OFFSET $${paramIdx + 1}`;
+    params.push(parseInt(pageSize as string), (parseInt(page as string) - 1) * parseInt(pageSize as string));
+
+    const result = await pool.query(sql, params);
+    res.json({
+      success: true,
+      data: result.rows,
+      pagination: { total, page: parseInt(page as string), pageSize: parseInt(pageSize as string), totalPages: Math.ceil(total / parseInt(pageSize as string)) },
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /api/admin/shipments/:id
+router.get('/:id', adminMiddleware, async (req, res, next) => {
+  try {
+    const shipmentResult = await pool.query('SELECT * FROM shipments WHERE id = $1', [req.params.id]);
+    if (shipmentResult.rows.length === 0) return res.status(404).json({ success: false, message: 'Shipment not found' });
+
+    const shipment = shipmentResult.rows[0];
+    const items = await pool.query('SELECT * FROM shipment_items WHERE shipment_id = $1', [req.params.id]);
+    const documents = await pool.query('SELECT * FROM shipment_documents WHERE shipment_id = $1', [req.params.id]);
+    const tracking = await pool.query('SELECT * FROM tracking_updates WHERE shipment_id = $1 ORDER BY created_at ASC', [req.params.id]);
+
+    res.json({
+      success: true,
+      data: { ...shipment, items: items.rows, documents: documents.rows, trackingUpdates: tracking.rows },
+    });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/admin/shipments/:id/status
+router.put('/:id/status', adminMiddleware, async (req, res, next) => {
+  try {
+    const { status, message } = req.body;
+    await pool.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [status, req.params.id]);
+
+    if (message) {
+      await pool.query('INSERT INTO tracking_updates (shipment_id, status, message, updated_by) VALUES ($1, $2, $3, $4)', [req.params.id, status, message, req.admin!.id]);
+    }
+
+    const result = await pool.query('SELECT * FROM shipments WHERE id = $1', [req.params.id]);
+
+    // Log audit event
+    await logAuditEvent(
+      req.admin!.id,
+      req.admin!.activeRole,
+      'UPDATE_SHIPMENT_STATUS',
+      'shipment',
+      req.params.id,
+      { status, message }
+    );
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) { next(err); }
+});
+
+// PUT /api/admin/shipments/:id/tracking
+router.put('/:id/tracking', adminMiddleware, async (req, res, next) => {
+  try {
+    const { awbNumber, bolNumber, uniqueId } = req.body;
+    const fields: string[] = [];
+    const params: any[] = [];
+    let idx = 1;
+
+    if (awbNumber !== undefined) { fields.push(`awb_number = $${idx++}`); params.push(awbNumber); }
+    if (bolNumber !== undefined) { fields.push(`bol_number = $${idx++}`); params.push(bolNumber); }
+    if (uniqueId !== undefined) { fields.push(`unique_id = $${idx++}`); params.push(uniqueId); }
+
+    params.push(req.params.id);
+    await pool.query(`UPDATE shipments SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, params);
+    const result = await pool.query('SELECT * FROM shipments WHERE id = $1', [req.params.id]);
+
+    // Log audit event
+    await logAuditEvent(
+      req.admin!.id,
+      req.admin!.activeRole,
+      'UPDATE_SHIPMENT_TRACKING_FIELDS',
+      'shipment',
+      req.params.id,
+      { awbNumber, bolNumber, uniqueId }
+    );
+
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) { next(err); }
+});
+
+// POST /api/admin/shipments/:id/documents
+router.post('/:id/documents', adminMiddleware, async (req, res, next) => {
+  try {
+    const { fileUrl, documentType } = req.body;
+    const result = await pool.query(
+      'INSERT INTO shipment_documents (shipment_id, document_type, file_url, uploaded_by) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.params.id, documentType || 'other', fileUrl, req.admin!.id]
+    );
+    const doc = result.rows[0];
+
+    // Log audit event
+    await logAuditEvent(
+      req.admin!.id,
+      req.admin!.activeRole,
+      'UPLOAD_SHIPMENT_DOCUMENT',
+      'shipment',
+      req.params.id,
+      { documentId: doc.id, documentType }
+    );
+
+    res.json({ success: true, data: doc });
+  } catch (err) { next(err); }
+});
+
+// DELETE /api/admin/shipments/:id/documents/:docId
+router.delete('/:id/documents/:docId', adminMiddleware, async (req, res, next) => {
+  try {
+    await pool.query('DELETE FROM shipment_documents WHERE id = $1 AND shipment_id = $2', [req.params.docId, req.params.id]);
+
+    // Log audit event
+    await logAuditEvent(
+      req.admin!.id,
+      req.admin!.activeRole,
+      'DELETE_SHIPMENT_DOCUMENT',
+      'shipment',
+      req.params.id,
+      { documentId: req.params.docId }
+    );
+
+    res.json({ success: true, message: 'Document deleted' });
+  } catch (err) { next(err); }
+});
+
+export default router;

@@ -1,0 +1,96 @@
+/* ============================================
+   VHI CRM Admin — Design Tokens
+   ============================================ */
+
+:root {
+  /* Brand */
+  --color-primary: #7B2D8B;
+  --color-primary-hover: #6a2578;
+  --color-primary-light: #F5EBF8;
+  --color-accent-pink: #E91E8C;
+
+  /* Status badges */
+  --color-status-delivered-bg: #D4EDDA;
+  --color-status-delivered-text: #2E7D32;
+  --color-status-in-transit-bg: #5D2E0C;
+  --color-status-in-transit-text: #FFFFFF;
+  --color-status-pending-bg: #FDECEA;
+  --color-status-pending-text: #C62828;
+  --color-status-processing-bg: #FFF8E1;
+  --color-status-processing-text: #F57F17;
+  --color-status-cancelled-bg: #EEEEEE;
+  --color-status-cancelled-text: #616161;
+  --color-status-archived-bg: #F5F5F5;
+  --color-status-archived-text: #9E9E9E;
+
+  /* Neutrals */
+  --color-sidebar-bg: #FDF6FF;
+  --color-page-bg: #FFFFFF;
+  --color-surface: #FAFAFA;
+  --color-text-primary: #1A1A1A;
+  --color-text-secondary: #6B7280;
+  --color-text-muted: #9CA3AF;
+  --color-border: #E5E7EB;
+  --color-border-focus: #7B2D8B;
+
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-4xl: 2.5rem;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Border radius — these are the ONLY allowed values */
+  --radius-input: 8px;       /* inputs, textareas, select dropdowns */
+  --radius-card: 8px;       /* cards, panels, modals, dropdowns */
+  --radius-button: 8px;      /* all buttons */
+  --radius-badge: 999px;     /* status badges, tags, small chips only */
+  --radius-avatar: 50%;      /* avatars only */
+  --radius-none: 0px;        /* tables, table rows, dividers */
+
+  /* Legacy fallback border radius variables */
+  --border-radius-sm: var(--radius-input);
+  --border-radius-md: var(--radius-card);
+  --border-radius-lg: var(--radius-card);
+  --border-radius-input: var(--radius-input);
+  --border-radius-card: var(--radius-card);
+  --border-radius-modal: var(--radius-card);
+  --border-radius-pill: var(--radius-badge);
+
+  /* Responsive breakpoints — use these everywhere */
+  --bp-mobile: 480px;
+  --bp-tablet: 768px;
+  --bp-desktop: 1024px;
+  --bp-wide: 1280px;
+
+  /* Layout */
+  --sidebar-width: 220px;
+  --sidebar-collapsed-width: 64px;
+  --topbar-height: 64px;
+  --page-padding-x: 32px;
+  --page-padding-x-tablet: 20px;
+  --page-padding-x-mobile: 16px;
+  --page-padding-y: 28px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+}
