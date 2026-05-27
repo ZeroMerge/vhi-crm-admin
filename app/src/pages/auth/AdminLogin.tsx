@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/auth.service';
@@ -211,24 +211,14 @@ export default function AdminLogin() {
           </button>
         </form>
 
-        {/* Footer Link */}
+        {/* Footer Note */}
         <p style={{ 
           textAlign: 'center', 
           marginTop: '24px', 
           fontSize: '14px', 
           color: '#64748b' 
         }}>
-          Don't have an account?{' '}
-          <Link 
-            to="/signup" 
-            style={{ 
-              color: '#9A2A8B', 
-              textDecoration: 'underline', 
-              fontWeight: 500 
-            }}
-          >
-            Sign up
-          </Link>
+          Need access? Contact your administrator for an invitation.
         </p>
       </div>
 
