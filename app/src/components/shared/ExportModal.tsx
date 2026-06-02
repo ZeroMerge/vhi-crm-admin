@@ -59,7 +59,7 @@ export function ExportModal({ isOpen, onClose, selectedCount = 0, rows = [], fil
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Export Shipment Data"
+      title="Export Data"
       maxWidth="560px"
       footer={
         <>

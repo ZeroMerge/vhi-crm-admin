@@ -441,6 +441,11 @@ img {
     justify-content: flex-start !important;
   }
 
+  /* Compose shipment 2-col grid → 1 col on mobile */
+  .compose-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   /* Stack KPI cards vertically on small screens */
   .stats-grid {
     display: grid !important;

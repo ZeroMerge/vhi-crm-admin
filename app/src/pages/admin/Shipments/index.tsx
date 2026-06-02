@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, ChevronLeft, ChevronRight, MoreVertical, SlidersHorizontal, Package, X, AlertTriangle } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, MoreVertical, SlidersHorizontal, Package, X, AlertTriangle, Plus } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
 import { ExportModal } from '@/components/shared/ExportModal';
@@ -311,6 +311,15 @@ export default function Shipments() {
 
         <div className="col-right">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {!isSupportStaff && (
+              <button
+                className="btn btn-primary"
+                onClick={() => navigate('/admin/shipments/new')}
+                id="btn-new-shipment"
+              >
+                <Plus size={16} /> New Shipment
+              </button>
+            )}
             <div style={{ padding: 12, background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1px solid var(--color-border)' }}>
               <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Total Shipments</div>
               <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)' }}>{(total ?? 0).toLocaleString()}</div>

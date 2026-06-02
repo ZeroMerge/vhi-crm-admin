@@ -54,4 +54,8 @@ export const shipmentService = {
   deleteDocument: async (shipmentId: string, docId: string): Promise<void> => {
     await api.delete(`/api/admin/shipments/${shipmentId}/documents/${docId}`);
   },
+  create: async (data: Record<string, unknown>): Promise<Shipment> => {
+    const res = await api.post<ApiResponse<Shipment>>('/api/admin/shipments', data);
+    return res.data.data;
+  },
 };

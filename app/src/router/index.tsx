@@ -6,6 +6,7 @@ import Customers from '@/pages/admin/Customers';
 import CustomerDetail from '@/pages/admin/Customers/CustomerDetail';
 import Shipments from '@/pages/admin/Shipments';
 import ShipmentDetail from '@/pages/admin/Shipments/ShipmentDetail';
+import ComposeShipment from '@/pages/admin/Shipments/Compose';
 import Tracking from '@/pages/admin/Tracking';
 import Invoices from '@/pages/admin/Invoices';
 import InvoiceDetail from '@/pages/admin/Invoices/InvoiceDetail';
@@ -30,6 +31,7 @@ export function AppRouter() {
       <Route path="/admin/customers" element={<AdminRoute><Customers /></AdminRoute>} />
       <Route path="/admin/customers/:id" element={<AdminRoute><CustomerDetail /></AdminRoute>} />
       <Route path="/admin/shipments" element={<AdminRoute><Shipments /></AdminRoute>} />
+      <Route path="/admin/shipments/new" element={<AdminRoute><ComposeShipment /></AdminRoute>} />
       <Route path="/admin/shipments/:id" element={<AdminRoute><ShipmentDetail /></AdminRoute>} />
       <Route path="/admin/tracking" element={<AdminRoute><Tracking /></AdminRoute>} />
       <Route path="/admin/invoices" element={<AdminRoute><Invoices /></AdminRoute>} />
