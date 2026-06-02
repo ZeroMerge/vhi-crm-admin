@@ -129,24 +129,27 @@ export default function Shipments() {
         </span>
       </div>
 
-      {/* Page-adaptive layout */}
-      <div className="two-col-layout" style={{ gap: 20, marginBottom: 24 }}>
-        <div>
-          {/* Page-adaptive filter bar */}
-          <div
-            className="filter-toolbar"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              marginBottom: 24,
-              flexWrap: 'wrap',
-              background: 'var(--color-surface)',
-              padding: '16px',
-              borderRadius: 'var(--border-radius-card)',
-              border: '1px solid var(--color-border)',
-            }}
-          >
+      {/* Table Section */}
+      <div style={{ 
+        background: 'var(--color-surface)', 
+        borderRadius: '12px', 
+        border: '1px solid rgba(0,0,0,0.04)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+        overflow: 'hidden',
+        marginBottom: 24
+      }}>
+        {/* Table Header */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          padding: '20px 24px', 
+          borderBottom: '1px solid rgba(0,0,0,0.04)',
+          flexWrap: 'wrap',
+          gap: 16
+        }}>
+          {/* Left Side: Search & Filters */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         {/* Search input on left */}
         <div className="search-input-wrapper" style={{ maxWidth: 220 }}>
           <Search size={18} className="search-icon" />
@@ -288,72 +291,48 @@ export default function Shipments() {
         </div>
 
         {isFilterActive && (
-          <button
-            onClick={clearAllFilters}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--color-primary)',
-              fontSize: 'var(--font-size-sm)',
-              fontWeight: 500,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-            }}
-          >
-            <X size={16} />
-            Clear
+          <button onClick={clearAllFilters} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: 'var(--font-size-sm)', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <X size={16} /> Clear
           </button>
         )}
-
           </div>
-        </div>
 
-        <div className="col-right">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Right Side: Actions & Pagination */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <button className="btn btn-ghost" onClick={() => setExportOpen(true)}>
+              <SlidersHorizontal size={16} /> Export
+            </button>
             {!isSupportStaff && (
-              <button
-                className="btn btn-primary"
-                onClick={() => navigate('/admin/shipments/new')}
-                id="btn-new-shipment"
-              >
+              <button className="btn btn-primary" onClick={() => navigate('/admin/shipments/new')} id="btn-new-shipment">
                 <Plus size={16} /> New Shipment
               </button>
             )}
-            <div style={{ padding: 12, background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1px solid var(--color-border)' }}>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Total Shipments</div>
-              <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)' }}>{(total ?? 0).toLocaleString()}</div>
+            
+            <div className="pagination" style={{ borderTop: 'none', padding: 0, margin: 0 }}>
+              <span className="pagination-info" style={{ marginRight: 8 }}>
+                {total > 0 ? `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} of ${total}` : '0-0 of 0'}
+              </span>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button className="pagination-btn" onClick={() => handlePageChange(page - 1)} disabled={page === 1}>
+                  <ChevronLeft size={16} />
+                </button>
+                <button className="pagination-btn" onClick={() => handlePageChange(page + 1)} disabled={page === Math.ceil(total / pageSize) || total === 0}>
+                  <ChevronRight size={16} />
+                </button>
+              </div>
             </div>
-            <button className="btn btn-ghost" onClick={() => setExportOpen(true)}>
-              <SlidersHorizontal size={16} /> Customize Export
-            </button>
           </div>
         </div>
-      </div>
 
-      {isSupportStaff && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'var(--color-primary-light)',
-            color: 'var(--color-primary)',
-            padding: '10px 16px',
-            borderRadius: 'var(--border-radius-sm)',
-            fontSize: 'var(--font-size-xs)',
-            marginBottom: '16px',
-            fontWeight: 500,
-          }}
-        >
-          <AlertTriangle size={14} />
-          <span>You are logged in with the read-only Support Staff role. Action buttons are disabled.</span>
-        </div>
-      )}
+        {isSupportStaff && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '10px 16px', fontSize: 'var(--font-size-xs)', fontWeight: 500, borderBottom: '1px solid var(--color-border)' }}>
+            <AlertTriangle size={14} />
+            <span>You are logged in with the read-only Support Staff role. Action buttons are disabled.</span>
+          </div>
+        )}
 
-      {/* Table */}
-      <div className="vhi-table-container" style={{ overflow: 'visible' }}>
+        {/* Table */}
+        <div className="vhi-table-container" style={{ overflow: 'visible', borderRadius: 0, border: 'none' }}>
         <div style={{ overflowX: 'auto' }}>
           <table className="vhi-table">
             <thead>
@@ -457,31 +436,7 @@ export default function Shipments() {
           </div>
         )}
       </div>
-
-      {/* Pagination */}
-      {!loading && total > 0 && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-          <div className="pagination">
-            <span className="pagination-info">
-              {Math.min((page - 1) * pageSize + 1, total)}-{Math.min(page * pageSize, total)} of {total}
-            </span>
-            <button
-              className="pagination-btn"
-              onClick={() => handlePageChange(page - 1)}
-              disabled={page === 1}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              className="pagination-btn"
-              onClick={() => handlePageChange(page + 1)}
-              disabled={page === totalPages}
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
 
       <ExportModal isOpen={exportOpen} onClose={() => setExportOpen(false)} />
     </PageWrapper>

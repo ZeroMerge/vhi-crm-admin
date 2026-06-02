@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate as useReactNavigate } from 'react-router-dom';
 import { Send, ChevronRight, MailOpen } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
@@ -24,137 +23,123 @@ const segments: Segment[] = [
 
 export default function Newsletter() {
   const navigate = useReactNavigate();
-  const [hoveredIdx, setHoveredIdx] = useState<string | null>(null);
 
   const totalSubs = 156;
 
   return (
     <PageWrapper title="Newsletter Broadcasts">
-      {/* Top action row */}
-      <div className="filter-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-base)' }}>
-          Manage your customer mailing lists and broadcast premium email campaigns.
-        </p>
-        <button 
-          className="btn btn-primary" 
-          onClick={() => navigate('/admin/newsletter/compose')}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px' }}
-        >
-          <Send size={16} />
-          Compose Broadcast
-        </button>
-      </div>
+      <div style={{ 
+        background: 'var(--color-surface)', 
+        borderRadius: '12px', 
+        border: '1px solid rgba(0,0,0,0.04)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+        overflow: 'hidden',
+        marginBottom: 24
+      }}>
+        {/* Table Header */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          padding: '20px 24px', 
+          borderBottom: '1px solid rgba(0,0,0,0.04)',
+          flexWrap: 'wrap',
+          gap: 16
+        }}>
+          <div>
+            <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)', margin: 0, marginBottom: 4 }}>
+              Subscriber Segments
+            </h2>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+              Manage your customer mailing lists and broadcast premium email campaigns.
+            </p>
+          </div>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => navigate('/admin/newsletter/compose')}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Send size={16} />
+            Compose Broadcast
+          </button>
+        </div>
 
-      {/* Notion-Style List Header */}
-      <div 
-        className="newsletter-segment-header"
-        style={{ 
-          display: 'grid', 
-          gridTemplateColumns: '260px 1fr 180px 50px', 
-          padding: '12px 16px',
-          color: 'var(--color-text-muted)',
-          fontSize: 'var(--font-size-xs)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-          fontWeight: 600,
-          marginBottom: '8px'
-        }}
-      >
-        <span>Audience Segment</span>
-        <span>Mailing Distribution Ratio</span>
-        <span>Last Campaign</span>
-        <span style={{ textAlign: 'right' }}>Actions</span>
-      </div>
+        {/* Table */}
+        {/* Responsive Flex List */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {/* Header Row - hidden on very small screens implicitly by layout or just kept as a reference */}
+          <div style={{ 
+            display: 'flex', 
+            padding: '12px 24px', 
+            background: 'var(--color-surface)', 
+            borderBottom: '1px solid rgba(0,0,0,0.04)',
+            fontSize: 'var(--font-size-xs)',
+            fontWeight: 600,
+            color: 'var(--color-text-secondary)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em'
+          }}>
+            <div style={{ flex: '1 1 200px' }}>Audience Segment</div>
+            <div style={{ flex: '1 1 200px' }}>Distribution</div>
+            <div style={{ flex: '0 0 auto', width: 120 }}>Last Sent</div>
+          </div>
 
-      {/* Segment list container - generous spacing instead of 1px lines */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {segments.map((segment) => {
-          const isHovered = hoveredIdx === segment.industry;
-          const ratio = (segment.count / totalSubs) * 100;
-          
-          return (
-            <div
-              key={segment.industry}
-              className="newsletter-segment-item"
-              onClick={() => navigate(`/admin/newsletter/compose?segment=${segment.industry}`)}
-              onMouseEnter={() => setHoveredIdx(segment.industry)}
-              onMouseLeave={() => setHoveredIdx(null)}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: '260px 1fr 180px 50px',
-                alignItems: 'center',
-                padding: '18px 16px',
-                background: isHovered ? 'var(--color-surface)' : 'rgba(255, 255, 255, 0.4)',
-                borderRadius: 'var(--radius-card)', /* 12px */
-                cursor: 'pointer',
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                boxShadow: isHovered ? '0 4px 12px rgba(0, 0, 0, 0.02)' : 'none',
-                transform: isHovered ? 'translateY(-1px)' : 'none'
-              }}
-            >
-              {/* Segment Name & Sleek Tag */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ 
-                  fontWeight: 600, 
-                  fontSize: 'var(--font-size-base)', 
-                  color: isHovered ? 'var(--color-primary)' : 'var(--color-text-primary)' 
-                }}>
-                  {segment.label}
-                </span>
-                <span style={{
-                  padding: '3px 8px',
-                  borderRadius: 'var(--radius-badge)',
-                  background: isHovered ? 'var(--color-primary-light)' : 'var(--color-border)',
-                  color: isHovered ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                  fontSize: '11px',
-                  fontWeight: 600
-                }}>
-                  {segment.count} subs
-                </span>
-              </div>
-
-              {/* Distribution ratio mini chart */}
-              <div style={{ paddingRight: '48px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ 
-                  flex: 1, 
-                  height: '6px', 
-                  background: 'var(--color-border)', 
-                  borderRadius: '999px',
-                  overflow: 'hidden',
-                  position: 'relative'
-                }}>
-                  <div style={{
-                    width: `${ratio}%`,
-                    height: '100%',
-                    background: segment.color,
-                    borderRadius: '999px',
-                    transition: 'width 0.3s ease'
-                  }} />
+          {segments.map((segment) => {
+            const ratio = (segment.count / totalSubs) * 100;
+            return (
+              <div 
+                key={segment.industry} 
+                onClick={() => navigate(`/admin/newsletter/compose?segment=${segment.industry}`)}
+                style={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap', 
+                  alignItems: 'center', 
+                  padding: '16px 24px', 
+                  borderBottom: '1px solid rgba(0,0,0,0.04)',
+                  gap: 16,
+                  cursor: 'pointer',
+                  transition: 'background 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-hover, #f8f9fa)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                {/* Segment Name & Pill */}
+                <div style={{ flex: '1 1 200px', display: 'flex', alignItems: 'center', gap: 12, minWidth: 200 }}>
+                  <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{segment.label}</span>
+                  <span style={{
+                    padding: '4px 10px',
+                    borderRadius: '100px',
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-secondary)',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {segment.count} subs
+                  </span>
                 </div>
-                <span style={{ 
-                  fontSize: 'var(--font-size-xs)', 
-                  color: 'var(--color-text-secondary)', 
-                  width: '32px',
-                  textAlign: 'right',
-                  fontWeight: 500
-                }}>
-                  {Math.round(ratio)}%
-                </span>
-              </div>
 
-              {/* Last sent date */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-                <MailOpen size={15} style={{ opacity: 0.7 }} />
-                <span>Sent {segment.lastSent}</span>
-              </div>
+                {/* Progress Bar */}
+                <div style={{ flex: '1 1 200px', display: 'flex', alignItems: 'center', gap: '16px', minWidth: 200 }}>
+                  <div style={{ flex: 1, height: '6px', background: 'var(--color-border)', borderRadius: '999px', overflow: 'hidden' }}>
+                    <div style={{ width: `${ratio}%`, height: '100%', background: segment.color, borderRadius: '999px' }} />
+                  </div>
+                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', width: '32px', textAlign: 'right', fontWeight: 600 }}>
+                    {Math.round(ratio)}%
+                  </span>
+                </div>
 
-              {/* Action arrow */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', color: isHovered ? 'var(--color-primary)' : 'var(--color-text-muted)' }}>
-                <ChevronRight size={18} style={{ transform: isHovered ? 'translateX(2px)' : 'none', transition: 'transform 0.2s' }} />
+                {/* Last Sent */}
+                <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', minWidth: 120 }}>
+                  <MailOpen size={15} style={{ opacity: 0.7 }} />
+                  <span>Sent {segment.lastSent}</span>
+                  <ChevronRight size={16} style={{ marginLeft: 8, opacity: 0.5 }} />
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </PageWrapper>
   );

@@ -40,9 +40,9 @@ export default function ComposeNewsletter() {
         Back to Newsletter
       </button>
 
-      <div className="two-col-layout" style={{ gap: 24 }}>
+      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         {/* Left - Compose Form */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, flex: '1 1 600px', minWidth: 0 }}>
           {/* Segments */}
           <div className="card">
             <h3 className="card-title" style={{ marginBottom: 16 }}>Select Segments</h3>
@@ -115,8 +115,8 @@ export default function ComposeNewsletter() {
         </div>
 
         {/* Right - Preview */}
-        <div className="col-right">
-          <div className="card" style={{ position: 'sticky', top: 0 }}>
+        <div style={{ flex: '1 1 350px', minWidth: 0 }}>
+          <div className="card" style={{ position: 'sticky', top: 24 }}>
             <h3 className="card-title" style={{ marginBottom: 16 }}>Preview</h3>
 
             {/* Recipient Count */}

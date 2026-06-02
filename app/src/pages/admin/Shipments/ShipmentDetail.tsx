@@ -1,87 +1,95 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Upload, Download, Trash2, Clock, Package, MapPin } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { formatDate, formatDateTime } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
-import type { Shipment, TrackingUpdate, ShipmentStatus } from '@/types';
-
-const mockShipment: Shipment = {
-  id: 'ship-1',
-  orderId: '#1895-67-fw',
-  customerId: '1',
-  customer: { id: '1', userId: 'USR001', firstname: 'Jane', lastname: 'Smith', email: 'jane@vhi.com', phone: '+2348012345678', industry: 'oil_gas', starRating: 4, status: 'loyal', newsletterPrefs: [], isActive: true, createdAt: '2024-01-15T10:00:00Z' },
-  shippingMode: 'air_freight',
-  deliveryMode: 'door_to_door',
-  natureOfItem: 'Building material',
-  hsCode: '392690',
-  invoiceValue: 34000000,
-  invoiceCurrency: 'NGN',
-  weight: 365000,
-  weightUnit: 'kg',
-  originAddress: '45 Oxford Street, London W1D 2DZ, United Kingdom',
-  destinationAddress: '12 Vaclavske namesti, Prague 110 00, Czech Republic',
-  originPickupOption: 'vhi_pickup',
-  portOfDischarge: 'Heathrow Airport',
-  awbNumber: '157-12345670',
-  bolNumber: '',
-  uniqueId: '',
-  status: 'delivered',
-  isDraft: false,
-  items: [
-    { id: 'item-1', shipmentId: 'ship-1', description: 'Ceramic Tiles', quantity: 500, weight: 180000, dimensionL: 60, dimensionW: 60, dimensionH: 10, dimensionUnit: 'cm' },
-    { id: 'item-2', shipmentId: 'ship-1', description: 'Steel Rebar', quantity: 200, weight: 185000, dimensionL: 600, dimensionW: 20, dimensionH: 20, dimensionUnit: 'cm' },
-  ],
-  documents: [
-    { id: 'doc-1', shipmentId: 'ship-1', documentType: 'awb', fileUrl: '/docs/awb-1895.pdf', uploadedBy: 'admin', createdAt: '2024-03-10T08:00:00Z' },
-    { id: 'doc-2', shipmentId: 'ship-1', documentType: 'packing_list', fileUrl: '/docs/packing-1895.pdf', uploadedBy: 'admin', createdAt: '2024-03-11T09:00:00Z' },
-  ],
-  trackingUpdates: [
-    { id: 'tu-1', shipmentId: 'ship-1', status: 'pending', message: 'Shipment created and awaiting pickup', updatedBy: 'admin-1', createdAt: '2024-03-12T08:00:00Z' },
-    { id: 'tu-2', shipmentId: 'ship-1', status: 'processing', message: 'Shipment picked up from origin', updatedBy: 'admin-1', createdAt: '2024-03-12T14:00:00Z' },
-    { id: 'tu-3', shipmentId: 'ship-1', status: 'in_transit', message: 'Departed from origin facility', updatedBy: 'admin-1', createdAt: '2024-03-13T06:00:00Z' },
-    { id: 'tu-4', shipmentId: 'ship-1', status: 'in_transit', message: 'Arrived at Heathrow Airport', updatedBy: 'admin-1', createdAt: '2024-03-14T10:00:00Z' },
-    { id: 'tu-5', shipmentId: 'ship-1', status: 'delivered', message: 'Delivered to destination address', updatedBy: 'admin-1', createdAt: '2024-03-16T16:00:00Z' },
-  ],
-  createdAt: '2024-03-12T10:00:00Z',
-  updatedAt: '2024-03-16T16:00:00Z',
-};
+import { shipmentService } from '@/services/shipment.service';
+import type { Shipment, ShipmentStatus } from '@/types';
 
 const statusOptions: ShipmentStatus[] = ['draft', 'pending', 'processing', 'in_transit', 'clearance', 'delivered', 'cancelled'];
 
 export default function ShipmentDetail() {
   const navigate = useNavigate();
-  const [shipment, setShipment] = useState(mockShipment);
+  const { id } = useParams();
+  const [shipment, setShipment] = useState<Shipment | null>(null);
+  const [loading, setLoading] = useState(true);
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [newStatus, setNewStatus] = useState<ShipmentStatus>(shipment.status);
+  const [newStatus, setNewStatus] = useState<ShipmentStatus>('pending');
   const [statusMessage, setStatusMessage] = useState('');
-  const [awbNumber, setAwbNumber] = useState(shipment.awbNumber || '');
-  const [bolNumber, setBolNumber] = useState(shipment.bolNumber || '');
-  const [uniqueId, setUniqueId] = useState(shipment.uniqueId || '');
+  const [awbNumber, setAwbNumber] = useState('');
+  const [bolNumber, setBolNumber] = useState('');
+  const [uniqueId, setUniqueId] = useState('');
 
-  const handleAddStatus = () => {
-    const update: TrackingUpdate = {
-      id: `tu-${Date.now()}`,
-      shipmentId: shipment.id,
-      status: newStatus,
-      message: statusMessage,
-      updatedBy: 'admin-1',
-      createdAt: new Date().toISOString(),
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    const fetchShipment = async () => {
+      setLoading(true);
+      try {
+        const data = await shipmentService.getById(id);
+        if (active) {
+          setShipment(data);
+          setNewStatus(data.status);
+          setAwbNumber(data.awbNumber || '');
+          setBolNumber(data.bolNumber || '');
+          setUniqueId(data.uniqueId || '');
+        }
+      } catch (err) {
+        console.error('Failed to load shipment:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
     };
-    setShipment({
-      ...shipment,
-      status: newStatus,
-      trackingUpdates: [...(shipment.trackingUpdates || []), update],
-    });
-    setShowStatusModal(false);
-    setStatusMessage('');
+    fetchShipment();
+    return () => { active = false; };
+  }, [id]);
+
+  const handleAddStatus = async () => {
+    if (!shipment) return;
+    try {
+      const updated = await shipmentService.updateStatus(shipment.id, newStatus, statusMessage);
+      setShipment(updated);
+      setShowStatusModal(false);
+      setStatusMessage('');
+    } catch (err) {
+      console.error('Failed to update status', err);
+    }
   };
 
-  const handleSaveTracking = () => {
-    setShipment({ ...shipment, awbNumber, bolNumber, uniqueId });
+  const handleSaveTracking = async () => {
+    if (!shipment) return;
+    try {
+      const updated = await shipmentService.updateTracking(shipment.id, { awbNumber, bolNumber, uniqueId });
+      setShipment(updated);
+    } catch (err) {
+      console.error('Failed to update tracking', err);
+    }
   };
+
+  if (loading) {
+    return (
+      <PageWrapper>
+        <div className="card animate-pulse" style={{ height: 280, background: 'var(--color-surface)' }} />
+      </PageWrapper>
+    );
+  }
+
+  if (!shipment) {
+    return (
+      <PageWrapper>
+        <button onClick={() => navigate('/admin/shipments')} className="btn-back">
+          <ArrowLeft size={18} />
+          Back to Shipments
+        </button>
+        <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+          Shipment not found.
+        </div>
+      </PageWrapper>
+    );
+  }
 
   const docTypeLabel = (type: string) => {
     const labels: Record<string, string> = {

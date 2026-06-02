@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
+import { hasModuleAccess } from '@/utils/rolePermissions';
 import AdminLogin from '@/pages/auth/AdminLogin';
 import Overview from '@/pages/admin/Overview';
 import Customers from '@/pages/admin/Customers';
@@ -18,16 +19,27 @@ import Reports from '@/pages/admin/Reports';
 import Settings from '@/pages/admin/Settings';
 import Feedback from '@/pages/admin/Feedback';
 
-function AdminRoute({ children }: { children: React.ReactNode }) {
+function AdminRoute({ children, module }: { children: React.ReactNode, module?: string }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return isAuthenticated ? <>{children}</> : <Navigate to="/admin/login" replace />;
+  const admin = useAuthStore((s) => s.admin);
+
+  if (!isAuthenticated) return <Navigate to="/admin/login" replace />;
+
+  if (module && admin?.activeRole && !hasModuleAccess(admin.activeRole, module)) {
+    const role = admin.activeRole;
+    if (role === 'finance_officer') return <Navigate to="/admin/invoices" replace />;
+    if (role === 'logistics_officer' || role === 'support_staff') return <Navigate to="/admin/shipments" replace />;
+    return <Navigate to="/admin/customers" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 export function AppRouter() {
   return (
     <Routes>
       <Route path="/admin/login" element={<AdminLogin />} />
-      <Route path="/admin" element={<AdminRoute><Overview /></AdminRoute>} />
+      <Route path="/admin" element={<AdminRoute module="overview"><Overview /></AdminRoute>} />
       <Route path="/admin/customers" element={<AdminRoute><Customers /></AdminRoute>} />
       <Route path="/admin/customers/:id" element={<AdminRoute><CustomerDetail /></AdminRoute>} />
       <Route path="/admin/shipments" element={<AdminRoute><Shipments /></AdminRoute>} />

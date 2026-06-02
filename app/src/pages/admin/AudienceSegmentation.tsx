@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Move } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
+import { customerService } from '@/services/customer.service';
 import type { Customer, Industry } from '@/types';
 
 const industries: { value: Industry; label: string }[] = [
@@ -15,21 +16,35 @@ const industries: { value: Industry; label: string }[] = [
   { value: 'others', label: 'Others' },
 ];
 
-const mockCustomers: Customer[] = [
-  { id: '1', userId: 'USR001', firstname: 'Jane', lastname: 'Smith', email: 'jane@vhi.com', phone: '+2348012345678', industry: 'oil_gas', starRating: 4, status: 'loyal', newsletterPrefs: [], isActive: true, createdAt: '2024-01-15T10:00:00Z' },
-  { id: '2', userId: 'USR002', firstname: 'John', lastname: 'Doe', email: 'john@vhi.com', phone: '+2348023456789', industry: 'medical', starRating: 3, status: 'prospect', newsletterPrefs: [], isActive: true, createdAt: '2024-02-20T08:30:00Z' },
-  { id: '3', userId: 'USR003', firstname: 'Sarah', lastname: 'Lee', email: 'sarah@vhi.com', phone: '+2348034567890', industry: 'pharma', starRating: 5, status: 'loyal', newsletterPrefs: [], isActive: true, createdAt: '2024-03-05T14:15:00Z' },
-  { id: '4', userId: 'USR004', firstname: 'Mike', lastname: 'Brown', email: 'mike@vhi.com', phone: '+2348045678901', industry: 'manufacturing', starRating: 2, status: 'lead', newsletterPrefs: [], isActive: false, createdAt: '2024-03-18T09:00:00Z' },
-  { id: '5', userId: 'USR005', firstname: 'Lisa', lastname: 'Wang', email: 'lisa@vhi.com', phone: '+2348056789012', industry: 'mining', starRating: 4, status: 'returning', newsletterPrefs: [], isActive: true, createdAt: '2024-04-01T11:30:00Z' },
-];
-
 export default function AudienceSegmentation() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [segmentFilter, setSegmentFilter] = useState('');
+  
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = mockCustomers.filter((c) => {
+  useEffect(() => {
+    let active = true;
+    const fetchCustomers = async () => {
+      setLoading(true);
+      try {
+        const response = await customerService.list({ pageSize: 1000 });
+        if (active) {
+          setCustomers(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to load customers:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchCustomers();
+    return () => { active = false; };
+  }, []);
+
+  const filtered = customers.filter((c) => {
     if (search && !`${c.firstname} ${c.lastname} ${c.email}`.toLowerCase().includes(search.toLowerCase())) return false;
     if (segmentFilter && c.industry !== segmentFilter) return false;
     return true;
@@ -94,28 +109,42 @@ export default function AudienceSegmentation() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((customer) => (
-              <tr key={customer.id}>
-                <td>
-                  <input type="checkbox" className="toggle" style={{ width: 18, height: 18 }} checked={selectedRows.has(customer.id)} onChange={() => toggleRow(customer.id)} />
+            {loading ? (
+              <tr>
+                <td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                  Loading customers...
                 </td>
-                <td style={{ fontWeight: 500 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--color-primary-light)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>
-                      {customer.firstname[0]}{customer.lastname[0]}
-                    </div>
-                    {customer.firstname} {customer.lastname}
-                  </div>
-                </td>
-                <td>{customer.email}</td>
-                <td>
-                  <select className="select" value={customer.industry} style={{ minWidth: 180 }}>
-                    {industries.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
-                  </select>
-                </td>
-                <td><Badge status={customer.status} type="customer" size="sm" /></td>
               </tr>
-            ))}
+            ) : filtered.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                  No customers found matching criteria.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((customer) => (
+                <tr key={customer.id}>
+                  <td>
+                    <input type="checkbox" className="toggle" style={{ width: 18, height: 18 }} checked={selectedRows.has(customer.id)} onChange={() => toggleRow(customer.id)} />
+                  </td>
+                  <td style={{ fontWeight: 500 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--color-primary-light)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--font-size-xs)', fontWeight: 600 }}>
+                        {customer.firstname[0]}{customer.lastname ? customer.lastname[0] : ''}
+                      </div>
+                      {customer.firstname} {customer.lastname}
+                    </div>
+                  </td>
+                  <td>{customer.email}</td>
+                  <td>
+                    <select className="select" value={customer.industry} style={{ minWidth: 180 }}>
+                      {industries.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
+                    </select>
+                  </td>
+                  <td><Badge status={customer.status} type="customer" size="sm" /></td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

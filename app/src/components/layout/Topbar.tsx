@@ -15,7 +15,7 @@ const roleLabels: Record<AdminRole, string> = {
   super_admin: 'Super Admin',
   manager: 'Manager',
   logistics_officer: 'Logistics Officer',
-  finance_officer: 'Finance_Officer',
+  finance_officer: 'Finance Officer',
   crm_officer: 'CRM Officer',
   support_staff: 'Support Staff',
 };
@@ -398,25 +398,28 @@ export function Topbar() {
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
             <Avatar name={admin?.name || 'VHI Admin'} size="md" />
-            <div style={{ textAlign: 'left' }}>
+            <div className="topbar-admin-name" style={{ textAlign: 'left' }}>
               <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                 {admin?.name || 'VHI Admin'}
               </div>
               <div style={{
-                fontSize: '10px',
+                fontSize: '11px',
                 color: 'var(--color-primary)',
                 background: 'var(--color-primary-light)',
-                padding: '2px 8px',
+                padding: '3px 10px',
                 borderRadius: '12px',
                 display: 'inline-flex',
                 alignItems: 'center',
-                marginTop: 2,
+                justifyContent: 'center',
+                lineHeight: 1,
+                marginTop: 4,
                 fontWeight: 600,
               }}>
                 {roleLabels[admin?.activeRole || 'support_staff']}
               </div>
             </div>
             <ChevronDown
+              className="topbar-admin-name"
               size={16}
               color="var(--color-text-muted)"
               style={{
@@ -442,117 +445,130 @@ export function Topbar() {
                 overflow: 'hidden',
               }}
             >
-              <button
-                onClick={() => handleDropdownNavigate('/admin/settings?tab=profile')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '12px 16px',
-                  width: '100%',
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  fontSize: 'var(--font-size-sm)',
-                  color: 'var(--color-text-secondary)',
-                  textAlign: 'left',
-                  transition: 'background 0.15s ease',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary-light)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <User size={16} />
-                My Profile
-              </button>
-              <button
-                onClick={() => handleDropdownNavigate('/admin/settings?tab=account')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '12px 16px',
-                  width: '100%',
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  fontSize: 'var(--font-size-sm)',
-                  color: 'var(--color-text-secondary)',
-                  textAlign: 'left',
-                  transition: 'background 0.15s ease',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-primary-light)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <Settings size={16} />
-                Account Settings
-              </button>
-              
-              <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
-              
-              {/* Role Switcher for Testing */}
-              <div style={{ padding: '8px 16px', fontSize: '10px', textTransform: 'uppercase', color: 'var(--color-text-muted)', fontWeight: 600 }}>Switch Role (Test)</div>
-              {Object.keys(roleLabels).map((role) => (
+              <div style={{ padding: '8px' }}>
                 <button
-                  key={role}
-                  onClick={() => {
-                    const state = useAuthStore.getState();
-                    if (state.admin) {
-                      state.setAdmin({ ...state.admin, activeRole: role as AdminRole });
-                    }
-                    setShowProfile(false);
-                    // Reload to reset state depending on role
-                    window.location.href = '/admin';
-                  }}
+                  onClick={() => handleDropdownNavigate('/admin/settings?tab=profile')}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
-                    padding: '8px 16px',
+                    padding: '8px 12px',
                     width: '100%',
                     border: 'none',
-                    background: admin?.activeRole === role ? 'var(--color-primary-light)' : 'none',
+                    background: 'none',
                     cursor: 'pointer',
-                    fontSize: 'var(--font-size-xs)',
-                    color: admin?.activeRole === role ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                    fontWeight: admin?.activeRole === role ? 600 : 400,
+                    fontSize: 'var(--font-size-sm)',
+                    color: 'var(--color-text-secondary)',
                     textAlign: 'left',
+                    borderRadius: '6px',
                     transition: 'background 0.15s ease',
                   }}
-                  onMouseEnter={(e) => { if (admin?.activeRole !== role) e.currentTarget.style.backgroundColor = 'var(--color-surface)'; }}
-                  onMouseLeave={(e) => { if (admin?.activeRole !== role) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-hover, #f3f4f6)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
-                  {roleLabels[role as AdminRole]}
+                  <User size={16} />
+                  My Profile
                 </button>
-              ))}
-
-              <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
+                <button
+                  onClick={() => handleDropdownNavigate('/admin/settings?tab=account')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 12px',
+                    width: '100%',
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    fontSize: 'var(--font-size-sm)',
+                    color: 'var(--color-text-secondary)',
+                    textAlign: 'left',
+                    borderRadius: '6px',
+                    transition: 'background 0.15s ease',
+                    marginTop: '2px',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-hover, #f3f4f6)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <Settings size={16} />
+                  Account Settings
+                </button>
+              </div>
               
-              <button
-                onClick={handleSignOut}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  padding: '12px 16px',
-                  width: '100%',
-                  border: 'none',
-                  background: 'none',
-                  cursor: 'pointer',
-                  fontSize: 'var(--font-size-sm)',
-                  color: '#D32F2F', /* Sign out is red */
-                  textAlign: 'left',
-                  transition: 'background 0.15s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#FFF5F5';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                <LogOut size={16} />
-                Sign Out
-              </button>
+              <div style={{ height: 1, background: 'var(--color-border)', margin: '0' }} />
+              
+              {/* Role Switcher for Testing */}
+              <div style={{ padding: '12px 16px 4px', fontSize: '10px', textTransform: 'uppercase', color: 'var(--color-text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>Switch Role (Test)</div>
+              <div style={{ padding: '4px 8px' }}>
+                {Object.keys(roleLabels).map((role) => (
+                  <button
+                    key={role}
+                    onClick={() => {
+                      const state = useAuthStore.getState();
+                      if (state.admin) {
+                        state.setAdmin({ ...state.admin, activeRole: role as AdminRole });
+                      }
+                      setShowProfile(false);
+                      // Reload to reset state depending on role
+                      window.location.href = '/admin';
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 12px',
+                      width: '100%',
+                      border: 'none',
+                      background: admin?.activeRole === role ? 'var(--color-primary-light)' : 'none',
+                      cursor: 'pointer',
+                      fontSize: 'var(--font-size-sm)',
+                      color: admin?.activeRole === role ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                      fontWeight: admin?.activeRole === role ? 600 : 400,
+                      textAlign: 'left',
+                      borderRadius: '6px',
+                      transition: 'background 0.15s ease',
+                      marginTop: '2px',
+                    }}
+                    onMouseEnter={(e) => { if (admin?.activeRole !== role) e.currentTarget.style.backgroundColor = 'var(--color-surface-hover, #f3f4f6)'; }}
+                    onMouseLeave={(e) => { if (admin?.activeRole !== role) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                  >
+                    {roleLabels[role as AdminRole]}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ height: 1, background: 'var(--color-border)', margin: '0' }} />
+              
+              <div style={{ padding: '8px' }}>
+                <button
+                  onClick={handleSignOut}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 12px',
+                    width: '100%',
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    fontSize: 'var(--font-size-sm)',
+                    fontWeight: 500,
+                    color: '#D32F2F', /* Sign out is red */
+                    textAlign: 'left',
+                    borderRadius: '6px',
+                    transition: 'background 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#FFF5F5';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  <LogOut size={16} />
+                  Sign Out
+                </button>
+              </div>
             </div>
           )}
         </div>

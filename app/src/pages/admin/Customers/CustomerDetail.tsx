@@ -7,12 +7,8 @@ import { StarRating } from '@/components/ui/StarRating';
 import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { customerService } from '@/services/customer.service';
+import { communicationService } from '@/services/communication.service';
 import type { Customer, Shipment, Payment, Communication } from '@/types';
-
-const mockMessages: Communication[] = [
-  { id: '1', customerId: '1', sentBy: 'admin-1', subject: 'Shipment Update', body: 'Your shipment has been delivered successfully.', isRead: true, createdAt: '2024-03-15T14:00:00Z' },
-  { id: '2', customerId: '1', sentBy: 'admin-1', subject: 'Invoice Reminder', body: 'Please find attached your invoice for the recent shipment.', isRead: false, createdAt: '2024-04-10T09:00:00Z' },
-];
 
 type TabType = 'shipments' | 'payments' | 'messages';
 
@@ -23,6 +19,7 @@ export default function CustomerDetail() {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [messages, setMessages] = useState<Communication[]>([]);
   const [loading, setLoading] = useState(true);
   const [starRating, setStarRating] = useState(0);
   const [customerStatus, setCustomerStatus] = useState<Customer['status']>('loyal');
@@ -44,10 +41,11 @@ export default function CustomerDetail() {
     const fetchCustomer = async () => {
       setLoading(true);
       try {
-        const [customerData, shipmentData, paymentData] = await Promise.all([
+        const [customerData, shipmentData, paymentData, messageData] = await Promise.all([
           customerService.getById(id),
           customerService.getShipments(id),
           customerService.getPayments(id),
+          communicationService.getThread(id).catch(() => []),
         ]);
 
         if (!active) return;
@@ -55,6 +53,7 @@ export default function CustomerDetail() {
         setCustomer(customerData);
         setShipments(shipmentData);
         setPayments(paymentData);
+        setMessages(messageData);
         setStarRating(customerData.starRating);
         setCustomerStatus(customerData.status);
       } catch (err) {
@@ -286,15 +285,21 @@ export default function CustomerDetail() {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {mockMessages.map((msg) => (
-              <div key={msg.id} className="card" style={{ padding: 16 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                  <span style={{ fontWeight: 600 }}>{msg.subject}</span>
-                  <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{formatDate(msg.createdAt)}</span>
-                </div>
-                <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>{msg.body}</p>
+            {messages.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                No messages found for this customer.
               </div>
-            ))}
+            ) : (
+              messages.map((msg) => (
+                <div key={msg.id} className="card" style={{ padding: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontWeight: 600 }}>{msg.subject}</span>
+                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{formatDate(msg.createdAt)}</span>
+                  </div>
+                  <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>{msg.body}</p>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

@@ -79,55 +79,82 @@ export default function Reports() {
   return (
     <PageWrapper title="Reports">
       {/* Tabs + Export */}
-      <div className="two-col-layout" style={{ marginBottom: 24 }}>
-        <div>
-          <div className="tabs">
-            {tabs.map((tab) => (
-              <button
-                key={tab.value}
-                className={`tab ${activeTab === tab.value ? 'active' : ''}`}
-                onClick={() => handleTabChange(tab.value)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+        <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface)', padding: 6, borderRadius: 'var(--border-radius-pill)', border: '1px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.value}
+              onClick={() => handleTabChange(tab.value)}
+              style={{
+                padding: '8px 20px',
+                borderRadius: 'var(--border-radius-pill)',
+                border: 'none',
+                background: activeTab === tab.value ? 'var(--color-primary-light)' : 'transparent',
+                color: activeTab === tab.value ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: activeTab === tab.value ? 600 : 500,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-        <div className="col-right">
-          <button className="btn btn-outline" onClick={handleExport} disabled={loading}>
-            <Download size={16} />
-            Export Report (CSV)
-          </button>
-        </div>
+        <button className="btn btn-outline" onClick={handleExport} disabled={loading} style={{ background: 'var(--color-surface)', border: '1px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <Download size={16} />
+          Export Report (CSV)
+        </button>
       </div>
 
       {loading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
-            {[1, 2, 3, 4].map((i) => <div key={i} className="card animate-pulse" style={{ height: 110, background: 'var(--color-surface)' }} />)}
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} style={{ background: 'var(--color-surface)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.04)', padding: 24, minHeight: 140 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <div className="skeleton" style={{ width: 100, height: 16, borderRadius: 4 }} />
+                  <div className="skeleton" style={{ width: 32, height: 32, borderRadius: 8 }} />
+                </div>
+                <div className="skeleton" style={{ width: 140, height: 32, borderRadius: 6 }} />
+              </div>
+            ))}
           </div>
-          <div className="card animate-pulse" style={{ height: 300, background: 'var(--color-surface)' }} />
-          <div className="card animate-pulse" style={{ height: 200, background: 'var(--color-surface)' }} />
+          <div className="skeleton" style={{ height: 300, background: 'var(--color-surface)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.04)' }} />
+          <div className="skeleton" style={{ height: 200, background: 'var(--color-surface)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.04)' }} />
         </div>
       ) : (
         <>
           {/* Metric Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginBottom: 32 }}>
-            {metrics.map((metric) => {
-              return (
-                <div key={metric.label} className="card" style={{ minHeight: 110 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
-                    <div className="metric-icon-wrapper" style={{ width: 44, height: 44, borderRadius: 'var(--radius-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: 'var(--color-surface)' }}>
-                      <metric.icon size={22} color="var(--color-text-secondary)" />
+            {metrics.map((metric) => (
+              <div key={metric.label} style={{ 
+                background: 'var(--color-surface)', 
+                borderRadius: '12px', 
+                border: '1px solid rgba(0,0,0,0.04)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
+              }}>
+                <div style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: 12, fontWeight: 500 }}>
+                      {metric.label}
                     </div>
-                    <span className="metric-label" style={{ fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)' }}>{metric.label}</span>
+                    <div style={{ fontSize: '32px', fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1 }}>
+                      {metric.isCurrency ? formatCurrency(metric.value, 'NGN') : metric.value.toLocaleString()}
+                    </div>
                   </div>
-                  <div className="metric-value" style={{ fontSize: 'var(--font-size-4xl)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                    {metric.isCurrency ? formatCurrency(metric.value, 'NGN') : metric.value.toLocaleString()}
+                  <div style={{ 
+                    width: 32, height: 32, borderRadius: '8px', 
+                    background: 'var(--color-surface)', 
+                    border: '1px solid rgba(0,0,0,0.04)', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: 'var(--color-text-secondary)'
+                  }}>
+                    <metric.icon size={16} />
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
 
           {/* Shipment Breakdown */}

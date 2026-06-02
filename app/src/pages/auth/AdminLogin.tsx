@@ -41,7 +41,17 @@ export default function AdminLogin() {
 
       if (response.token && response.admin) {
         setAuth(response.admin, response.token);
-        navigate('/admin');
+        
+        const role = response.admin.activeRole;
+        if (role === 'super_admin' || role === 'manager') {
+          navigate('/admin');
+        } else if (role === 'finance_officer') {
+          navigate('/admin/invoices');
+        } else if (role === 'logistics_officer' || role === 'support_staff') {
+          navigate('/admin/shipments');
+        } else {
+          navigate('/admin/customers');
+        }
       } else {
         setError('Failed to authenticate. Try again.');
       }

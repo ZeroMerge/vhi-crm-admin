@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, Send, ChevronLeft, AlertTriangle } from 'lucide-react';
+import { Search, Send, ChevronLeft, AlertTriangle, Inbox, MessageSquareOff, MessageCircle } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { formatDate } from '@/utils/formatDate';
 import { communicationService } from '@/services/communication.service';
@@ -171,7 +171,7 @@ export default function Communications() {
   const selectedCustomer = threads.find((t) => t.id === selectedCustomerId);
 
   const renderThreadList = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', background: 'var(--color-surface)', minHeight: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', background: 'var(--color-surface)', minHeight: 0, height: '100%' }}>
       <div style={{ padding: 16, borderBottom: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div className="search-input-wrapper" style={{ maxWidth: '100%' }}>
           <Search size={16} className="search-icon" />
@@ -189,7 +189,6 @@ export default function Communications() {
             className="select"
             value={industry}
             onChange={(e) => updateFilter('industry', e.target.value)}
-            style={{ fontSize: 'var(--font-size-xs)', height: 32, padding: '0 8px' }}
           >
             {industries.map((ind) => (
               <option key={ind.value} value={ind.value}>
@@ -201,7 +200,6 @@ export default function Communications() {
             className="select"
             value={filter}
             onChange={(e) => updateFilter('filter', e.target.value)}
-            style={{ fontSize: 'var(--font-size-xs)', height: 32, padding: '0 8px' }}
           >
             <option value="">All Threads</option>
             <option value="unread">Unread Only</option>
@@ -212,7 +210,6 @@ export default function Communications() {
           className="select"
           value={sortBy}
           onChange={(e) => updateFilter('sortBy', e.target.value)}
-          style={{ fontSize: 'var(--font-size-xs)', height: 32, padding: '0 8px' }}
         >
           <option value="newest">Sort: Newest first</option>
           <option value="oldest">Sort: Oldest first</option>
@@ -221,12 +218,26 @@ export default function Communications() {
 
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {loadingThreads ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
-            Loading conversations...
+          <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'center', opacity: 1 - i * 0.15 }}>
+                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--color-border)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ width: '60%', height: 12, borderRadius: 4, background: 'var(--color-border)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+                  <div style={{ width: '80%', height: 10, borderRadius: 4, background: 'var(--color-border)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+                </div>
+              </div>
+            ))}
           </div>
         ) : threads.length === 0 ? (
-          <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
-            No conversations found
+          <div style={{ flex: 1, height: '100%', padding: '40px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--color-page-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
+              <Inbox size={24} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>No conversations</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', marginTop: 4 }}>Try adjusting your filters</div>
+            </div>
           </div>
         ) : (
           threads.map((thread) => {
@@ -275,7 +286,7 @@ export default function Communications() {
   );
 
   const renderThreadPane = () => (
-    <div style={{ display: 'flex', flexDirection: 'column', background: 'var(--color-page-bg)', minHeight: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', background: 'transparent', minHeight: 0, height: '100%' }}>
       {isSupportStaff && (
         <div
           style={{
@@ -322,12 +333,23 @@ export default function Communications() {
 
           <div style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 16, minHeight: 0 }}>
             {loadingMessages ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                Loading message history...
+              <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
+                {[1, 2, 3].map((i) => (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: '60%', alignSelf: i % 2 === 0 ? 'flex-end' : 'flex-start', opacity: 1 - i * 0.2 }}>
+                    <div style={{ width: i === 2 ? 240 : 300, height: 60, borderRadius: '12px', background: 'var(--color-border)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+                    <div style={{ width: 80, height: 10, borderRadius: 4, background: 'var(--color-border)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite', alignSelf: i % 2 === 0 ? 'flex-end' : 'flex-start' }} />
+                  </div>
+                ))}
               </div>
             ) : messages.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                No messages in this conversation.
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+                <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--color-primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+                  <MessageSquareOff size={28} />
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)' }}>No messages yet</div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', marginTop: 4 }}>This is the beginning of your conversation.</div>
+                </div>
               </div>
             ) : (
               messages.map((msg) => {
@@ -408,9 +430,14 @@ export default function Communications() {
       )}
 
       {!selectedCustomerId && !showCompose && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', color: 'var(--color-text-muted)' }}>
-          <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 500 }}>No Thread Selected</div>
-          <div style={{ fontSize: 'var(--font-size-sm)' }}>Select a conversation from the sidebar to view messages</div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--color-page-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-text-muted)' }}>
+            <MessageCircle size={32} />
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 8 }}>No Thread Selected</div>
+            <div style={{ fontSize: '14px', color: 'var(--color-text-muted)' }}>Select a conversation from the sidebar<br/>to view messages and respond.</div>
+          </div>
         </div>
       )}
     </div>
@@ -425,12 +452,24 @@ export default function Communications() {
           {mobileView === 'compose' && renderThreadPane()}
         </div>
       ) : (
-        <div className="communications-grid">
-          <div style={{ borderRight: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', background: 'var(--color-surface)', minHeight: '72vh' }}>
+        <div 
+          className="communications-grid"
+          style={{ 
+            display: 'grid', 
+            gridTemplateColumns: '350px 1fr',
+            background: 'var(--color-surface)',
+            borderRadius: '12px',
+            border: '1px solid rgba(0,0,0,0.04)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+            overflow: 'hidden',
+            minHeight: '72vh'
+          }}
+        >
+          <div style={{ borderRight: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', background: 'var(--color-surface)', minHeight: 0, height: '100%' }}>
             {renderThreadList()}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', background: 'var(--color-page-bg)', minHeight: '72vh' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', background: 'var(--color-surface)', minHeight: 0, height: '100%' }}>
             {renderThreadPane()}
           </div>
         </div>
