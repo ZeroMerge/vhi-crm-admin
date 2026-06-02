@@ -111,3 +111,29 @@ Zustand is used for strictly global, ephemeral state:
 
 - **Frontend:** Standard Vite build pipeline (`npm run build`). Outputs a static `dist` directory suitable for Vercel, Netlify, or S3.
 - **Backend:** TypeScript compiler (`tsc`) outputs to `dist`. Run via `node dist/index.js` in production. Database migrations are handled via custom `npm run db:migrate` scripts that execute the raw SQL files against the Supabase instance.
+
+---
+
+## 6. Recent Enhancements & UI Polish (Update Log)
+
+The following major improvements were recently implemented to elevate the application's responsiveness, security, and premium aesthetic:
+
+### 6.1 Responsive UI & Layout Improvements
+- **Admin Sidebar Redesign:** Upgraded to a premium aesthetic featuring a new search bar, elegant category headers (`NAVIGATION`, `SETTINGS`), and soft, pill-based active/hover states, moving away from rigid edge-to-edge highlights.
+- **Communications Module Overhaul:** 
+  - Restored the missing desktop CSS Grid layout, ensuring a perfect side-by-side view (Thread List + Message Pane) on large screens.
+  - Wrapped the entire interface in a unified "surface card" with drop shadows, eliminating disjointed background colors.
+  - Replaced plain text loading states with sophisticated, animated pulsing skeleton loaders (avatars and chat bubbles).
+  - Redesigned all empty states ("No Thread Selected", "No messages") with high-quality Lucide icons resting in soft circular backgrounds.
+- **Newsletter Table Responsiveness:** Completely refactored the rigid `<table>` structure into a fluid, flexbox-based list. This maintains a tabular layout on desktop while gracefully wrapping into clean, multi-line cards on mobile devices to prevent horizontal clipping.
+- **Topbar & Typographics:** Fixed spacing, font sizes, and line-heights on role label pills to ensure perfectly balanced vertical text centering. Modernized the profile dropdown menu with pill-shaped hover effects and corrected label typos.
+
+### 6.2 Security & RBAC Routing
+- **Strict Module Access:** Updated the centralized `rolePermissions.ts` to strictly revoke `Overview` access from lower-level staff (Logistics, Finance, Support, CRM), limiting it exclusively to Super Admins and Managers.
+- **Intelligent Login Redirection:** Modified the login flow to intelligently detect a user's role upon authentication and instantly redirect them to their respective operational dashboard (e.g., Logistics Officers land on `/admin/shipments`), bypassing the restricted Overview page.
+- **Route-Level Interception:** Upgraded the React Router (`AdminRoute` wrapper) to actively intercept direct URL manipulation. Unauthorized attempts to access `/admin` or `/admin/reports` automatically validate against `hasModuleAccess` and bounce the user to their authorized module.
+
+### 6.3 Code Quality
+- Resolved stale TypeScript errors relating to unused state hooks during the responsive refactoring phase.
+- Validated application stability with a clean, zero-error production build (`npm run build`).
+- Safely committed and pushed all architectural and UI changes to the remote repository.
