@@ -8,6 +8,8 @@ import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { shipmentService } from '@/services/shipment.service';
 import { useAuthStore } from '@/store/authStore';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
+import { SearchX } from 'lucide-react';
 import type { Shipment } from '@/types';
 
 const statuses = [
@@ -59,7 +61,6 @@ export default function Shipments() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [exportOpen, setExportOpen] = useState(false);
-  const [openMenuIdx, setOpenMenuIdx] = useState<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -352,12 +353,8 @@ export default function Shipments() {
       )}
 
       {/* Table */}
-      <div className="vhi-table-container">
-        {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-            Loading shipments...
-          </div>
-        ) : (
+      <div className="vhi-table-container" style={{ overflow: 'visible' }}>
+        <div style={{ overflowX: 'auto' }}>
           <table className="vhi-table">
             <thead>
               <tr>
@@ -376,7 +373,7 @@ export default function Shipments() {
               </tr>
             </thead>
             <tbody>
-              {shipments.map((s, idx) => (
+              {shipments.map((s) => (
                 <tr key={s.id} onClick={() => navigate(`/admin/shipments/${s.id}`)} style={{ cursor: 'pointer' }}>
                   <td onClick={(e) => e.stopPropagation()}>
                     <input type="checkbox" style={{ width: 16, height: 16 }} />
@@ -402,61 +399,61 @@ export default function Shipments() {
                     <Badge status={s.status} type="shipment" />
                   </td>
                   <td onClick={(e) => e.stopPropagation()} style={{ position: 'relative' }}>
-                    <button
-                      className="btn btn-icon btn-ghost"
-                      onClick={() => setOpenMenuIdx(openMenuIdx === idx ? null : idx)}
-                    >
-                      <MoreVertical size={18} />
-                    </button>
-                    {openMenuIdx === idx && (
-                      <div className="dropdown-menu" style={{ right: 0, top: '100%' }}>
-                        <button
-                          className="dropdown-item"
-                          onClick={() => {
-                            setOpenMenuIdx(null);
-                            navigate(`/admin/shipments/${s.id}`);
-                          }}
-                        >
-                          View Details
+                    <DropdownMenu.Root>
+                      <DropdownMenu.Trigger asChild>
+                        <button className="btn btn-icon btn-ghost">
+                          <MoreVertical size={18} />
                         </button>
-                        {!isSupportStaff && (
-                          <>
-                            <button
-                              className="dropdown-item"
-                              onClick={() => {
-                                setOpenMenuIdx(null);
-                                navigate(`/admin/shipments/${s.id}?action=status`);
-                              }}
-                            >
-                              Update Status
-                            </button>
-                            <button
-                              className="dropdown-item"
-                              onClick={() => {
-                                setOpenMenuIdx(null);
-                                alert('Printing label...');
-                              }}
-                            >
-                              Print Label
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Portal>
+                        <DropdownMenu.Content className="radix-dropdown-menu" sideOffset={5} align="end" style={{ zIndex: 100 }}>
+                          <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/shipments/${s.id}`)}>
+                            View Details
+                          </DropdownMenu.Item>
+                          {!isSupportStaff && (
+                            <>
+                              <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/shipments/${s.id}?action=status`)}>
+                                Update Status
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Item className="dropdown-item" onClick={() => alert('Printing label...')}>
+                                Print Label
+                              </DropdownMenu.Item>
+                            </>
+                          )}
+                        </DropdownMenu.Content>
+                      </DropdownMenu.Portal>
+                    </DropdownMenu.Root>
                   </td>
+                </tr>
+              ))}
+              
+              {loading && Array.from({ length: 5 }).map((_, i) => (
+                <tr key={`skel-${i}`}>
+                  <td><div className="skeleton" style={{ width: 16, height: 16, borderRadius: 4 }} /></td>
+                  <td><div className="skeleton" style={{ width: 100, height: 16 }} /></td>
+                  <td><div className="skeleton" style={{ width: 140, height: 16 }} /></td>
+                  <td><div className="skeleton" style={{ width: 80, height: 24, borderRadius: 12 }} /></td>
+                  <td><div className="skeleton" style={{ width: 60, height: 16 }} /></td>
+                  <td><div className="skeleton" style={{ width: 120, height: 16 }} /></td>
+                  <td><div className="skeleton" style={{ width: 90, height: 16 }} /></td>
+                  <td><div className="skeleton" style={{ width: 80, height: 16, marginLeft: 'auto' }} /></td>
+                  <td><div className="skeleton" style={{ width: 90, height: 24, borderRadius: 12 }} /></td>
+                  <td><div className="skeleton" style={{ width: 32, height: 32, borderRadius: 16 }} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
+        </div>
 
         {!loading && shipments.length === 0 && (
-          <div className="empty-state">
-            <div className="empty-state-icon">
-              <Search size={32} />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', background: 'var(--color-surface)', borderRadius: '0 0 var(--border-radius-card) var(--border-radius-card)', border: '1px solid var(--color-border)', borderTop: 'none' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--color-page-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <SearchX size={32} color="var(--color-text-muted)" />
             </div>
-            <div className="empty-state-title">No shipments found</div>
-            <div className="empty-state-desc">Try adjusting your filters</div>
+            <div style={{ fontWeight: 600, fontSize: 'var(--font-size-md)', marginBottom: 8 }}>No shipments found</div>
+            <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', textAlign: 'center', maxWidth: 400 }}>
+              There are no records matching your current filters. Adjust your search criteria or create a new shipment.
+            </div>
           </div>
         )}
       </div>

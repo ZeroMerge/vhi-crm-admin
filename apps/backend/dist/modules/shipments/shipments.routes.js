@@ -91,6 +91,31 @@ router.get('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => 
         next(err);
     }
 });
+// POST /api/admin/shipments
+router.post('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
+    try {
+        const { customerId, shippingMode, deliveryMode, natureOfItem, hsCode, invoiceValue, invoiceCurrency, weight, weightUnit, originAddress, destinationAddress, originPickupOption, portOfDischarge, awbNumber, bolNumber, uniqueId, status = 'pending', isDraft = false, } = req.body;
+        const orderId = `#${Date.now().toString(36).toUpperCase().slice(-6)}`;
+        const result = await db_1.default.query(`INSERT INTO shipments (
+        order_id, customer_id, shipping_mode, delivery_mode, nature_of_item, hs_code,
+        invoice_value, invoice_currency, weight, weight_unit,
+        origin_address, destination_address, origin_pickup_option, port_of_discharge,
+        awb_number, bol_number, unique_id, status, is_draft
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+      RETURNING *`, [
+            orderId, customerId, shippingMode, deliveryMode, natureOfItem, hsCode || null,
+            invoiceValue || 0, invoiceCurrency || 'NGN', weight || 0, weightUnit || 'kg',
+            originAddress, destinationAddress, originPickupOption || null, portOfDischarge || null,
+            awbNumber || null, bolNumber || null, uniqueId || null, status, isDraft,
+        ]);
+        const shipment = result.rows[0];
+        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'CREATE_SHIPMENT', 'shipment', shipment.id, { orderId, customerId });
+        res.status(201).json({ success: true, data: shipment });
+    }
+    catch (err) {
+        next(err);
+    }
+});
 // PUT /api/admin/shipments/:id/status
 router.put('/:id/status', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {

@@ -7,6 +7,7 @@ import { ExportModal } from '@/components/shared/ExportModal';
 import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { invoiceService } from '@/services/invoice.service';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { useMemo } from 'react';
 import type { Shipment, ShipmentStatus } from '@/types';
 
@@ -50,7 +51,6 @@ export default function Overview() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
   const [exportOpen, setExportOpen] = useState(false);
-  const [openMenuIdx, setOpenMenuIdx] = useState<number | null>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
   const pageSize = 5;
@@ -215,9 +215,10 @@ export default function Overview() {
         <table className="vhi-table">
           <thead>
             <tr>
-              <th style={{ width: 40 }}>
+              <th style={{ width: 40, paddingLeft: 16 }}>
                 <input
                   type="checkbox"
+                  style={{ width: 16, height: 16, cursor: 'pointer' }}
                   checked={paginatedShipments.length > 0 && paginatedShipments.every(s => selectedRows.has(s.id))}
                   onChange={() => {
                     const allSelected = paginatedShipments.every(s => selectedRows.has(s.id));
@@ -243,11 +244,12 @@ export default function Overview() {
             </tr>
           </thead>
           <tbody>
-            {paginatedShipments.map((shipment, idx) => (
+            {paginatedShipments.map((shipment) => (
               <tr key={shipment.id}>
-                <td>
+                <td style={{ paddingLeft: 16 }}>
                   <input
                     type="checkbox"
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
                     checked={selectedRows.has(shipment.id)}
                     onChange={() => toggleRow(shipment.id)}
                   />
@@ -264,19 +266,26 @@ export default function Overview() {
                   <Badge status={shipment.status} type="shipment" />
                 </td>
                 <td style={{ position: 'relative' }}>
-                  <button
-                    className="btn btn-icon btn-ghost"
-                    onClick={() => setOpenMenuIdx(openMenuIdx === idx ? null : idx)}
-                  >
-                    <MoreVertical size={18} />
-                  </button>
-                  {openMenuIdx === idx && (
-                    <div className="dropdown-menu" style={{ right: 0, top: '100%' }}>
-                      <button className="dropdown-item" onClick={() => { setOpenMenuIdx(null); navigate(`/admin/shipments/${shipment.id}`); }}>View Details</button>
-                      <button className="dropdown-item" onClick={() => { setOpenMenuIdx(null); navigate(`/admin/shipments/${shipment.id}?tab=status`); }}>Update Status</button>
-                      <button className="dropdown-item" onClick={() => { setOpenMenuIdx(null); window.print(); }}>Print</button>
-                    </div>
-                  )}
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger asChild>
+                      <button className="btn btn-icon btn-ghost">
+                        <MoreVertical size={18} />
+                      </button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Portal>
+                      <DropdownMenu.Content className="radix-dropdown-menu" sideOffset={5} align="end" style={{ zIndex: 100 }}>
+                        <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/shipments/${shipment.id}`)}>
+                          View Details
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/shipments/${shipment.id}?tab=status`)}>
+                          Update Status
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item className="dropdown-item" onClick={() => window.print()}>
+                          Print
+                        </DropdownMenu.Item>
+                      </DropdownMenu.Content>
+                    </DropdownMenu.Portal>
+                  </DropdownMenu.Root>
                 </td>
               </tr>
             ))}

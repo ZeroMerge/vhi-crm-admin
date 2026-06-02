@@ -10,8 +10,8 @@ import {
   MessageSquare,
   Settings,
   LogOut,
+  BarChart2,
 } from 'lucide-react';
-import { ChartBarIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '@/store/authStore';
 import { hasModuleAccess } from '@/utils/rolePermissions';
 import { useUIStore } from '@/store/uiStore';
@@ -30,7 +30,7 @@ const primaryNav = [
 ];
 
 const secondaryNav = [
-  { label: 'Reports', icon: ChartBarIcon, path: '/admin/reports', module: 'reports' },
+  { label: 'Reports', icon: BarChart2, path: '/admin/reports', module: 'reports' },
   { label: 'Feedback', icon: MessageSquare, path: '/admin/feedback', module: 'reports' },
   { label: 'Settings', icon: Settings, path: '/admin/settings', module: 'settings' },
 ];

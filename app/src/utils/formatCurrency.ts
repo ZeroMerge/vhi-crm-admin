@@ -8,8 +8,9 @@ const currencySymbols: Record<string, string> = {
   Yuan: '\u00A5',
 };
 
-export function formatCurrency(amount: number, currency: string = 'NGN'): string {
+export function formatCurrency(amount: number | null | undefined, currency: string = 'NGN'): string {
   const symbol = currencySymbols[currency] || currency;
+  if (amount == null) return `${symbol}0.00`;
   const formatted = amount.toLocaleString('en-US', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,

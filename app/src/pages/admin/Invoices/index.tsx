@@ -10,6 +10,7 @@ import { invoiceService } from '@/services/invoice.service';
 import { customerService } from '@/services/customer.service';
 import { shipmentService } from '@/services/shipment.service';
 import { useAuthStore } from '@/store/authStore';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import type { Invoice, Customer, Shipment } from '@/types';
 
 const statuses = [
@@ -62,7 +63,7 @@ export default function Invoices() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [openMenuIdx, setOpenMenuIdx] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // States for dropdowns inside Create Invoice Modal
   const [customersList, setCustomersList] = useState<Customer[]>([]);
@@ -215,6 +216,21 @@ export default function Invoices() {
         console.error(err);
       }
     }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === invoices.length && invoices.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(invoices.map((i) => i.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
   };
 
   return (
@@ -458,6 +474,14 @@ export default function Invoices() {
           <table className="vhi-table">
             <thead>
               <tr>
+                <th style={{ width: 40, paddingLeft: 16 }}>
+                  <input 
+                    type="checkbox" 
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
+                    checked={invoices.length > 0 && selectedIds.size === invoices.length}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
                 <th>Invoice No</th>
                 <th>Customer</th>
                 <th>Shipment ID</th>
@@ -470,8 +494,16 @@ export default function Invoices() {
               </tr>
             </thead>
             <tbody>
-              {invoices.map((inv, idx) => (
+              {invoices.map((inv) => (
                 <tr key={inv.id} onClick={() => navigate(`/admin/invoices/${inv.id}`)} style={{ cursor: 'pointer' }}>
+                  <td onClick={(e) => e.stopPropagation()} style={{ paddingLeft: 16 }}>
+                    <input 
+                      type="checkbox" 
+                      style={{ width: 16, height: 16, cursor: 'pointer' }} 
+                      checked={selectedIds.has(inv.id)}
+                      onChange={() => toggleSelect(inv.id)}
+                    />
+                  </td>
                   <td style={{ fontWeight: 500 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       {isFollowUpOverdue(inv) && <AlarmClock size={14} color="var(--color-status-cancelled-text)" />}
@@ -497,68 +529,37 @@ export default function Invoices() {
                       )}
                     </div>
                   </td>
-                  <td>
-                    <button
-                      className="btn btn-ghost btn-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        alert('Downloading invoice PDF...');
-                      }}
-                    >
-                      PDF
-                    </button>
-                  </td>
                   <td onClick={(e) => e.stopPropagation()} style={{ position: 'relative' }}>
-                    <button
-                      className="btn btn-icon btn-ghost"
-                      onClick={() => setOpenMenuIdx(openMenuIdx === idx ? null : idx)}
-                    >
-                      <MoreVertical size={18} />
-                    </button>
-                    {openMenuIdx === idx && (
-                      <div className="dropdown-menu" style={{ right: 0, top: '100%' }}>
-                        <button
-                          className="dropdown-item"
-                          onClick={() => {
-                            setOpenMenuIdx(null);
-                            navigate(`/admin/invoices/${inv.id}`);
-                          }}
-                        >
-                          View Details
+                    <DropdownMenu.Root>
+                      <DropdownMenu.Trigger asChild>
+                        <button className="btn btn-icon btn-ghost">
+                          <MoreVertical size={18} />
                         </button>
-                        {!isSupportStaff && (
-                          <>
-                            <button
-                              className="dropdown-item"
-                              onClick={() => {
-                                setOpenMenuIdx(null);
-                                navigate(`/admin/invoices/${inv.id}`);
-                              }}
-                            >
-                              Edit Status
-                            </button>
-                            <button
-                              className="dropdown-item"
-                              onClick={() => {
-                                setOpenMenuIdx(null);
-                                navigate(`/admin/invoices/${inv.id}`);
-                              }}
-                            >
-                              Record Payment
-                            </button>
-                            <button
-                              className="dropdown-item danger"
-                              onClick={() => {
-                                setOpenMenuIdx(null);
-                                handleDeleteInvoice(inv.id);
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Portal>
+                        <DropdownMenu.Content className="radix-dropdown-menu" sideOffset={5} align="end" style={{ zIndex: 100 }}>
+                          <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/invoices/${inv.id}`)}>
+                            View Details
+                          </DropdownMenu.Item>
+                          <DropdownMenu.Item className="dropdown-item" onClick={() => alert('Downloading invoice PDF...')}>
+                            Download PDF
+                          </DropdownMenu.Item>
+                          {!isSupportStaff && (
+                            <>
+                              <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/invoices/${inv.id}`)}>
+                                Edit Status
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/invoices/${inv.id}`)}>
+                                Record Payment
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Item className="dropdown-item danger" onClick={() => handleDeleteInvoice(inv.id)}>
+                                Delete
+                              </DropdownMenu.Item>
+                            </>
+                          )}
+                        </DropdownMenu.Content>
+                      </DropdownMenu.Portal>
+                    </DropdownMenu.Root>
                   </td>
                 </tr>
               ))}

@@ -42,6 +42,7 @@ export function getCustomerStatusColor(status: CustomerStatus | string): StatusC
 }
 
 export function formatStatusLabel(status: string): string {
+  if (!status) return 'Unknown';
   return status
     .split('_')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))

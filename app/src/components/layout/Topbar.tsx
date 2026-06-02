@@ -116,7 +116,7 @@ export function Topbar() {
   return (
     <header className="topbar">
       {/* Left - Hamburger (Mobile) + Date */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <button 
           className="topbar-hamburger" 
           onClick={toggleSidebar}
@@ -124,7 +124,7 @@ export function Topbar() {
         >
           <Menu size={24} />
         </button>
-        <div className="topbar-title" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+        <div className="topbar-title" style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', whiteSpace: 'nowrap' }}>
           Today - {today}
         </div>
       </div>
@@ -387,12 +387,15 @@ export function Topbar() {
               display: 'flex',
               alignItems: 'center',
               gap: 12,
-              background: 'var(--color-page-bg)',
-              border: '1px solid var(--color-border)',
+              background: 'transparent',
+              border: 'none',
               cursor: 'pointer',
-              padding: '8px 12px',
+              padding: '6px 8px',
               borderRadius: 'var(--radius-card)',
+              transition: 'background 0.2s ease',
             }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface)'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
             <Avatar name={admin?.name || 'VHI Admin'} size="md" />
             <div style={{ textAlign: 'left' }}>
@@ -484,7 +487,45 @@ export function Topbar() {
                 Account Settings
               </button>
               
-              <div style={{ height: 1, background: 'var(--color-border)' }} />
+              <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
+              
+              {/* Role Switcher for Testing */}
+              <div style={{ padding: '8px 16px', fontSize: '10px', textTransform: 'uppercase', color: 'var(--color-text-muted)', fontWeight: 600 }}>Switch Role (Test)</div>
+              {Object.keys(roleLabels).map((role) => (
+                <button
+                  key={role}
+                  onClick={() => {
+                    const state = useAuthStore.getState();
+                    if (state.admin) {
+                      state.setAdmin({ ...state.admin, activeRole: role as AdminRole });
+                    }
+                    setShowProfile(false);
+                    // Reload to reset state depending on role
+                    window.location.href = '/admin';
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '8px 16px',
+                    width: '100%',
+                    border: 'none',
+                    background: admin?.activeRole === role ? 'var(--color-primary-light)' : 'none',
+                    cursor: 'pointer',
+                    fontSize: 'var(--font-size-xs)',
+                    color: admin?.activeRole === role ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                    fontWeight: admin?.activeRole === role ? 600 : 400,
+                    textAlign: 'left',
+                    transition: 'background 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => { if (admin?.activeRole !== role) e.currentTarget.style.backgroundColor = 'var(--color-surface)'; }}
+                  onMouseLeave={(e) => { if (admin?.activeRole !== role) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                >
+                  {roleLabels[role as AdminRole]}
+                </button>
+              ))}
+
+              <div style={{ height: 1, background: 'var(--color-border)', margin: '4px 0' }} />
               
               <button
                 onClick={handleSignOut}

@@ -291,9 +291,9 @@ export default function Settings() {
 
   return (
     <PageWrapper title="Settings">
-      <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-        {/* Left Sidebar Nav */}
-        <div className="settings-nav" style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4, padding: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-card)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {/* Horizontal Underline Tabs */}
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', gap: 32, overflowX: 'auto', paddingBottom: 1 }}>
           {tabsConfig
             .filter((tc) => !tc.superAdminOnly || isSuperAdmin)
             .map((t) => {
@@ -305,27 +305,28 @@ export default function Settings() {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 12,
-                    padding: '12px 16px',
-                    borderRadius: 'var(--radius-button)',
-                    background: isActive ? 'var(--color-page-bg)' : 'transparent',
+                    gap: 8,
+                    padding: '0 0 12px 0',
+                    background: 'transparent',
                     color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
                     fontWeight: isActive ? 600 : 500,
+                    fontSize: 'var(--font-size-sm)',
                     border: 'none',
-                    borderLeft: isActive ? '3px solid var(--color-primary)' : '3px solid transparent',
-                    textAlign: 'left',
+                    borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
+                    whiteSpace: 'nowrap',
+                    marginBottom: '-1px'
                   }}
                 >
-                  <t.icon size={18} />
+                  <t.icon size={16} />
                   {t.label}
                 </button>
               );
             })}
         </div>
 
-      <div style={{ flex: 1, minWidth: 300, maxWidth: 880 }}>
+      <div style={{ width: '100%', maxWidth: 880 }}>
         {/* Tab 1: Profile */}
         {activeTab === 'profile' && (
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>

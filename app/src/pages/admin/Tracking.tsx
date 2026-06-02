@@ -3,10 +3,12 @@ import { useSearchParams } from 'react-router-dom';
 import { Search, AlertTriangle, X } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { trackingService } from '@/services/tracking.service';
 import { shipmentService } from '@/services/shipment.service';
 import { useAuthStore } from '@/store/authStore';
+import { useIsMobile } from '@/hooks/use-mobile';
 import type { Shipment } from '@/types';
 
 const filters = [
@@ -28,6 +30,7 @@ const modes = [
 export default function Tracking() {
   const admin = useAuthStore((s) => s.admin);
   const isSupportStaff = admin?.activeRole === 'support_staff';
+  const isMobile = useIsMobile();
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -135,6 +138,97 @@ export default function Tracking() {
     } finally {
       setSaveLoading(false);
     }
+  };
+
+  const renderDetails = () => {
+    if (!selectedShipment) return null;
+    return (
+      <>
+        {/* Header - Only needed on desktop, Modal has its own title on mobile */}
+        {!isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <h2 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 400 }}>
+              Order ID: <span style={{ fontWeight: 600 }}>{selectedShipment.orderId}</span>
+            </h2>
+            <Badge status={selectedShipment.status} type="shipment" />
+          </div>
+        )}
+
+        {/* Info Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+          <div className="card" style={{ padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                Shipping Mode
+              </span>
+            </div>
+            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, textTransform: 'capitalize' }}>
+              {(selectedShipment.shippingMode ?? '').replace(/_/g, ' ')}
+            </div>
+          </div>
+          <div className="card" style={{ padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', fontWeight: 500 }}>
+                Address
+              </span>
+            </div>
+            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
+              {selectedShipment.destinationAddress}
+            </div>
+          </div>
+        </div>
+
+        {/* Tracking Form */}
+        <div className="card" style={{ marginBottom: 24 }}>
+          <h3 className="card-title" style={{ marginBottom: 16 }}>Update Tracking Number</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>
+                {trackingType === 'awb' ? 'AWB Number' : trackingType === 'bol' ? 'Bill of Lading Number' : 'Unique ID'}
+              </label>
+              <input
+                className="input"
+                value={trackingNumber}
+                onChange={(e) => setTrackingNumber(e.target.value)}
+                placeholder={`Enter ${trackingType === 'awb' ? 'AWB' : trackingType === 'bol' ? 'BoL' : 'unique'} number...`}
+                disabled={isSupportStaff}
+              />
+            </div>
+            {!isSupportStaff && (
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={handleSaveTracking}
+                disabled={saveLoading}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                {saveLoading ? 'Saving...' : 'Save Tracking Info'}
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Details and Description */}
+        <div className="card">
+          <h3 className="card-title" style={{ marginBottom: 16 }}>Shipment details</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Nature of Item</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{selectedShipment.natureOfItem}</div>
+              
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Declared Value</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{formatCurrency(selectedShipment.invoiceValue, selectedShipment.invoiceCurrency)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Weight</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{(selectedShipment.weight ?? 0).toLocaleString()} {selectedShipment.weightUnit || 'kg'}</div>
+
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Origin Address</div>
+              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{selectedShipment.originAddress}</div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
   };
 
   return (
@@ -270,7 +364,7 @@ export default function Tracking() {
       )}
 
       {/* Grid Layout */}
-      <div className="two-col-layout tracking-layout" style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 24 }}>
+      <div className="two-col-layout tracking-layout" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '380px 1fr', gap: 24 }}>
         
         {/* Left Panel - Shipment List */}
         <div>
@@ -347,97 +441,25 @@ export default function Tracking() {
         </div>
 
         {/* Right Panel - Detail */}
-        <div className="col-right">
-          {selectedShipment ? (
-            <>
-              {/* Header */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                <h2 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 400 }}>
-                  Order ID: <span style={{ fontWeight: 600 }}>{selectedShipment.orderId}</span>
-                </h2>
-                <Badge status={selectedShipment.status} type="shipment" />
-              </div>
-
-              {/* Info Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-                <div className="card" style={{ padding: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', fontWeight: 500 }}>
-                      Shipping Mode
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, textTransform: 'capitalize' }}>
-                    {(selectedShipment.shippingMode ?? '').replace(/_/g, ' ')}
-                  </div>
-                </div>
-                <div className="card" style={{ padding: 16 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', fontWeight: 500 }}>
-                      Address
-                    </span>
-                  </div>
-                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
-                    {selectedShipment.destinationAddress}
-                  </div>
-                </div>
-              </div>
-
-              {/* Tracking Form */}
-              <div className="card" style={{ marginBottom: 24 }}>
-                <h3 className="card-title" style={{ marginBottom: 16 }}>Update Tracking Number</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <div>
-                    <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>
-                      {trackingType === 'awb' ? 'AWB Number' : trackingType === 'bol' ? 'Bill of Lading Number' : 'Unique ID'}
-                    </label>
-                    <input
-                      className="input"
-                      value={trackingNumber}
-                      onChange={(e) => setTrackingNumber(e.target.value)}
-                      placeholder={`Enter ${trackingType === 'awb' ? 'AWB' : trackingType === 'bol' ? 'BoL' : 'unique'} number...`}
-                      disabled={isSupportStaff}
-                    />
-                  </div>
-                  {!isSupportStaff && (
-                    <button
-                      className="btn btn-primary btn-sm"
-                      onClick={handleSaveTracking}
-                      disabled={saveLoading}
-                      style={{ alignSelf: 'flex-start' }}
-                    >
-                      {saveLoading ? 'Saving...' : 'Save Tracking Info'}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Details and Description */}
-              <div className="card">
-                <h3 className="card-title" style={{ marginBottom: 16 }}>Shipment details</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <div>
-                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Nature of Item</div>
-                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{selectedShipment.natureOfItem}</div>
-                    
-                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Declared Value</div>
-                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{formatCurrency(selectedShipment.invoiceValue, selectedShipment.invoiceCurrency)}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Weight</div>
-                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{(selectedShipment.weight ?? 0).toLocaleString()} {selectedShipment.weightUnit || 'kg'}</div>
-
-                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Origin Address</div>
-                    <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{selectedShipment.originAddress}</div>
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div style={{ padding: '80px', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1px solid var(--color-border)' }}>
-              No shipment selected. Choose a shipment from the left list.
+        {isMobile ? (
+          <Modal
+            isOpen={!!selectedShipment}
+            onClose={() => setSelectedShipment(null)}
+            title={selectedShipment ? `Order ID: ${selectedShipment.orderId}` : ''}
+          >
+            <div style={{ padding: '0 4px 16px' }}>
+              {renderDetails()}
             </div>
-          )}
-        </div>
+          </Modal>
+        ) : (
+          <div className="col-right">
+            {selectedShipment ? renderDetails() : (
+              <div style={{ padding: '80px', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1px solid var(--color-border)' }}>
+                No shipment selected. Choose a shipment from the left list.
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </PageWrapper>
   );

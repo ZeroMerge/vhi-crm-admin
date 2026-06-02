@@ -8,6 +8,7 @@ import { formatDate } from '@/utils/formatDate';
 import { customerService } from '@/services/customer.service';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar } from '@/components/shared/Avatar';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import type { Customer } from '@/types';
 
 const industries = [
@@ -56,7 +57,7 @@ export default function Customers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [openMenuIdx, setOpenMenuIdx] = useState<number | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -124,6 +125,21 @@ export default function Customers() {
         console.error('Failed to delete customer:', err);
       }
     }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === customers.length && customers.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(customers.map((c) => c.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
   };
 
   return (
@@ -349,8 +365,13 @@ export default function Customers() {
           <table className="vhi-table">
             <thead>
               <tr>
-                <th style={{ width: 40 }}>
-                  <input type="checkbox" style={{ width: 16, height: 16 }} />
+                <th style={{ width: 40, paddingLeft: 16 }}>
+                  <input 
+                    type="checkbox" 
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
+                    checked={customers.length > 0 && selectedIds.size === customers.length}
+                    onChange={toggleSelectAll}
+                  />
                 </th>
                 <th>Name</th>
                 <th>Email</th>
@@ -363,14 +384,19 @@ export default function Customers() {
               </tr>
             </thead>
             <tbody>
-              {customers.map((customer, idx) => (
+              {customers.map((customer) => (
                 <tr
                   key={customer.id}
                   onClick={() => navigate(`/admin/customers/${customer.id}`)}
                   style={{ cursor: 'pointer' }}
                 >
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" style={{ width: 16, height: 16 }} />
+                  <td onClick={(e) => e.stopPropagation()} style={{ paddingLeft: 16 }}>
+                    <input 
+                      type="checkbox" 
+                      style={{ width: 16, height: 16, cursor: 'pointer' }} 
+                      checked={selectedIds.has(customer.id)}
+                      onChange={() => toggleSelect(customer.id)}
+                    />
                   </td>
                   <td style={{ fontWeight: 500 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -393,44 +419,30 @@ export default function Customers() {
                     {formatDate(customer.createdAt)}
                   </td>
                   <td onClick={(e) => e.stopPropagation()} style={{ position: 'relative' }}>
-                    <button
-                      className="btn btn-icon btn-ghost"
-                      onClick={() => setOpenMenuIdx(openMenuIdx === idx ? null : idx)}
-                    >
-                      <MoreVertical size={18} />
-                    </button>
-                    {openMenuIdx === idx && (
-                      <div className="dropdown-menu" style={{ right: 0, top: '100%' }}>
-                        <button
-                          className="dropdown-item"
-                          onClick={() => handleDropdownNavigate(`/admin/customers/${customer.id}`)}
-                        >
-                          View Detail
+                    <DropdownMenu.Root>
+                      <DropdownMenu.Trigger asChild>
+                        <button className="btn btn-icon btn-ghost">
+                          <MoreVertical size={18} />
                         </button>
-                        {!isSupportStaff && (
-                          <>
-                            <button
-                              className="dropdown-item"
-                              onClick={() => {
-                                setOpenMenuIdx(null);
-                                navigate(`/admin/customers/${customer.id}`);
-                              }}
-                            >
-                              Edit Status
-                            </button>
-                            <button
-                              className="dropdown-item danger"
-                              onClick={() => {
-                                setOpenMenuIdx(null);
-                                handleDeleteCustomer(customer.id);
-                              }}
-                            >
-                              Delete
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
+                      </DropdownMenu.Trigger>
+                      <DropdownMenu.Portal>
+                        <DropdownMenu.Content className="radix-dropdown-menu" sideOffset={5} align="end" style={{ zIndex: 100 }}>
+                          <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/customers/${customer.id}`)}>
+                            View Detail
+                          </DropdownMenu.Item>
+                          {!isSupportStaff && (
+                            <>
+                              <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/customers/${customer.id}`)}>
+                                Edit Status
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Item className="dropdown-item danger" onClick={() => handleDeleteCustomer(customer.id)}>
+                                Delete
+                              </DropdownMenu.Item>
+                            </>
+                          )}
+                        </DropdownMenu.Content>
+                      </DropdownMenu.Portal>
+                    </DropdownMenu.Root>
                   </td>
                 </tr>
               ))}
@@ -475,9 +487,4 @@ export default function Customers() {
       )}
     </PageWrapper>
   );
-
-  function handleDropdownNavigate(path: string) {
-    setOpenMenuIdx(null);
-    navigate(path);
-  }
 }

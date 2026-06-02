@@ -375,19 +375,6 @@ img {
     min-height: auto !important;
   }
 
-  .settings-nav {
-    width: 100% !important;
-    flex-direction: row !important;
-    gap: 8px !important;
-    overflow-x: auto;
-    padding-bottom: 4px;
-  }
-
-  .settings-nav button {
-    flex: 0 0 auto;
-    white-space: nowrap;
-  }
-
   .filter-toolbar {
     flex-direction: column !important;
     align-items: stretch !important;
@@ -787,6 +774,17 @@ img {
   animation: dropdownIn 0.15s ease-out;
 }
 
+.radix-dropdown-menu {
+  background: var(--color-page-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-lg);
+  min-width: 160px;
+  z-index: 1000;
+  overflow: hidden;
+  animation: dropdownIn 0.15s ease-out;
+}
+
 .dropdown-item {
   display: flex;
   align-items: center;
@@ -1075,6 +1073,29 @@ img {
 /* ============================================
    Tabs & Alert Banner
    ============================================ */
+.table-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.table-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.table-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
 .tabs {
   display: inline-flex;
   align-items: center;
@@ -1603,3 +1624,19 @@ input[type="checkbox"]:not(.toggle):checked::after {
   left: 6px;
 }
 
+@keyframes pulse {
+  0% {
+    background-color: var(--color-border);
+  }
+  50% {
+    background-color: var(--color-background-hover);
+  }
+  100% {
+    background-color: var(--color-border);
+  }
+}
+
+.skeleton {
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  background-color: var(--color-border);
+}
