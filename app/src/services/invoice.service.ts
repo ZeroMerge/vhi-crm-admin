@@ -52,6 +52,10 @@ export const invoiceService = {
     const res = await api.put<ApiResponse<Invoice>>(`/api/admin/invoices/${id}/status`, { status });
     return res.data.data;
   },
+  updateReminder: async (id: string, followUpDate: string | null): Promise<Invoice> => {
+    const res = await api.put<ApiResponse<Invoice>>(`/api/admin/invoices/${id}/reminder`, { followUpDate });
+    return res.data.data;
+  },
   recordPayment: async (id: string, data: { amount: number; paymentMethod: string; notes?: string }): Promise<Payment> => {
     const res = await api.put<ApiResponse<Payment>>(`/api/admin/invoices/${id}/payment`, data);
     return res.data.data;

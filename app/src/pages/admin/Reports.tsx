@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Users, Package, MessageSquare, TrendingUp, Download, Loader } from 'lucide-react';
+import { Users, Package, MessageSquare, TrendingUp, Download } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { reportService } from '@/services/report.service';
@@ -79,47 +79,50 @@ export default function Reports() {
   return (
     <PageWrapper title="Reports">
       {/* Tabs + Export */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-        <div className="tabs">
-          {tabs.map((tab) => (
-            <button
-              key={tab.value}
-              className={`tab ${activeTab === tab.value ? 'active' : ''}`}
-              onClick={() => handleTabChange(tab.value)}
-            >
-              {tab.label}
-            </button>
-          ))}
+      <div className="two-col-layout" style={{ marginBottom: 24 }}>
+        <div>
+          <div className="tabs">
+            {tabs.map((tab) => (
+              <button
+                key={tab.value}
+                className={`tab ${activeTab === tab.value ? 'active' : ''}`}
+                onClick={() => handleTabChange(tab.value)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <button className="btn btn-outline" onClick={handleExport} disabled={loading}>
-          <Download size={16} />
-          Export Report (CSV)
-        </button>
+        <div className="col-right">
+          <button className="btn btn-outline" onClick={handleExport} disabled={loading}>
+            <Download size={16} />
+            Export Report (CSV)
+          </button>
+        </div>
       </div>
 
       {loading ? (
-        <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--color-text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <Loader className="animate-spin" size={32} />
-          <span>Loading historical report data...</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
+            {[1, 2, 3, 4].map((i) => <div key={i} className="card animate-pulse" style={{ height: 110, background: 'var(--color-surface)' }} />)}
+          </div>
+          <div className="card animate-pulse" style={{ height: 300, background: 'var(--color-surface)' }} />
+          <div className="card animate-pulse" style={{ height: 200, background: 'var(--color-surface)' }} />
         </div>
       ) : (
         <>
           {/* Metric Cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginBottom: 32 }}>
-            {metrics.map((metric, index) => {
-              const filledClass =
-                index === 0 ? 'card-filled-purple' :
-                index === 1 ? 'card-filled-red' :
-                index === 2 ? 'card-filled-blue' : 'card-filled-green';
+            {metrics.map((metric) => {
               return (
-                <div key={metric.label} className={`premium-card filled ${filledClass}`}>
+                <div key={metric.label} className="card" style={{ minHeight: 110 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
-                    <div className="metric-icon-wrapper" style={{ width: 44, height: 44, borderRadius: 'var(--radius-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      <metric.icon size={22} />
+                    <div className="metric-icon-wrapper" style={{ width: 44, height: 44, borderRadius: 'var(--radius-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: 'var(--color-surface)' }}>
+                      <metric.icon size={22} color="var(--color-text-secondary)" />
                     </div>
-                    <span className="metric-label" style={{ fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{metric.label}</span>
+                    <span className="metric-label" style={{ fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)' }}>{metric.label}</span>
                   </div>
-                  <div className="metric-value" style={{ fontSize: 'var(--font-size-4xl)', fontWeight: 700 }}>
+                  <div className="metric-value" style={{ fontSize: 'var(--font-size-4xl)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                     {metric.isCurrency ? formatCurrency(metric.value, 'NGN') : metric.value.toLocaleString()}
                   </div>
                 </div>
@@ -131,7 +134,7 @@ export default function Reports() {
           <div className="card" style={{ marginBottom: 24 }}>
             <h3 className="card-title" style={{ marginBottom: 20 }}>Shipment Breakdown</h3>
             <div className="vhi-table-container" style={{ border: 'none' }}>
-              {data?.shipmentBreakdown && data.shipmentBreakdown.length > 0 ? (
+              {data?.shipmentBreakdown && data.shipmentBreakdown.length > 0 && data.shipmentBreakdown.some((row: any) => Number(row.count) > 0 || Number(row.value) > 0) ? (
                 <table className="vhi-table">
                   <thead>
                     <tr>
@@ -167,7 +170,7 @@ export default function Reports() {
                 </table>
               ) : (
                 <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                  No shipment records found for this period
+                  No data available for this period.
                 </div>
               )}
             </div>
@@ -176,24 +179,30 @@ export default function Reports() {
           {/* Customer Overview */}
           <div className="card">
             <h3 className="card-title" style={{ marginBottom: 20 }}>Customer Overview</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
-              {[
-                { label: 'Total Customers', value: totalCustomers, filledClass: 'card-filled-purple' },
-                { label: 'New Leads', value: leadCount, filledClass: 'card-filled-yellow' },
-                { label: 'Prospects', value: prospectCount, filledClass: 'card-filled-blue' },
-                { label: 'Loyal Customers', value: loyalCount, filledClass: 'card-filled-green' },
-                { label: 'Returning Customers', value: returningCount, filledClass: 'card-filled-orange' },
-              ].map((item) => (
-                <div key={item.label} className={`premium-card filled ${item.filledClass}`} style={{ padding: '20px 24px', minHeight: '120px' }}>
-                  <span className="metric-label" style={{ fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, display: 'block' }}>
-                    {item.label}
-                  </span>
-                  <div className="stat-value" style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700 }}>
-                    {item.value.toLocaleString()}
+            {totalCustomers === 0 ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)' }}>
+                No customer data available for this period.
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+                {[
+                  { label: 'Total Customers', value: totalCustomers },
+                  { label: 'New Leads', value: leadCount },
+                  { label: 'Prospects', value: prospectCount },
+                  { label: 'Loyal Customers', value: loyalCount },
+                  { label: 'Returning Customers', value: returningCount },
+                ].map((item) => (
+                  <div key={item.label} className="card" style={{ padding: '20px 24px', minHeight: '120px' }}>
+                    <span className="metric-label" style={{ fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8, display: 'block', color: 'var(--color-text-secondary)' }}>
+                      {item.label}
+                    </span>
+                    <div className="stat-value" style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                      {item.value.toLocaleString()}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}

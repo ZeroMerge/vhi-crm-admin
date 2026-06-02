@@ -1,41 +1,124 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Download, AlarmClock } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { invoiceService } from '@/services/invoice.service';
 import type { Invoice, Payment, InvoiceStatus } from '@/types';
 
-const mockInvoice: Invoice = {
-  id: '1', invoiceNumber: 'INV-2024-001', shipmentId: 'ship-1', customerId: '1',
-  customer: { id: '1', userId: 'USR001', firstname: 'Jane', lastname: 'Smith', email: 'jane@vhi.com', phone: '+2348012345678', industry: 'oil_gas', starRating: 4, status: 'loyal', newsletterPrefs: [], isActive: true, createdAt: '2024-01-15T10:00:00Z' },
-  shipment: { id: 'ship-1', orderId: '#1895-67-fw', customerId: '1', shippingMode: 'air_freight', deliveryMode: 'door_to_door', natureOfItem: 'Building material', invoiceValue: 34000000, invoiceCurrency: 'NGN', weight: 365000, weightUnit: 'kg', originAddress: 'London, UK', destinationAddress: 'Progue, Czech Republic', status: 'delivered', isDraft: false, createdAt: '2024-03-12T10:00:00Z', updatedAt: '2024-03-16T16:00:00Z' },
-  amount: 34000000, currency: 'NGN', status: 'paid', dueDate: '2024-03-30', notes: 'Payment received in full', fileUrl: '/invoices/INV-2024-001.pdf',
-  createdAt: '2024-03-15T10:00:00Z', updatedAt: '2024-03-15T14:00:00Z',
-};
-
-const mockPayments: Payment[] = [
-  { id: '1', invoiceId: '1', customerId: '1', amount: 34000000, currency: 'NGN', paymentMethod: 'paystack', paymentStatus: 'success', gatewayReference: 'PSK-12345', receiptUrl: '/receipts/REC-001.pdf', paidAt: '2024-03-15T14:00:00Z', createdAt: '2024-03-15T14:00:00Z' },
-];
-
-const statusOptions: InvoiceStatus[] = ['draft', 'sent', 'pending', 'awaiting_vendor', 'part_paid', 'paid'];
+const statusOptions: InvoiceStatus[] = ['draft', 'sent', 'pending', 'awaiting_vendor', 'awaiting_vendor_feedback', 'part_paid', 'paid'];
 
 export default function InvoiceDetail() {
   const navigate = useNavigate();
-  const [invoice, setInvoice] = useState(mockInvoice);
+  const { id } = useParams();
+  const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('manual');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [savingReminder, setSavingReminder] = useState(false);
+  const [followUpDate, setFollowUpDate] = useState('');
+
+  useEffect(() => {
+    if (!id) return;
+    let active = true;
+    const fetchInvoice = async () => {
+      setLoading(true);
+      try {
+        const data = await invoiceService.getById(id);
+        if (active) {
+          setInvoice(data);
+          setPayments(data.payments || []);
+          setFollowUpDate(data.followUpDate || '');
+        }
+      } catch (err) {
+        console.error('Failed to fetch invoice:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchInvoice();
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <PageWrapper>
+        <div className="card animate-pulse" style={{ height: 280, background: 'var(--color-surface)' }} />
+      </PageWrapper>
+    );
+  }
+
+  if (!invoice) {
+    return (
+      <PageWrapper>
+        <button onClick={() => navigate('/admin/invoices')} className="btn-back">
+          <ArrowLeft size={18} />
+          Back to Invoices
+        </button>
+        <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+          Invoice not found.
+        </div>
+      </PageWrapper>
+    );
+  }
 
   const isOverdue = new Date(invoice.dueDate) < new Date() && invoice.status !== 'paid';
 
-  const handleRecordPayment = () => {
-    setShowPaymentModal(false);
-    setPaymentAmount('');
-    setPaymentNotes('');
+  const handleRecordPayment = async () => {
+    if (!paymentAmount) return;
+    try {
+      await invoiceService.recordPayment(invoice.id, {
+        amount: parseFloat(paymentAmount),
+        paymentMethod,
+        notes: paymentNotes,
+      });
+      // Refresh details
+      const data = await invoiceService.getById(invoice.id);
+      setInvoice(data);
+      setPayments(data.payments || []);
+      setShowPaymentModal(false);
+      setPaymentAmount('');
+      setPaymentNotes('');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to record payment');
+    }
+  };
+
+  const handleUpdateStatus = async () => {
+    setSavingStatus(true);
+    try {
+      await invoiceService.updateStatus(invoice.id, invoice.status);
+      alert('Invoice status updated successfully.');
+    } catch (err) {
+      console.error('Failed to update invoice status:', err);
+      alert('Failed to update invoice status.');
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  const handleSaveReminder = async () => {
+    setSavingReminder(true);
+    try {
+      await invoiceService.updateReminder(invoice.id, followUpDate || null);
+      setInvoice({ ...invoice, followUpDate: followUpDate || undefined });
+      alert('Follow-up reminder saved successfully.');
+    } catch (err) {
+      console.error('Failed to save reminder:', err);
+      alert('Failed to save reminder.');
+    } finally {
+      setSavingReminder(false);
+    }
   };
 
   return (
@@ -45,7 +128,6 @@ export default function InvoiceDetail() {
         Back to Invoices
       </button>
 
-      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <h1 style={{ fontSize: 'var(--font-size-4xl)', fontWeight: 400 }}>{invoice.invoiceNumber}</h1>
@@ -59,7 +141,6 @@ export default function InvoiceDetail() {
         </div>
       </div>
 
-      {/* Overdue Alert */}
       {isOverdue && (
         <div className="alert-banner" style={{ marginBottom: 24, background: 'var(--color-status-pending-bg)' }}>
           <AlarmClock size={20} color="var(--color-status-pending-text)" />
@@ -69,11 +150,8 @@ export default function InvoiceDetail() {
         </div>
       )}
 
-      {/* Two Column Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-        {/* Left Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Invoice Info */}
+      <div className="two-col-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+        <div className="col-right" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div className="card">
             <h3 className="card-title" style={{ marginBottom: 16 }}>Invoice Details</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -104,7 +182,34 @@ export default function InvoiceDetail() {
             )}
           </div>
 
-          {/* Customer Info */}
+          {['draft', 'pending'].includes(invoice.status) && (
+            <div className="card">
+              <h3 className="card-title" style={{ marginBottom: 16 }}>Set Follow-up Reminder</h3>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label">Follow-up Date</label>
+                <input
+                  type="date"
+                  className="input"
+                  value={followUpDate}
+                  onChange={(e) => setFollowUpDate(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 16 }}>
+                {followUpDate && new Date(followUpDate) < new Date() ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-status-cancelled-text)', fontSize: 'var(--font-size-sm)' }}>
+                    <AlarmClock size={16} />
+                    Reminder is overdue.
+                  </div>
+                ) : (
+                  <div />
+                )}
+                <button className="btn btn-primary btn-sm" onClick={handleSaveReminder} disabled={savingReminder}>
+                  {savingReminder ? 'Saving...' : 'Save Reminder'}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="card">
             <h3 className="card-title" style={{ marginBottom: 16 }}>Customer</h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
@@ -121,7 +226,6 @@ export default function InvoiceDetail() {
             </div>
           </div>
 
-          {/* Shipment Link */}
           <div className="card">
             <h3 className="card-title" style={{ marginBottom: 16 }}>Linked Shipment</h3>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -137,9 +241,7 @@ export default function InvoiceDetail() {
           </div>
         </div>
 
-        {/* Right Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          {/* Status Control */}
           <div className="card">
             <h3 className="card-title" style={{ marginBottom: 16 }}>Status Control</h3>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -153,11 +255,12 @@ export default function InvoiceDetail() {
                   <option key={s} value={s}>{s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())}</option>
                 ))}
               </select>
-              <button className="btn btn-primary btn-sm">Update</button>
+              <button className="btn btn-primary btn-sm" onClick={handleUpdateStatus} disabled={savingStatus}>
+                {savingStatus ? 'Saving...' : 'Update'}
+              </button>
             </div>
           </div>
 
-          {/* Record Payment */}
           <div className="card">
             <div className="card-header">
               <h3 className="card-title">Payments</h3>
@@ -165,7 +268,7 @@ export default function InvoiceDetail() {
                 Record Payment
               </button>
             </div>
-            {mockPayments.length > 0 ? (
+            {payments.length > 0 ? (
               <div className="vhi-table-container" style={{ border: 'none' }}>
                 <table className="vhi-table">
                   <thead>
@@ -177,7 +280,7 @@ export default function InvoiceDetail() {
                     </tr>
                   </thead>
                   <tbody>
-                    {mockPayments.map((p) => (
+                    {payments.map((p) => (
                       <tr key={p.id}>
                         <td>{formatDate(p.paidAt || p.createdAt)}</td>
                         <td style={{ textAlign: 'right', fontWeight: 500 }}>{formatCurrency(p.amount, p.currency)}</td>
@@ -197,7 +300,6 @@ export default function InvoiceDetail() {
         </div>
       </div>
 
-      {/* Payment Modal */}
       <Modal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}

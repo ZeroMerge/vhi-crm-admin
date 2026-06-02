@@ -12,6 +12,7 @@ import paymentsRoutes from './modules/payments/payments.routes';
 import communicationsRoutes from './modules/communications/communications.routes';
 import newsletterRoutes from './modules/newsletter/newsletter.routes';
 import reportsRoutes from './modules/reports/reports.routes';
+import feedbackRoutes from './modules/feedback/feedback.routes';
 import searchRoutes from './modules/search/search.routes';
 import adminManagementRoutes from './modules/admin/admin_management.routes';
 
@@ -71,6 +72,7 @@ app.use('/api/admin/payments', paymentsRoutes);
 app.use('/api/admin/communications', communicationsRoutes);
 app.use('/api/admin/newsletter', newsletterRoutes);
 app.use('/api/admin/reports', reportsRoutes);
+app.use('/api/admin/feedback', feedbackRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {

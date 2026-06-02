@@ -363,6 +363,110 @@ img {
   }
 }
 
+@media (max-width: 768px) {
+  .communications-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px;
+  }
+
+  .communications-grid > div {
+    border-right: none !important;
+    min-height: auto !important;
+  }
+
+  .settings-nav {
+    width: 100% !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .settings-nav button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .filter-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .filter-toolbar > * {
+    width: 100% !important;
+    margin-left: 0 !important;
+  }
+
+  .filter-toolbar .btn,
+  .filter-toolbar .select,
+  .filter-toolbar .input {
+    width: 100% !important;
+  }
+
+  .tracking-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  .tracking-timeline {
+    padding-left: 12px !important;
+  }
+
+  .tracking-timeline-line {
+    left: 0 !important;
+  }
+
+  .tracking-timeline-dot {
+    margin-left: 0 !important;
+  }
+
+  .segment-picker {
+    flex-direction: column !important;
+  }
+
+  .segment-picker button {
+    width: 100% !important;
+  }
+
+  .newsletter-segment-header {
+    display: none !important;
+  }
+
+  .newsletter-segment-item {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  .newsletter-segment-item > div:last-child {
+    justify-content: flex-start !important;
+  }
+
+  /* Stack KPI cards vertically on small screens */
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .premium-card {
+    padding: 16px !important;
+  }
+
+  /* Generic two-column layout helper that collapses to a single column on mobile */
+  .two-col-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .two-col-layout > .col-right { min-width: 260px; }
+  @media (max-width: 768px) {
+    .two-col-layout {
+      grid-template-columns: 1fr !important;
+    }
+    .two-col-layout > .col-right { min-width: auto; }
+  }
+}
+
 
 
 /* ============================================
@@ -814,6 +918,13 @@ img {
   transform: translateY(-50%);
   color: var(--color-text-muted);
   pointer-events: none;
+}
+
+.search-bar-wrapper .input,
+.search-input-wrapper .input,
+.search-bar-wrapper .input-field,
+.search-input-wrapper .input-field {
+  padding-left: 40px !important;
 }
 
 .search-bar-input {

@@ -46,7 +46,7 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 DO $$ BEGIN
-  CREATE TYPE invoice_status_enum AS ENUM ('draft','sent','pending','awaiting_vendor','part_paid','paid');
+  CREATE TYPE invoice_status_enum AS ENUM ('draft','sent','pending','awaiting_vendor','awaiting_vendor_feedback','part_paid','paid');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
@@ -156,6 +156,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   currency VARCHAR(10) DEFAULT 'NGN',
   status invoice_status_enum DEFAULT 'draft',
   due_date DATE,
+  follow_up_date TIMESTAMPTZ,
   notes TEXT,
   file_url TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),

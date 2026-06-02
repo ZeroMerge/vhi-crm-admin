@@ -16,6 +16,7 @@ const payments_routes_1 = __importDefault(require("./modules/payments/payments.r
 const communications_routes_1 = __importDefault(require("./modules/communications/communications.routes"));
 const newsletter_routes_1 = __importDefault(require("./modules/newsletter/newsletter.routes"));
 const reports_routes_1 = __importDefault(require("./modules/reports/reports.routes"));
+const feedback_routes_1 = __importDefault(require("./modules/feedback/feedback.routes"));
 const search_routes_1 = __importDefault(require("./modules/search/search.routes"));
 const admin_management_routes_1 = __importDefault(require("./modules/admin/admin_management.routes"));
 dotenv_1.default.config();
@@ -73,6 +74,7 @@ app.use('/api/admin/payments', payments_routes_1.default);
 app.use('/api/admin/communications', communications_routes_1.default);
 app.use('/api/admin/newsletter', newsletter_routes_1.default);
 app.use('/api/admin/reports', reports_routes_1.default);
+app.use('/api/admin/feedback', feedback_routes_1.default);
 // Health check
 app.get('/api/health', (_req, res) => {
     res.json({ success: true, message: 'VHI CRM API is running' });

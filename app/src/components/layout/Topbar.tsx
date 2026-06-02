@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, ChevronDown, User, Settings, LogOut, ArrowRightLeft, Menu, Check } from 'lucide-react';
+import { Search, Bell, ChevronDown, User, Settings, LogOut, Menu } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { authService } from '@/services/auth.service';
@@ -23,15 +23,12 @@ const roleLabels: Record<AdminRole, string> = {
 export function Topbar() {
   const navigate = useNavigate();
   const admin = useAuthStore((s) => s.admin);
-  const setAuth = useAuthStore((s) => s.setAuth);
   const logout = useAuthStore((s) => s.logout);
   const { notifications, unreadCount, markAllAsRead, markAsRead } = useNotificationStore();
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [showRoleDropdown, setShowRoleDropdown] = useState(false);
-  
   // Search states
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,7 +41,6 @@ export function Topbar() {
 
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-  const roleRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
   // Close dropdowns on click outside
@@ -56,9 +52,6 @@ export function Topbar() {
       }
       if (profileRef.current && !profileRef.current.contains(target)) {
         setShowProfile(false);
-      }
-      if (roleRef.current && !roleRef.current.contains(target)) {
-        setShowRoleDropdown(false);
       }
       if (searchRef.current && !searchRef.current.contains(target)) {
         setSearchExpanded(false);
@@ -110,19 +103,6 @@ export function Topbar() {
     } finally {
       logout();
       navigate('/admin/login');
-    }
-  };
-
-  const handleSwitchRole = async (role: AdminRole) => {
-    try {
-      const response = await authService.switchRole(role);
-      if (response.token && response.admin) {
-        setAuth(response.admin, response.token);
-        setShowRoleDropdown(false);
-        window.location.reload(); // Refresh to update sidebar and routes
-      }
-    } catch (err) {
-      console.error('Failed to switch role:', err);
     }
   };
 
@@ -399,118 +379,50 @@ export function Topbar() {
           )}
         </div>
 
-        {/* Profile Dropdown with Switchable Active Role click area */}
+        {/* Profile Dropdown */}
         <div ref={profileRef} style={{ position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            
-            {/* Interactive Admin Switchable Role Dropdown Trigger */}
-            <div ref={roleRef} style={{ position: 'relative', textAlign: 'left' }}>
-              <div className="topbar-admin-name">
-                <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  {admin?.name || 'Admin User'}
-                </div>
-                
-                {/* Active role button - clicking this opens role switcher */}
-                <button
-                  onClick={() => setShowRoleDropdown(!showRoleDropdown)}
-                  style={{
-                    fontSize: 'var(--font-size-xs)',
-                    color: 'var(--color-primary)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                    padding: 0,
-                    textAlign: 'left',
-                    fontWeight: 500,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  {roleLabels[admin?.activeRole || 'support_staff']}
-                  <ArrowRightLeft size={10} />
-                </button>
+          <button
+            onClick={() => setShowProfile(!showProfile)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              background: 'var(--color-page-bg)',
+              border: '1px solid var(--color-border)',
+              cursor: 'pointer',
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-card)',
+            }}
+          >
+            <Avatar name={admin?.name || 'VHI Admin'} size="md" />
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                {admin?.name || 'VHI Admin'}
               </div>
-
-              {showRoleDropdown && admin && admin.assignedRoles && admin.assignedRoles.length > 1 && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 'calc(100% + 8px)',
-                    left: 0,
-                    minWidth: '180px',
-                    background: 'var(--color-page-bg)',
-                    borderRadius: 'var(--border-radius-card)',
-                    border: '1px solid var(--color-border)',
-                    boxShadow: 'var(--shadow-md)',
-                    zIndex: 1000,
-                    padding: '4px 0',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div style={{ padding: '8px 12px 4px', fontSize: '9px', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
-                    Switch Active Role
-                  </div>
-                  {admin.assignedRoles.map((role) => {
-                    const isCurrent = role === admin.activeRole;
-                    return (
-                      <button
-                        key={role}
-                        onClick={() => handleSwitchRole(role)}
-                        disabled={isCurrent}
-                        style={{
-                          display: 'block',
-                          width: '100%',
-                          padding: '8px 12px',
-                          textAlign: 'left',
-                          fontSize: 'var(--font-size-xs)',
-                          color: isCurrent ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
-                          background: isCurrent ? 'var(--color-surface)' : 'transparent',
-                          border: 'none',
-                          cursor: isCurrent ? 'default' : 'pointer',
-                          fontWeight: isCurrent ? 600 : 400,
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isCurrent) e.currentTarget.style.backgroundColor = 'var(--color-primary-light)';
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isCurrent) e.currentTarget.style.backgroundColor = 'transparent';
-                        }}
-                      >
-                        {roleLabels[role]} {isCurrent && <Check size={14} style={{ display: 'inline-block', marginLeft: 6, verticalAlign: 'middle', color: 'var(--color-primary)' }} />}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Profile Dropdown Trigger */}
-            <button
-              onClick={() => setShowProfile(!showProfile)}
-              style={{
-                display: 'flex',
+              <div style={{
+                fontSize: '10px',
+                color: 'var(--color-primary)',
+                background: 'var(--color-primary-light)',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: 8,
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                padding: 0,
+                marginTop: 2,
+                fontWeight: 600,
+              }}>
+                {roleLabels[admin?.activeRole || 'support_staff']}
+              </div>
+            </div>
+            <ChevronDown
+              size={16}
+              color="var(--color-text-muted)"
+              style={{
+                marginLeft: 4,
+                transition: 'transform 0.2s ease',
+                transform: showProfile ? 'rotate(180deg)' : 'rotate(0deg)',
               }}
-            >
-              <Avatar name={admin?.name || 'VHI'} size="md" />
-              <ChevronDown
-                size={16}
-                color="var(--color-text-muted)"
-                className={`topbar-chevron ${showProfile ? 'open' : ''}`}
-                style={{
-                  transition: 'transform 0.2s ease',
-                  transform: showProfile ? 'rotate(180deg)' : 'rotate(0deg)',
-                }}
-              />
-            </button>
-          </div>
+            />
+          </button>
 
           {showProfile && (
             <div

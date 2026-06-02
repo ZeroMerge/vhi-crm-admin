@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { Package, MapPin, AlertTriangle, Plus, MoreVertical, ChevronLeft, ChevronRight, SlidersHorizontal } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, DollarSign, Activity, Clock, AlertTriangle, MoreVertical, ChevronLeft, ChevronRight, SlidersHorizontal, AlarmClock } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
 import { ExportModal } from '@/components/shared/ExportModal';
 import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { invoiceService } from '@/services/invoice.service';
+import { useMemo } from 'react';
 import type { Shipment, ShipmentStatus } from '@/types';
 
 // Mock data matching the design
@@ -41,12 +44,10 @@ const tabs: { label: string; value: string; count?: number }[] = [
   { label: 'Processing', value: 'processing' },
 ];
 
-const stats = [
-  { label: 'Total Shipments', value: '120', icon: Package },
-  { label: 'Active Tracking', value: '64', icon: MapPin },
-];
+// adminStats moved into component to allow runtime metrics (overdue count)
 
 export default function Overview() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('all');
   const [exportOpen, setExportOpen] = useState(false);
   const [openMenuIdx, setOpenMenuIdx] = useState<number | null>(null);
@@ -54,6 +55,7 @@ export default function Overview() {
   const [page, setPage] = useState(1);
   const pageSize = 5;
   const pendingCount = 5;
+  const [overdueCount, setOverdueCount] = useState<number | null>(null);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [savedScrollLeft, setSavedScrollLeft] = useState(0);
@@ -72,6 +74,31 @@ export default function Overview() {
     }
   }, [page, savedScrollLeft]);
 
+  useEffect(() => {
+    let active = true;
+    const fetchOverdue = async () => {
+      try {
+        const res = await invoiceService.list({ overdue: 'true', page: 1, pageSize: 1 });
+        if (!active) return;
+        setPage(1);
+        setOverdueCount(res.total || 0);
+      } catch (err) {
+        console.error('Failed to load overdue count:', err);
+        if (active) setOverdueCount(0);
+      }
+    };
+    fetchOverdue();
+    return () => { active = false; };
+  }, []);
+
+  const adminStats = useMemo(() => [
+    { label: 'Total Customers', value: '1,248', icon: Users },
+    { label: 'Revenue (YTD)', value: '₦1.2B', icon: DollarSign },
+    { label: 'In Transit', value: '45', icon: Activity },
+    { label: 'Pending Actions', value: '12', icon: Clock },
+    { label: 'Overdue Follow-ups', value: overdueCount === null ? '…' : String(overdueCount), icon: AlarmClock, color: '#C62828' },
+  ], [overdueCount]);
+
 
   const filteredShipments = activeTab === 'all'
     ? mockShipments
@@ -80,6 +107,17 @@ export default function Overview() {
   const total = filteredShipments.length;
   const totalPages = Math.ceil(total / pageSize);
   const paginatedShipments = filteredShipments.slice((page - 1) * pageSize, page * pageSize);
+  const exportRows = paginatedShipments.map((shipment) => ({
+    orderId: shipment.orderId,
+    category: shipment.natureOfItem,
+    weight: `${shipment.weight.toLocaleString()} ${shipment.weightUnit}`,
+    company: `${shipment.customer?.firstname || 'Unknown'} ${shipment.customer?.lastname || ''}`.trim(),
+    arrivalTime: formatDate(shipment.createdAt),
+    route: `${shipment.originAddress?.split(',')[0] || 'Unknown'} - ${shipment.destinationAddress?.split(',')[0] || 'Unknown'}`,
+    shipper: 'DHL',
+    price: formatCurrency(shipment.invoiceValue, shipment.invoiceCurrency),
+    status: shipment.status,
+  }));
 
   const toggleRow = (id: string) => {
     const next = new Set(selectedRows);
@@ -95,39 +133,33 @@ export default function Overview() {
   };
 
   return (
-    <PageWrapper title={`Welcome ${'Jane'}!`}>
+    <PageWrapper title="Dashboard Overview">
       {/* Stats + Alert + Action Row */}
       {pendingCount > 0 && (
         <div className="alert-banner" style={{ display: 'flex', width: '100%', marginBottom: 20 }}>
           <AlertTriangle size={20} />
-          <span>You got {pendingCount} pending shipments</span>
+          <span>You got {pendingCount} pending actions requiring attention</span>
         </div>
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 24, marginBottom: 32, flexWrap: 'wrap', width: '100%' }}>
         <div className="stats-grid" style={{ flex: 1, marginBottom: 0, minWidth: '280px' }}>
-          {stats.map((stat, index) => {
-            const isTotal = index === 0;
-            const filledClass = isTotal ? 'card-filled-purple' : 'card-filled-pink';
+          {adminStats.map((stat) => {
             return (
-              <div key={stat.label} className={`premium-card filled ${filledClass}`}>
+              <div key={stat.label} className="premium-card">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>
-                  <div className="metric-icon-wrapper" style={{ width: 44, height: 44, borderRadius: 'var(--radius-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <stat.icon size={22} />
+                  <div className="metric-icon-wrapper" style={{ width: 44, height: 44, borderRadius: 'var(--radius-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: 'var(--color-surface)' }}>
+                    <stat.icon size={22} color="var(--color-text-secondary)" />
                   </div>
-                  <span className="metric-label" style={{ fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{stat.label}</span>
+                  <span className="metric-label" style={{ fontSize: 'var(--font-size-sm)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)' }}>{stat.label}</span>
                 </div>
-                <div className="stat-value" style={{ fontSize: 'var(--font-size-4xl)', fontWeight: 700 }}>
+                <div className="stat-value" style={{ fontSize: 'var(--font-size-4xl)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                   {stat.value}
                 </div>
               </div>
             );
           })}
         </div>
-        <button className="btn btn-primary btn-lg btn-responsive" onClick={() => {}}>
-          <Plus size={18} />
-          Create shipment
-        </button>
       </div>
 
       {/* Table Header */}
@@ -152,7 +184,7 @@ export default function Overview() {
         <div className="table-header-right">
           <button className="btn btn-ghost" onClick={() => setExportOpen(true)}>
             <SlidersHorizontal size={16} />
-            Customize
+            Export Data
           </button>
           <div className="pagination" style={{ borderTop: 'none', padding: 0 }}>
             <span className="pagination-info" style={{ marginRight: 8 }}>
@@ -240,9 +272,9 @@ export default function Overview() {
                   </button>
                   {openMenuIdx === idx && (
                     <div className="dropdown-menu" style={{ right: 0, top: '100%' }}>
-                      <button className="dropdown-item" onClick={() => setOpenMenuIdx(null)}>View Details</button>
-                      <button className="dropdown-item" onClick={() => setOpenMenuIdx(null)}>Update Status</button>
-                      <button className="dropdown-item" onClick={() => setOpenMenuIdx(null)}>Print</button>
+                      <button className="dropdown-item" onClick={() => { setOpenMenuIdx(null); navigate(`/admin/shipments/${shipment.id}`); }}>View Details</button>
+                      <button className="dropdown-item" onClick={() => { setOpenMenuIdx(null); navigate(`/admin/shipments/${shipment.id}?tab=status`); }}>Update Status</button>
+                      <button className="dropdown-item" onClick={() => { setOpenMenuIdx(null); window.print(); }}>Print</button>
                     </div>
                   )}
                 </td>
@@ -252,7 +284,13 @@ export default function Overview() {
         </table>
       </div>
 
-      <ExportModal isOpen={exportOpen} onClose={() => setExportOpen(false)} selectedCount={selectedRows.size} />
+      <ExportModal
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+        selectedCount={selectedRows.size}
+        rows={exportRows}
+        fileName="overview-shipments.csv"
+      />
     </PageWrapper>
   );
 }

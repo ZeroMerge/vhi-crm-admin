@@ -5,6 +5,25 @@ import { logAuditEvent } from '../../utils/audit';
 
 const router = Router();
 
+function mapCustomer(row: any) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    userId: row.user_id,
+    firstname: row.firstname,
+    lastname: row.lastname,
+    email: row.email,
+    phone: row.phone,
+    industry: row.industry,
+    starRating: row.star_rating,
+    status: row.status,
+    newsletterPrefs: row.newsletter_prefs || [],
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 // GET /api/admin/customers
 router.get('/', adminMiddleware, async (req, res, next) => {
   try {
@@ -44,7 +63,7 @@ router.get('/', adminMiddleware, async (req, res, next) => {
     const result = await pool.query(sql, params);
     res.json({
       success: true,
-      data: result.rows,
+      data: result.rows.map(mapCustomer),
       pagination: { total, page: parseInt(page as string), pageSize: parseInt(pageSize as string), totalPages: Math.ceil(total / parseInt(pageSize as string)) },
     });
   } catch (err) { next(err); }
@@ -57,11 +76,20 @@ router.get('/:id', adminMiddleware, async (req, res, next) => {
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Customer not found' });
 
     const shipmentCount = await pool.query('SELECT COUNT(*) FROM shipments WHERE customer_id = $1', [req.params.id]);
+    const totalInvoiced = await pool.query('SELECT COALESCE(SUM(amount), 0) as total FROM invoices WHERE customer_id = $1', [req.params.id]);
     const paymentTotal = await pool.query('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE customer_id = $1 AND payment_status = $2', [req.params.id, 'success']);
+    const totalInvoicedAmount = parseFloat(totalInvoiced.rows[0].total);
+    const totalPaidAmount = parseFloat(paymentTotal.rows[0].total);
 
     res.json({
       success: true,
-      data: { ...result.rows[0], shipmentCount: parseInt(shipmentCount.rows[0].count), paymentTotal: parseFloat(paymentTotal.rows[0].total) },
+      data: {
+        ...mapCustomer(result.rows[0]),
+        shipmentCount: parseInt(shipmentCount.rows[0].count),
+        totalInvoiced: totalInvoicedAmount,
+        totalPaid: totalPaidAmount,
+        outstandingBalance: Math.max(totalInvoicedAmount - totalPaidAmount, 0),
+      },
     });
   } catch (err) { next(err); }
 });
@@ -76,7 +104,7 @@ router.put('/:id/star', adminMiddleware, async (req, res, next) => {
     // Log audit event
     await logAuditEvent(req.admin!.id, req.admin!.activeRole, 'UPDATE_CUSTOMER_STAR', 'customer', req.params.id, { starRating });
 
-    res.json({ success: true, data: result.rows[0] });
+    res.json({ success: true, data: mapCustomer(result.rows[0]) });
   } catch (err) { next(err); }
 });
 
@@ -90,7 +118,7 @@ router.put('/:id/status', adminMiddleware, async (req, res, next) => {
     // Log audit event
     await logAuditEvent(req.admin!.id, req.admin!.activeRole, 'UPDATE_CUSTOMER_STATUS', 'customer', req.params.id, { status });
 
-    res.json({ success: true, data: result.rows[0] });
+    res.json({ success: true, data: mapCustomer(result.rows[0]) });
   } catch (err) { next(err); }
 });
 
@@ -104,7 +132,7 @@ router.put('/:id/segment', adminMiddleware, async (req, res, next) => {
     // Log audit event
     await logAuditEvent(req.admin!.id, req.admin!.activeRole, 'UPDATE_CUSTOMER_SEGMENT', 'customer', req.params.id, { industry });
 
-    res.json({ success: true, data: result.rows[0] });
+    res.json({ success: true, data: mapCustomer(result.rows[0]) });
   } catch (err) { next(err); }
 });
 
@@ -124,7 +152,26 @@ router.delete('/:id', adminMiddleware, async (req, res, next) => {
 router.get('/:id/shipments', adminMiddleware, async (req, res, next) => {
   try {
     const result = await pool.query('SELECT * FROM shipments WHERE customer_id = $1 ORDER BY created_at DESC', [req.params.id]);
-    res.json({ success: true, data: result.rows });
+    // Map shipments if needed
+    const mapped = result.rows.map(row => ({
+      id: row.id,
+      orderId: row.order_id,
+      customerId: row.customer_id,
+      shippingMode: row.shipping_mode,
+      deliveryMode: row.delivery_mode,
+      natureOfItem: row.nature_of_item,
+      invoiceValue: parseFloat(row.invoice_value),
+      invoiceCurrency: row.invoice_currency,
+      weight: parseFloat(row.weight),
+      weightUnit: row.weight_unit || 'kg',
+      originAddress: row.origin_address,
+      destinationAddress: row.destination_address,
+      status: row.status,
+      isDraft: row.is_draft,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+    res.json({ success: true, data: mapped });
   } catch (err) { next(err); }
 });
 
@@ -132,7 +179,20 @@ router.get('/:id/shipments', adminMiddleware, async (req, res, next) => {
 router.get('/:id/payments', adminMiddleware, async (req, res, next) => {
   try {
     const result = await pool.query('SELECT * FROM payments WHERE customer_id = $1 ORDER BY created_at DESC', [req.params.id]);
-    res.json({ success: true, data: result.rows });
+    const mapped = result.rows.map(row => ({
+      id: row.id,
+      invoiceId: row.invoice_id,
+      customerId: row.customer_id,
+      amount: parseFloat(row.amount),
+      currency: row.currency,
+      paymentMethod: row.payment_method,
+      paymentStatus: row.payment_status,
+      gatewayReference: row.gateway_reference,
+      receiptUrl: row.receipt_url,
+      paidAt: row.paid_at,
+      createdAt: row.created_at,
+    }));
+    res.json({ success: true, data: mapped });
   } catch (err) { next(err); }
 });
 

@@ -31,7 +31,7 @@ export default function Newsletter() {
   return (
     <PageWrapper title="Newsletter Broadcasts">
       {/* Top action row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+      <div className="filter-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-base)' }}>
           Manage your customer mailing lists and broadcast premium email campaigns.
         </p>
@@ -47,6 +47,7 @@ export default function Newsletter() {
 
       {/* Notion-Style List Header */}
       <div 
+        className="newsletter-segment-header"
         style={{ 
           display: 'grid', 
           gridTemplateColumns: '260px 1fr 180px 50px', 
@@ -74,6 +75,7 @@ export default function Newsletter() {
           return (
             <div
               key={segment.industry}
+              className="newsletter-segment-item"
               onClick={() => navigate(`/admin/newsletter/compose?segment=${segment.industry}`)}
               onMouseEnter={() => setHoveredIdx(segment.industry)}
               onMouseLeave={() => setHoveredIdx(null)}

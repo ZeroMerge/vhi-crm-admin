@@ -229,7 +229,7 @@ export default function ShipmentDetail() {
         </div>
 
         {/* Right Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="col-right" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Tracking Numbers */}
           <div className="card">
             <h3 className="card-title" style={{ marginBottom: 16 }}>Tracking Information</h3>

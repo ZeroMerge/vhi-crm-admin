@@ -130,6 +130,7 @@ export default function Customers() {
     <PageWrapper title="Customers">
       {/* Page-adaptive filter bar */}
       <div
+        className="filter-toolbar"
         style={{
           display: 'flex',
           alignItems: 'center',

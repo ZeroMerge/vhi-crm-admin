@@ -39,6 +39,7 @@ export type InvoiceStatus =
   | 'sent'
   | 'pending'
   | 'awaiting_vendor'
+  | 'awaiting_vendor_feedback'
   | 'part_paid'
   | 'paid';
 
@@ -69,6 +70,10 @@ export interface Customer {
   newsletterPrefs: string[];
   isActive: boolean;
   createdAt: string;
+  shipmentCount?: number;
+  totalInvoiced?: number;
+  totalPaid?: number;
+  outstandingBalance?: number;
 }
 
 export interface ShipmentItem {
@@ -142,8 +147,10 @@ export interface Invoice {
   currency: string;
   status: InvoiceStatus;
   dueDate: string;
+  followUpDate?: string;
   notes?: string;
   fileUrl?: string;
+  payments?: Payment[];
   createdAt: string;
   updatedAt: string;
 }

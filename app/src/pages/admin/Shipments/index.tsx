@@ -128,20 +128,24 @@ export default function Shipments() {
         </span>
       </div>
 
-      {/* Page-adaptive filter bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 24,
-          flexWrap: 'wrap',
-          background: 'var(--color-surface)',
-          padding: '16px',
-          borderRadius: 'var(--border-radius-card)',
-          border: '1px solid var(--color-border)',
-        }}
-      >
+      {/* Page-adaptive layout */}
+      <div className="two-col-layout" style={{ gap: 20, marginBottom: 24 }}>
+        <div>
+          {/* Page-adaptive filter bar */}
+          <div
+            className="filter-toolbar"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              marginBottom: 24,
+              flexWrap: 'wrap',
+              background: 'var(--color-surface)',
+              padding: '16px',
+              borderRadius: 'var(--border-radius-card)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
         {/* Search input on left */}
         <div className="search-input-wrapper" style={{ maxWidth: 220 }}>
           <Search size={18} className="search-icon" />
@@ -302,11 +306,20 @@ export default function Shipments() {
           </button>
         )}
 
-        {/* Export / Action on right */}
-        <button className="btn btn-ghost btn-sm" style={{ marginLeft: 'auto' }} onClick={() => setExportOpen(true)}>
-          <SlidersHorizontal size={16} />
-          Customize Export
-        </button>
+          </div>
+        </div>
+
+        <div className="col-right">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ padding: 12, background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Total Shipments</div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)' }}>{(total ?? 0).toLocaleString()}</div>
+            </div>
+            <button className="btn btn-ghost" onClick={() => setExportOpen(true)}>
+              <SlidersHorizontal size={16} /> Customize Export
+            </button>
+          </div>
+        </div>
       </div>
 
       {isSupportStaff && (

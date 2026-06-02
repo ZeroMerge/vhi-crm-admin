@@ -6,17 +6,52 @@ interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedCount?: number;
+  rows?: Array<Record<string, unknown>>;
+  fileName?: string;
 }
 
-export function ExportModal({ isOpen, onClose, selectedCount = 0 }: ExportModalProps) {
+const csvFriendlyValue = (value: unknown) => {
+  if (value === null || value === undefined) return '';
+  const normalized = String(value);
+  if (/[,\n\"]/.test(normalized)) {
+    return `"${normalized.replace(/"/g, '""')}"`;
+  }
+  return normalized;
+};
+
+export function ExportModal({ isOpen, onClose, selectedCount = 0, rows = [], fileName = 'vhi_export.csv' }: ExportModalProps) {
   const [format, setFormat] = useState<'pdf' | 'csv'>('pdf');
   const [includePrice, setIncludePrice] = useState(true);
   const [includeShipper, setIncludeShipper] = useState(true);
   const [includeItems, setIncludeItems] = useState(false);
 
   const handleExport = () => {
-    console.log('Exporting:', { format, includePrice, includeShipper, includeItems });
-    alert(`Exporting ${selectedCount > 0 ? selectedCount : 'all'} shipments as ${format.toUpperCase()}...`);
+    if (format === 'csv') {
+      const filteredRows = rows.map((row) => {
+        const nextRow: Record<string, unknown> = {};
+        Object.entries(row).forEach(([key, value]) => {
+          if (!includePrice && key === 'price') return;
+          if (!includeShipper && key === 'shipper') return;
+          if (!includeItems && key === 'items') return;
+          nextRow[key] = value;
+        });
+        return nextRow;
+      });
+
+      const headers = filteredRows.length > 0 ? Object.keys(filteredRows[0]) : ['id', 'status'];
+      const csvLines = [headers.join(','), ...filteredRows.map((row) => headers.map((header) => csvFriendlyValue(row[header])).join(','))];
+      const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const encodedUri = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(encodedUri);
+    } else {
+      window.print();
+    }
     onClose();
   };
 

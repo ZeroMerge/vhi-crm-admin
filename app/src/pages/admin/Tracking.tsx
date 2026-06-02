@@ -141,6 +141,7 @@ export default function Tracking() {
     <PageWrapper title="Tracking">
       {/* Search and Filters horizontal panel */}
       <div
+        className="filter-toolbar"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -269,7 +270,7 @@ export default function Tracking() {
       )}
 
       {/* Grid Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 24 }}>
+      <div className="two-col-layout tracking-layout" style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 24 }}>
         
         {/* Left Panel - Shipment List */}
         <div>
@@ -315,11 +316,11 @@ export default function Tracking() {
                     </div>
 
                     {/* Timeline */}
-                    <div style={{ position: 'relative', paddingLeft: 16 }}>
-                      <div style={{ position: 'absolute', left: 3, top: 8, bottom: 8, width: 2, borderLeft: '2px dashed var(--color-border)' }} />
+                    <div className="tracking-timeline" style={{ position: 'relative', paddingLeft: 16 }}>
+                      <div className="tracking-timeline-line" style={{ position: 'absolute', left: 3, top: 8, bottom: 8, width: 2, borderLeft: '2px dashed var(--color-border)' }} />
                       {/* Origin */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary)', marginLeft: -16, flexShrink: 0 }} />
+                        <div className="tracking-timeline-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary)', marginLeft: -16, flexShrink: 0 }} />
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>From</div>
                           <div style={{ fontSize: 'var(--font-size-sm)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -329,7 +330,7 @@ export default function Tracking() {
                       </div>
                       {/* Destination */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary)', marginLeft: -16, flexShrink: 0 }} />
+                        <div className="tracking-timeline-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary)', marginLeft: -16, flexShrink: 0 }} />
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>To</div>
                           <div style={{ fontSize: 'var(--font-size-sm)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -346,7 +347,7 @@ export default function Tracking() {
         </div>
 
         {/* Right Panel - Detail */}
-        <div>
+        <div className="col-right">
           {selectedShipment ? (
             <>
               {/* Header */}

@@ -40,13 +40,13 @@ export default function ComposeNewsletter() {
         Back to Newsletter
       </button>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24 }}>
+      <div className="two-col-layout" style={{ gap: 24 }}>
         {/* Left - Compose Form */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Segments */}
           <div className="card">
             <h3 className="card-title" style={{ marginBottom: 16 }}>Select Segments</h3>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <div className="segment-picker" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               <button
                 onClick={() => setSelectedSegments(['all'])}
                 style={{
@@ -115,7 +115,7 @@ export default function ComposeNewsletter() {
         </div>
 
         {/* Right - Preview */}
-        <div>
+        <div className="col-right">
           <div className="card" style={{ position: 'sticky', top: 0 }}>
             <h3 className="card-title" style={{ marginBottom: 16 }}>Preview</h3>
 

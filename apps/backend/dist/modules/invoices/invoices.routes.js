@@ -8,6 +8,36 @@ const db_1 = __importDefault(require("../../config/db"));
 const adminMiddleware_1 = require("../../middleware/adminMiddleware");
 const audit_1 = require("../../utils/audit");
 const router = (0, express_1.Router)();
+function mapInvoice(row) {
+    if (!row)
+        return null;
+    return {
+        id: row.id,
+        invoiceNumber: row.invoice_number,
+        shipmentId: row.shipment_id,
+        customerId: row.customer_id,
+        amount: parseFloat(row.amount),
+        currency: row.currency,
+        status: row.status,
+        dueDate: row.due_date,
+        followUpDate: row.follow_up_date,
+        notes: row.notes,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        customer: row.customer_id ? {
+            id: row.customer_id,
+            firstname: row.firstname || row.customer_firstname,
+            lastname: row.lastname || row.customer_lastname,
+            email: row.email || row.customer_email,
+            phone: row.phone || row.customer_phone,
+        } : null,
+        shipment: row.shipment_id ? {
+            id: row.shipment_id,
+            orderId: row.shipment_order_id || row.order_id,
+            status: row.shipment_status || row.status,
+        } : null,
+    };
+}
 // GET /api/admin/invoices
 router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
@@ -67,7 +97,7 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         const result = await db_1.default.query(sql, params);
         res.json({
             success: true,
-            data: result.rows,
+            data: result.rows.map(mapInvoice),
             pagination: { total, page: parseInt(page), pageSize: parseInt(pageSize), totalPages: Math.ceil(total / parseInt(pageSize)) },
         });
     }
@@ -78,11 +108,30 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
 // GET /api/admin/invoices/:id
 router.get('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
-        const invoiceResult = await db_1.default.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+        const invoiceResult = await db_1.default.query(`SELECT i.*, 
+              c.firstname as customer_firstname, c.lastname as customer_lastname, c.email as customer_email, c.phone as customer_phone,
+              s.order_id as shipment_order_id, s.status as shipment_status
+       FROM invoices i 
+       LEFT JOIN customers c ON i.customer_id = c.id 
+       LEFT JOIN shipments s ON i.shipment_id = s.id 
+       WHERE i.id = $1`, [req.params.id]);
         if (invoiceResult.rows.length === 0)
             return res.status(404).json({ success: false, message: 'Invoice not found' });
         const payments = await db_1.default.query('SELECT * FROM payments WHERE invoice_id = $1', [req.params.id]);
-        res.json({ success: true, data: { ...invoiceResult.rows[0], payments: payments.rows } });
+        const mappedPayments = payments.rows.map(row => ({
+            id: row.id,
+            invoiceId: row.invoice_id,
+            customerId: row.customer_id,
+            amount: parseFloat(row.amount),
+            currency: row.currency,
+            paymentMethod: row.payment_method,
+            paymentStatus: row.payment_status,
+            gatewayReference: row.gateway_reference,
+            receiptUrl: row.receipt_url,
+            paidAt: row.paid_at,
+            createdAt: row.created_at,
+        }));
+        res.json({ success: true, data: { ...mapInvoice(invoiceResult.rows[0]), payments: mappedPayments } });
     }
     catch (err) {
         next(err);
@@ -97,7 +146,7 @@ router.post('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         const invoice = result.rows[0];
         // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'CREATE_INVOICE', 'invoice', invoice.id, { amount, currency, invoiceNumber });
-        res.json({ success: true, data: invoice });
+        res.json({ success: true, data: mapInvoice(invoice) });
     }
     catch (err) {
         next(err);
@@ -111,7 +160,20 @@ router.put('/:id/status', adminMiddleware_1.adminMiddleware, async (req, res, ne
         const result = await db_1.default.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
         // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_INVOICE_STATUS', 'invoice', req.params.id, { status });
-        res.json({ success: true, data: result.rows[0] });
+        res.json({ success: true, data: mapInvoice(result.rows[0]) });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// PUT /api/admin/invoices/:id/reminder
+router.put('/:id/reminder', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
+    try {
+        const { followUpDate } = req.body;
+        await db_1.default.query('UPDATE invoices SET follow_up_date = $1, updated_at = NOW() WHERE id = $2', [followUpDate || null, req.params.id]);
+        const result = await db_1.default.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_INVOICE_REMINDER', 'invoice', req.params.id, { followUpDate });
+        res.json({ success: true, data: mapInvoice(result.rows[0]) });
     }
     catch (err) {
         next(err);

@@ -15,6 +15,7 @@ import ComposeNewsletter from '@/pages/admin/Newsletter/Compose';
 import AudienceSegmentation from '@/pages/admin/AudienceSegmentation';
 import Reports from '@/pages/admin/Reports';
 import Settings from '@/pages/admin/Settings';
+import Feedback from '@/pages/admin/Feedback';
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -38,6 +39,7 @@ export function AppRouter() {
       <Route path="/admin/newsletter/compose" element={<AdminRoute><ComposeNewsletter /></AdminRoute>} />
       <Route path="/admin/audience-segmentation" element={<AdminRoute><AudienceSegmentation /></AdminRoute>} />
       <Route path="/admin/reports" element={<AdminRoute><Reports /></AdminRoute>} />
+      <Route path="/admin/feedback" element={<AdminRoute><Feedback /></AdminRoute>} />
       <Route path="/admin/settings" element={<AdminRoute><Settings /></AdminRoute>} />
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>

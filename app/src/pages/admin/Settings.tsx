@@ -291,25 +291,41 @@ export default function Settings() {
 
   return (
     <PageWrapper title="Settings">
-      {/* Horizontal Tabs */}
-      <div style={{ marginBottom: 28 }}>
-        <div className="tabs">
+      <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        {/* Left Sidebar Nav */}
+        <div className="settings-nav" style={{ width: 240, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 4, padding: 8, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-card)' }}>
           {tabsConfig
             .filter((tc) => !tc.superAdminOnly || isSuperAdmin)
-            .map((t) => (
-              <button
-                key={t.id}
-                className={`tab ${activeTab === t.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(t.id)}
-              >
-                <t.icon size={16} />
-                {t.label}
-              </button>
-            ))}
+            .map((t) => {
+              const isActive = activeTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '12px 16px',
+                    borderRadius: 'var(--radius-button)',
+                    background: isActive ? 'var(--color-page-bg)' : 'transparent',
+                    color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                    fontWeight: isActive ? 600 : 500,
+                    border: 'none',
+                    borderLeft: isActive ? '3px solid var(--color-primary)' : '3px solid transparent',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  <t.icon size={18} />
+                  {t.label}
+                </button>
+              );
+            })}
         </div>
-      </div>
 
-      <div style={{ maxWidth: 880 }}>
+      <div style={{ flex: 1, minWidth: 300, maxWidth: 880 }}>
         {/* Tab 1: Profile */}
         {activeTab === 'profile' && (
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -696,6 +712,7 @@ export default function Settings() {
             )}
           </>
         )}
+      </div>
       </div>
 
       {/* Invite Admin Modal */}

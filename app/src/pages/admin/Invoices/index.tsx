@@ -18,6 +18,7 @@ const statuses = [
   { value: 'sent', label: 'Sent' },
   { value: 'pending', label: 'Pending' },
   { value: 'awaiting_vendor', label: 'Awaiting Vendor' },
+  { value: 'awaiting_vendor_feedback', label: 'Awaiting Vendor Feedback' },
   { value: 'part_paid', label: 'Part Paid' },
   { value: 'paid', label: 'Paid' },
 ];
@@ -153,6 +154,11 @@ export default function Invoices() {
 
   const isFilterActive = !!(search || status || currency || dateFrom || dateTo || overdue || sortBy !== 'newest');
 
+  const isFollowUpOverdue = (invoice: Invoice) => {
+    if (!invoice.followUpDate) return false;
+    return new Date(invoice.followUpDate) < new Date() && invoice.status !== 'paid';
+  };
+
   // Handle pagination clicks
   const totalPages = Math.ceil(total / pageSize);
   const handlePageChange = (newPage: number) => {
@@ -213,20 +219,24 @@ export default function Invoices() {
 
   return (
     <PageWrapper title="Invoices">
-      {/* Filters & Header Actions */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 24,
-          flexWrap: 'wrap',
-          background: 'var(--color-surface)',
-          padding: '16px',
-          borderRadius: 'var(--border-radius-card)',
-          border: '1px solid var(--color-border)',
-        }}
-      >
+      {/* Page-adaptive layout */}
+      <div className="two-col-layout" style={{ gap: 20, marginBottom: 24 }}>
+        <div>
+          {/* Filters & Header Actions */}
+          <div
+            className="filter-toolbar"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              marginBottom: 24,
+              flexWrap: 'wrap',
+              background: 'var(--color-surface)',
+              padding: '16px',
+              borderRadius: 'var(--border-radius-card)',
+              border: '1px solid var(--color-border)',
+            }}
+          >
         {/* Search input on left */}
         <div className="search-input-wrapper" style={{ maxWidth: 220 }}>
           <Search size={18} className="search-icon" />
@@ -400,17 +410,22 @@ export default function Invoices() {
           </button>
         )}
 
-        {/* Create action on right */}
-        {!isSupportStaff && (
-          <button
-            className="btn btn-primary btn-sm"
-            style={{ marginLeft: 'auto' }}
-            onClick={() => setShowCreate(true)}
-          >
-            <Plus size={16} />
-            Create Invoice
-          </button>
-        )}
+          </div>
+        </div>
+
+        <div className="col-right">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ padding: 12, background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1px solid var(--color-border)' }}>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Invoices</div>
+              <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)' }}>{(total ?? 0).toLocaleString()}</div>
+            </div>
+            {!isSupportStaff && (
+              <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
+                <Plus size={16} /> Create Invoice
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {isSupportStaff && (
@@ -457,7 +472,12 @@ export default function Invoices() {
             <tbody>
               {invoices.map((inv, idx) => (
                 <tr key={inv.id} onClick={() => navigate(`/admin/invoices/${inv.id}`)} style={{ cursor: 'pointer' }}>
-                  <td style={{ fontWeight: 500 }}>{inv.invoiceNumber}</td>
+                  <td style={{ fontWeight: 500 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {isFollowUpOverdue(inv) && <AlarmClock size={14} color="var(--color-status-cancelled-text)" />}
+                      <span>{inv.invoiceNumber}</span>
+                    </div>
+                  </td>
                   <td>
                     {inv.customer ? `${inv.customer.firstname} ${inv.customer.lastname}` : 'Unknown Customer'}
                   </td>

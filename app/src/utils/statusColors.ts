@@ -25,6 +25,7 @@ export function getInvoiceStatusColor(status: InvoiceStatus | string): StatusCol
     sent: { bg: '#E3F2FD', text: '#1565C0' },
     pending: { bg: 'var(--color-status-pending-bg)', text: 'var(--color-status-pending-text)' },
     awaiting_vendor: { bg: '#FFF3E0', text: '#E65100' },
+    awaiting_vendor_feedback: { bg: '#FFF3E0', text: '#E65100' },
     part_paid: { bg: 'var(--color-status-processing-bg)', text: 'var(--color-status-processing-text)' },
   };
   return map[status] || { bg: 'var(--color-status-cancelled-bg)', text: 'var(--color-status-cancelled-text)' };

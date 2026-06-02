@@ -1,28 +1,13 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
 import { StarRating } from '@/components/ui/StarRating';
 import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { customerService } from '@/services/customer.service';
 import type { Customer, Shipment, Payment, Communication } from '@/types';
-
-const mockCustomer: Customer = {
-  id: '1', userId: 'USR001', firstname: 'Jane', lastname: 'Smith', email: 'jane@vhi.com',
-  phone: '+2348012345678', industry: 'oil_gas', starRating: 4, status: 'loyal',
-  newsletterPrefs: ['oil_gas'], isActive: true, createdAt: '2024-01-15T10:00:00Z',
-};
-
-const mockShipments: Shipment[] = [
-  { id: '1', orderId: '#1895-67-fw', customerId: '1', shippingMode: 'air_freight', deliveryMode: 'door_to_door', natureOfItem: 'Building material', invoiceValue: 34000000, invoiceCurrency: 'NGN', weight: 365000, weightUnit: 'kg', originAddress: 'London, UK', destinationAddress: 'Progue, Czech Republic', status: 'delivered', isDraft: false, createdAt: '2024-03-12T10:00:00Z', updatedAt: '2024-03-12T10:00:00Z' },
-  { id: '2', orderId: '#2695-77-gw', customerId: '1', shippingMode: 'groupage', deliveryMode: 'port_to_port', natureOfItem: 'Electronics', invoiceValue: 12500000, invoiceCurrency: 'NGN', weight: 50000, weightUnit: 'kg', originAddress: 'Berlin, Germany', destinationAddress: 'Lagos, Nigeria', status: 'in_transit', isDraft: false, createdAt: '2024-04-10T09:00:00Z', updatedAt: '2024-04-10T09:00:00Z' },
-];
-
-const mockPayments: Payment[] = [
-  { id: '1', invoiceId: 'INV001', customerId: '1', amount: 34000000, currency: 'NGN', paymentMethod: 'paystack', paymentStatus: 'success', gatewayReference: 'PSK-12345', paidAt: '2024-03-15T14:00:00Z', createdAt: '2024-03-15T14:00:00Z' },
-  { id: '2', invoiceId: 'INV002', customerId: '1', amount: 12500000, currency: 'NGN', paymentMethod: 'stripe', paymentStatus: 'pending', createdAt: '2024-04-10T09:00:00Z' },
-];
 
 const mockMessages: Communication[] = [
   { id: '1', customerId: '1', sentBy: 'admin-1', subject: 'Shipment Update', body: 'Your shipment has been delivered successfully.', isRead: true, createdAt: '2024-03-15T14:00:00Z' },
@@ -33,9 +18,14 @@ type TabType = 'shipments' | 'payments' | 'messages';
 
 export default function CustomerDetail() {
   const navigate = useNavigate();
+  const { id } = useParams();
   const [activeTab, setActiveTab] = useState<TabType>('shipments');
-  const [starRating, setStarRating] = useState(mockCustomer.starRating);
-  const [customerStatus, setCustomerStatus] = useState(mockCustomer.status);
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [starRating, setStarRating] = useState(0);
+  const [customerStatus, setCustomerStatus] = useState<Customer['status']>('loyal');
   const [showCompose, setShowCompose] = useState(false);
   const [messageSubject, setMessageSubject] = useState('');
   const [messageBody, setMessageBody] = useState('');
@@ -46,21 +36,72 @@ export default function CustomerDetail() {
     { label: 'Messages', value: 'messages' },
   ];
 
+  useEffect(() => {
+    if (!id) return;
+
+    let active = true;
+
+    const fetchCustomer = async () => {
+      setLoading(true);
+      try {
+        const [customerData, shipmentData, paymentData] = await Promise.all([
+          customerService.getById(id),
+          customerService.getShipments(id),
+          customerService.getPayments(id),
+        ]);
+
+        if (!active) return;
+
+        setCustomer(customerData);
+        setShipments(shipmentData);
+        setPayments(paymentData);
+        setStarRating(customerData.starRating);
+        setCustomerStatus(customerData.status);
+      } catch (err) {
+        console.error('Failed to load customer detail:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    fetchCustomer();
+
+    return () => {
+      active = false;
+    };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <PageWrapper>
+        <div className="card animate-pulse" style={{ height: 280, background: 'var(--color-surface)' }} />
+      </PageWrapper>
+    );
+  }
+
+  if (!customer) {
+    return (
+      <PageWrapper>
+        <button onClick={() => navigate('/admin/customers')} className="btn-back">
+          <ArrowLeft size={18} />
+          Back to Customers
+        </button>
+        <div className="card" style={{ padding: 24, textAlign: 'center' }}>
+          Customer not found.
+        </div>
+      </PageWrapper>
+    );
+  }
+
   return (
     <PageWrapper>
-      {/* Back button */}
-      <button
-        onClick={() => navigate('/admin/customers')}
-        className="btn-back"
-      >
+      <button onClick={() => navigate('/admin/customers')} className="btn-back">
         <ArrowLeft size={18} />
         Back to Customers
       </button>
 
-      {/* Profile Card */}
       <div className="card" style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
-          {/* Avatar */}
+        <div className="two-col-layout" style={{ display: 'flex', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
           <div style={{
             width: 80,
             height: 80,
@@ -74,29 +115,27 @@ export default function CustomerDetail() {
             fontWeight: 600,
             flexShrink: 0,
           }}>
-            {mockCustomer.firstname[0]}{mockCustomer.lastname[0]}
+            {customer.firstname[0]}{customer.lastname[0]}
           </div>
 
-          {/* Info */}
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4, flexWrap: 'wrap' }}>
               <h1 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 600 }}>
-                {mockCustomer.firstname} {mockCustomer.lastname}
+                {customer.firstname} {customer.lastname}
               </h1>
               <Badge status={customerStatus} type="customer" />
             </div>
             <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', marginBottom: 8 }}>
-              User ID: {mockCustomer.userId} · Joined {formatDate(mockCustomer.createdAt)}
+              User ID: {customer.userId} · Joined {formatDate(customer.createdAt)}
             </div>
             <div style={{ display: 'flex', gap: 24, fontSize: 'var(--font-size-sm)', flexWrap: 'wrap' }}>
-              <span>{mockCustomer.email}</span>
-              <span>{mockCustomer.phone}</span>
-              <span><Badge status={mockCustomer.industry} type="shipment" size="sm" /></span>
+              <span>{customer.email}</span>
+              <span>{customer.phone}</span>
+              <span><Badge status={customer.industry} type="shipment" size="sm" /></span>
             </div>
           </div>
 
-          {/* Controls */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-end' }}>
+          <div className="col-right" style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-end' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>Star Rating:</span>
               <StarRating value={starRating} onChange={setStarRating} />
@@ -119,8 +158,25 @@ export default function CustomerDetail() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--color-border)' }}>
+      <div className="card" style={{ marginBottom: 24 }}>
+        <h3 className="card-title" style={{ marginBottom: 16 }}>Financial Summary</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+          <div className="card" style={{ padding: 20 }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: 8 }}>Total Cleared</div>
+            <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              {formatCurrency(customer.totalPaid || 0, 'NGN')}
+            </div>
+          </div>
+          <div className="card" style={{ padding: 20 }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: 8 }}>Outstanding Balance</div>
+            <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-primary)' }}>
+              {formatCurrency(customer.outstandingBalance || 0, 'NGN')}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--color-border)', overflowX: 'auto' }}>
         {tabs.map((tab) => (
           <button
             key={tab.value}
@@ -138,6 +194,7 @@ export default function CustomerDetail() {
               borderBottomColor: activeTab === tab.value ? 'var(--color-primary)' : 'transparent',
               cursor: 'pointer',
               fontFamily: 'var(--font-family)',
+              whiteSpace: 'nowrap',
             }}
           >
             {tab.label}
@@ -145,7 +202,6 @@ export default function CustomerDetail() {
         ))}
       </div>
 
-      {/* Tab Content */}
       {activeTab === 'shipments' && (
         <div className="vhi-table-container">
           <table className="vhi-table">
@@ -160,7 +216,7 @@ export default function CustomerDetail() {
               </tr>
             </thead>
             <tbody>
-              {mockShipments.map((s) => (
+              {shipments.map((s) => (
                 <tr key={s.id}>
                   <td style={{ fontWeight: 500 }}>{s.orderId}</td>
                   <td><Badge status={s.shippingMode} type="shipment" size="sm" /></td>
@@ -188,7 +244,7 @@ export default function CustomerDetail() {
               </tr>
             </thead>
             <tbody>
-              {mockPayments.map((p) => (
+              {payments.map((p) => (
                 <tr key={p.id}>
                   <td>{formatDate(p.createdAt)}</td>
                   <td>{p.invoiceId}</td>
