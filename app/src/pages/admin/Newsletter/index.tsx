@@ -108,7 +108,7 @@ export default function Newsletter() {
                   <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{segment.label}</span>
                   <span style={{
                     padding: '4px 10px',
-                    borderRadius: '100px',
+                    borderRadius: 'var(--radius-badge)',
                     background: 'var(--color-surface)',
                     border: '1px solid var(--color-border)',
                     color: 'var(--color-text-secondary)',

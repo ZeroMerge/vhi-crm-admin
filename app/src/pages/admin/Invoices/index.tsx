@@ -4,6 +4,8 @@ import { Search, ChevronLeft, ChevronRight, Plus, AlarmClock, MoreVertical, X, A
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+import { DatePicker } from '@/components/ui/date-picker';
 import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { invoiceService } from '@/services/invoice.service';
@@ -280,21 +282,12 @@ export default function Invoices() {
               }}
             />
           )}
-          <select
-            className="select"
+          <CustomSelect
             value={status}
-            onChange={(e) => updateFilter('status', e.target.value)}
-            style={{
-              borderColor: status ? 'var(--color-primary)' : 'var(--color-border)',
-              paddingRight: 32,
-            }}
-          >
-            {statuses.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => updateFilter('status', val)}
+            options={statuses}
+            style={{ borderColor: status ? 'var(--color-primary)' : 'var(--color-border)' }}
+          />
         </div>
 
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -312,52 +305,27 @@ export default function Invoices() {
               }}
             />
           )}
-          <select
-            className="select"
+          <CustomSelect
             value={currency}
-            onChange={(e) => updateFilter('currency', e.target.value)}
-            style={{
-              borderColor: currency ? 'var(--color-primary)' : 'var(--color-border)',
-              paddingRight: 32,
-            }}
-          >
-            {currencies.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => updateFilter('currency', val)}
+            options={currencies}
+            style={{ borderColor: currency ? 'var(--color-primary)' : 'var(--color-border)' }}
+          />
         </div>
 
         {/* Dates */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)' }}>
           <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>From:</span>
-          <input
-            type="date"
-            className="input"
+          <DatePicker
             value={dateFrom}
-            onChange={(e) => updateFilter('dateFrom', e.target.value)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--border-radius-input)',
-              width: 130,
-              fontSize: 'var(--font-size-xs)',
-              borderColor: dateFrom ? 'var(--color-primary)' : 'var(--color-border)',
-            }}
+            onChange={(date) => updateFilter('dateFrom', date ? date.toISOString() : '')}
+            className="w-[130px]"
           />
           <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>To:</span>
-          <input
-            type="date"
-            className="input"
+          <DatePicker
             value={dateTo}
-            onChange={(e) => updateFilter('dateTo', e.target.value)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--border-radius-input)',
-              width: 130,
-              fontSize: 'var(--font-size-xs)',
-              borderColor: dateTo ? 'var(--color-primary)' : 'var(--color-border)',
-            }}
+            onChange={(date) => updateFilter('dateTo', date ? date.toISOString() : '')}
+            className="w-[130px]"
           />
         </div>
 
@@ -389,21 +357,12 @@ export default function Invoices() {
               }}
             />
           )}
-          <select
-            className="select"
+          <CustomSelect
             value={sortBy}
-            onChange={(e) => updateFilter('sortBy', e.target.value)}
-            style={{
-              borderColor: sortBy !== 'newest' ? 'var(--color-primary)' : 'var(--color-border)',
-              paddingRight: 32,
-            }}
-          >
-            {sorts.map((s) => (
-              <option key={s.value} value={s.value}>
-                Sort: {s.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => updateFilter('sortBy', val)}
+            options={sorts.map(s => ({ ...s, label: `Sort: ${s.label}` }))}
+            style={{ borderColor: sortBy !== 'newest' ? 'var(--color-primary)' : 'var(--color-border)' }}
+          />
         </div>
 
         {isFilterActive && (
@@ -622,37 +581,29 @@ export default function Invoices() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="form-group">
             <label className="form-label">Customer *</label>
-            <select
-              className="select"
-              style={{ width: '100%' }}
+            <CustomSelect
               value={formCustomerId}
-              onChange={(e) => setFormCustomerId(e.target.value)}
-            >
-              <option value="">Select customer...</option>
-              {customersList.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.firstname} {c.lastname} ({c.userId})
-                </option>
-              ))}
-            </select>
+              onChange={setFormCustomerId}
+              options={[
+                { value: '', label: 'Select customer...' },
+                ...customersList.map((c) => ({ value: c.id, label: `${c.firstname} ${c.lastname} (${c.userId})` }))
+              ]}
+              width="100%"
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Shipment *</label>
-            <select
-              className="select"
-              style={{ width: '100%' }}
+            <CustomSelect
               value={formShipmentId}
-              onChange={(e) => setFormShipmentId(e.target.value)}
-            >
-              <option value="">Select shipment...</option>
-              {shipmentsList
-                .filter((s) => !formCustomerId || s.customerId === formCustomerId)
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.orderId} - {s.natureOfItem}
-                  </option>
-                ))}
-            </select>
+              onChange={setFormShipmentId}
+              options={[
+                { value: '', label: 'Select shipment...' },
+                ...shipmentsList
+                  .filter((s) => !formCustomerId || s.customerId === formCustomerId)
+                  .map((s) => ({ value: s.id, label: `${s.orderId} - ${s.natureOfItem}` }))
+              ]}
+              width="100%"
+            />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="form-group">
@@ -667,29 +618,27 @@ export default function Invoices() {
             </div>
             <div className="form-group">
               <label className="form-label">Currency *</label>
-              <select
-                className="select"
-                style={{ width: '100%' }}
+              <CustomSelect
                 value={formCurrency}
-                onChange={(e) => setFormCurrency(e.target.value)}
-              >
-                <option value="NGN">NGN</option>
-                <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
-                <option value="GBP">GBP</option>
-                <option value="EUR">EUR</option>
-                <option value="CAD">CAD</option>
-                <option value="CNY">CNY</option>
-              </select>
+                onChange={setFormCurrency}
+                options={[
+                  { value: 'NGN', label: 'NGN' },
+                  { value: 'USD', label: 'USD' },
+                  { value: 'EUR', label: 'EUR' },
+                  { value: 'GBP', label: 'GBP' },
+                  { value: 'CAD', label: 'CAD' },
+                  { value: 'CNY', label: 'CNY' },
+                ]}
+                width="100%"
+              />
             </div>
           </div>
           <div className="form-group">
             <label className="form-label">Due Date *</label>
-            <input
-              className="input"
-              type="date"
+            <DatePicker
               value={formDueDate}
-              onChange={(e) => setFormDueDate(e.target.value)}
+              onChange={(date) => setFormDueDate(date ? date.toISOString() : '')}
+              className="w-full"
             />
           </div>
           <div className="form-group">

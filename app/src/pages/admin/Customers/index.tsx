@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, ChevronLeft, ChevronRight, MoreVertical, Download, X, AlertTriangle } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { Badge } from '@/components/ui/Badge';
 import { StarRating } from '@/components/ui/StarRating';
 import { formatDate } from '@/utils/formatDate';
@@ -186,21 +187,12 @@ export default function Customers() {
               }}
             />
           )}
-          <select
-            className="select"
+          <CustomSelect
             value={industry}
-            onChange={(e) => updateFilter('industry', e.target.value)}
-            style={{
-              borderColor: industry ? 'var(--color-primary)' : 'var(--color-border)',
-              paddingRight: 32,
-            }}
-          >
-            {industries.map((i) => (
-              <option key={i.value} value={i.value}>
-                {i.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => updateFilter('industry', val)}
+            options={industries}
+            style={{ borderColor: industry ? 'var(--color-primary)' : 'var(--color-border)' }}
+          />
         </div>
 
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -218,22 +210,15 @@ export default function Customers() {
               }}
             />
           )}
-          <select
-            className="select"
+          <CustomSelect
             value={star}
-            onChange={(e) => updateFilter('star', e.target.value)}
-            style={{
-              borderColor: star ? 'var(--color-primary)' : 'var(--color-border)',
-              paddingRight: 32,
-            }}
-          >
-            <option value="">All Stars</option>
-            {[1, 2, 3, 4, 5].map((s) => (
-              <option key={s} value={String(s)}>
-                {s} Star{s > 1 ? 's' : ''}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => updateFilter('star', val)}
+            options={[
+              { value: '', label: 'All Stars' },
+              ...[1, 2, 3, 4, 5].map((s) => ({ value: String(s), label: `${s} Star${s > 1 ? 's' : ''}` }))
+            ]}
+            style={{ borderColor: star ? 'var(--color-primary)' : 'var(--color-border)' }}
+          />
         </div>
 
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -251,21 +236,12 @@ export default function Customers() {
               }}
             />
           )}
-          <select
-            className="select"
+          <CustomSelect
             value={status}
-            onChange={(e) => updateFilter('status', e.target.value)}
-            style={{
-              borderColor: status ? 'var(--color-primary)' : 'var(--color-border)',
-              paddingRight: 32,
-            }}
-          >
-            {statuses.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => updateFilter('status', val)}
+            options={statuses}
+            style={{ borderColor: status ? 'var(--color-primary)' : 'var(--color-border)' }}
+          />
         </div>
 
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -283,21 +259,12 @@ export default function Customers() {
               }}
             />
           )}
-          <select
-            className="select"
+          <CustomSelect
             value={sortBy}
-            onChange={(e) => updateFilter('sortBy', e.target.value)}
-            style={{
-              borderColor: sortBy !== 'newest' ? 'var(--color-primary)' : 'var(--color-border)',
-              paddingRight: 32,
-            }}
-          >
-            {sorts.map((s) => (
-              <option key={s.value} value={s.value}>
-                Sort by: {s.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => updateFilter('sortBy', val)}
+            options={sorts.map(s => ({ ...s, label: `Sort by: ${s.label}` }))}
+            style={{ borderColor: sortBy !== 'newest' ? 'var(--color-primary)' : 'var(--color-border)' }}
+          />
         </div>
 
         {isFilterActive && (

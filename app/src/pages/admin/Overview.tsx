@@ -217,7 +217,7 @@ export default function Overview() {
                         <DropdownMenu.Item key={i} className="dropdown-item" onClick={() => navigate(item.link)}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
                             <span>{item.label}</span>
-                            <span style={{ fontWeight: 600, background: 'var(--color-danger-light, #fce8e8)', color: 'var(--color-danger, #c62828)', padding: '2px 8px', borderRadius: '12px', fontSize: '12px' }}>
+                            <span style={{ fontWeight: 600, background: 'var(--color-danger-light, #fce8e8)', color: 'var(--color-danger, #c62828)', padding: '2px 8px', borderRadius: 'var(--radius-badge)', fontSize: '12px' }}>
                               {item.count}
                             </span>
                           </div>

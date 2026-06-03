@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, User, Truck, DollarSign, Users, HelpCircle } from 'lucide-react';
+import { Shield, User, Truck, Users, HelpCircle, Crown, Trophy, Medal, Briefcase, FileText, PieChart } from 'lucide-react';
 import type { AdminRole } from '@/types';
 
 interface RoleSelectorModalProps {
@@ -8,65 +8,58 @@ interface RoleSelectorModalProps {
   onCancel: () => void;
 }
 
-// Mapped exact colors and backgrounds to match the high-end UI image
-const roleMeta: Record<AdminRole, { title: string; desc: string; icon: any; color: string; bg: string }> = {
-  super_admin: {
-    title: 'Super Admin',
-    desc: 'Unrestricted master access to all platform settings, admins, and databases.',
-    icon: Shield,
-    color: '#8b5cf6', // Soft Purple
-    bg: '#f5f3ff',
-  },
-  manager: {
-    title: 'Manager',
-    desc: 'Access to operations, shipments, billing, communications, and reporting.',
-    icon: User,
-    color: '#ec4899', // Soft Pink
-    bg: '#fdf2f8',
-  },
-  logistics_officer: {
-    title: 'Logistics Officer',
-    desc: 'Focus on tracking updates, shipping modes, origin-destination details, and cargo.',
-    icon: Truck,
-    color: '#3b82f6', // Soft Blue
-    bg: '#eff6ff',
-  },
-  finance_officer: {
-    title: 'Finance Officer',
-    desc: 'Manage billing statements, currency metrics, record payments, and revenue.',
-    icon: DollarSign,
-    color: '#22c55e', // Soft Green
-    bg: '#f0fdf4',
-  },
-  crm_officer: {
-    title: 'CRM Officer',
-    desc: 'Manage customer accounts, star ratings, broadcast newsletters, and audience groups.',
-    icon: Users,
-    color: '#ea580c', // Soft Orange
-    bg: '#fff7ed',
-  },
-  support_staff: {
-    title: 'Support Staff (Read-Only)',
-    desc: 'View-only status updates, shipments logs, and messaging (cannot edit financial records).',
-    icon: HelpCircle,
-    color: '#475569', // Slate Gray
-    bg: '#f8fafc',
-  },
+// Mapped exact colors with highly pale, translucent backgrounds
+const roleMeta: Record<string, { title: string; icon: React.ElementType; color: string; bg: string }> = {
+  super_admin: { title: 'Super Admin', icon: Crown, color: '#d97706', bg: '#fef3c7' },
+  manager: { title: 'Manager', icon: Trophy, color: '#4b5563', bg: '#f3f4f6' },
+  finance_officer: { title: 'Finance Officer', icon: Medal, color: '#b91c1c', bg: '#fee2e2' },
+  logistics_officer: { title: 'Logistics Officer', icon: Truck, color: '#1d4ed8', bg: '#dbeafe' },
+  crm_officer: { title: 'CRM Officer', icon: Users, color: '#15803d', bg: '#dcfce7' },
+  support_staff: { title: 'Support Staff', icon: HelpCircle, color: '#475569', bg: '#f1f5f9' },
+  
+  executive: { title: 'Executive', icon: Briefcase, color: '#4338ca', bg: '#e0e7ff' },
+  operations_manager: { title: 'Operations', icon: Shield, color: '#0e7490', bg: '#cffafe' },
+  account_officer: { title: 'Account Officer', icon: FileText, color: '#be123c', bg: '#ffe4e6' },
+  sales_officer: { title: 'Sales Officer', icon: PieChart, color: '#be185d', bg: '#fce7f3' },
+  staff: { title: 'General Staff', icon: User, color: '#3f3f46', bg: '#f4f4f5' },
 };
 
 export const RoleSelectorModal: React.FC<RoleSelectorModalProps> = ({ roles, onSelectRole, onCancel }) => {
   return (
     <>
-      {/* Inline styles for the hover effect to keep it self-contained */}
       <style>
         {`
-          .role-card {
-            transition: all 0.2s ease;
+          .role-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 9999px; /* Back to perfect pills */
+            border: 1.5px solid #e2e8f0;
+            background: #ffffff;
+            color: #475569;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
           }
-          .role-card:hover {
-            border-color: #cbd5e1 !important;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            transform: translateY(-2px);
+          .role-pill:hover {
+            border-color: var(--pill-color);
+            background: var(--pill-bg);
+            color: var(--pill-color);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.04);
+          }
+          .role-pill-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            color: #94a3b8;
+          }
+          .role-pill:hover .role-pill-icon {
+            color: var(--pill-color);
           }
         `}
       </style>
@@ -79,7 +72,9 @@ export const RoleSelectorModal: React.FC<RoleSelectorModalProps> = ({ roles, onS
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.4)',
+          backgroundColor: 'rgba(15, 23, 42, 0.4)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -88,135 +83,100 @@ export const RoleSelectorModal: React.FC<RoleSelectorModalProps> = ({ roles, onS
           fontFamily: 'system-ui, -apple-system, sans-serif'
         }}
       >
-        {/* Modal Container */}
         <div
           style={{
-            backgroundColor: '#ffffff',
-            borderRadius: '16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderRadius: '16px', 
             width: '100%',
-            maxWidth: '780px', // Widened to fit the 2-column layout beautifully
-            padding: '40px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-            animation: 'scaleIn 0.2s ease-out',
+            maxWidth: '520px', /* Very compact for pills */
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            animation: 'scaleIn 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            padding: '32px',
+            display: 'flex',
+            flexDirection: 'column',
           }}
         >
-          {/* Header */}
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          {/* Header Typography */}
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
             <h2 style={{ 
               fontSize: '22px', 
-              fontWeight: 600, 
-              color: '#0f172a', 
-              margin: '0 0 8px 0' 
+              fontWeight: 800, 
+              color: '#0f172a',
+              margin: '0 0 8px 0',
+              letterSpacing: '-0.02em'
             }}>
-              Choose Your Active Role
+              Select Role Level
             </h2>
-            <p style={{ 
-              fontSize: '15px', 
-              color: '#64748b', 
-              margin: 0 
-            }}>
-              Your account has multiple roles assigned. Select the role you want to start as for this session.
+            <p style={{ margin: 0, color: '#64748b', fontSize: '14px' }}>
+              Choose your administrative access level.
             </p>
           </div>
 
-          {/* Grid Layout for Roles */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: '16px',
-              marginBottom: '32px',
-              maxHeight: '60vh',
-              overflowY: 'auto',
-              padding: '4px',
-            }}
-          >
+          {/* Flex Wrapped Pills Container */}
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: '10px',
+            marginBottom: '28px',
+            width: '100%',
+          }}>
             {roles.map((role) => {
               const meta = roleMeta[role] || {
-                title: role,
-                desc: 'Select to log in with this role.',
+                title: role.replace(/_/g, ' '),
                 icon: User,
                 color: '#64748b',
-                bg: '#f8fafc',
+                bg: '#f1f5f9',
               };
               const Icon = meta.icon;
 
               return (
                 <div
                   key={role}
-                  className="role-card"
+                  className="role-pill"
+                  style={{ 
+                    '--pill-color': meta.color, 
+                    '--pill-bg': meta.bg 
+                  } as React.CSSProperties}
                   onClick={() => onSelectRole(role)}
-                  style={{
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '12px',
-                    padding: '20px',
-                    cursor: 'pointer',
-                    backgroundColor: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '16px',
-                  }}
                 >
-                  {/* Icon Container with specific pastel background */}
-                  <div
-                    style={{
-                      width: '44px',
-                      height: '44px',
-                      borderRadius: '10px',
-                      backgroundColor: meta.bg,
-                      color: meta.color,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Icon size={22} strokeWidth={2} />
+                  <div className="role-pill-icon">
+                    <Icon size={16} strokeWidth={2.5} fill="currentColor" />
                   </div>
-                  
-                  {/* Text Container */}
-                  <div>
-                    <h4 style={{ 
-                      fontSize: '15px', 
-                      fontWeight: 600, 
-                      color: '#0f172a', 
-                      margin: '0 0 6px 0' 
-                    }}>
-                      {meta.title}
-                    </h4>
-                    <p style={{ 
-                      fontSize: '13px', 
-                      color: '#64748b', 
-                      lineHeight: '1.5',
-                      margin: 0 
-                    }}>
-                      {meta.desc}
-                    </p>
-                  </div>
+                  {meta.title}
                 </div>
               );
             })}
           </div>
 
-          {/* Footer Actions */}
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            width: '100%'
+          }}>
             <button
               onClick={onCancel}
               style={{
-                padding: '10px 24px',
-                backgroundColor: '#ffffff',
-                border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                fontSize: '14px',
-                fontWeight: 600,
-                color: '#475569',
+                padding: '4px 8px',
+                backgroundColor: 'transparent',
+                border: 'none',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: '#94a3b8',
                 cursor: 'pointer',
-                transition: 'background-color 0.2s',
+                textDecoration: 'underline',
+                transition: 'all 0.2s ease',
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#ffffff'}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = '#475569';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = '#94a3b8';
+              }}
             >
-              Cancel
+              Cancel Login
             </button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, ChevronDown, User, Settings, LogOut, Menu } from 'lucide-react';
+import { Search, Bell, ChevronDown, User, Settings, LogOut, Menu, Crown, Truck, Users, Headset, Trophy, Medal } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificationStore } from '@/store/notificationStore';
 import { authService } from '@/services/auth.service';
@@ -112,6 +112,17 @@ export function Topbar() {
   };
 
   const today = formatShortDate(new Date().toISOString());
+
+  const badgeConfig = (() => {
+    switch (admin?.activeRole) {
+      case 'super_admin': return { bg: '#d49a15', icon: (s: number) => <Crown size={s} strokeWidth={2.5} /> };
+      case 'manager': return { bg: '#7c7d7e', icon: (s: number) => <Trophy size={s} strokeWidth={2.5} /> };
+      case 'finance_officer': return { bg: '#af5547', icon: (s: number) => <Medal size={s} strokeWidth={2.5} /> };
+      case 'logistics_officer': return { bg: '#3b82f6', icon: (s: number) => <Truck size={s} strokeWidth={2.5} /> };
+      case 'crm_officer': return { bg: '#22c55e', icon: (s: number) => <Users size={s} strokeWidth={2.5} /> };
+      default: return { bg: '#64748b', icon: (s: number) => <Headset size={s} strokeWidth={2.5} /> };
+    }
+  })();
 
   return (
     <header className="topbar">
@@ -386,44 +397,43 @@ export function Topbar() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
+              gap: 8,
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
-              padding: '6px 8px',
-              borderRadius: 'var(--radius-card)',
+              padding: '4px',
+              borderRadius: '50%',
               transition: 'background 0.2s ease',
             }}
             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface)'}
             onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
           >
-            <Avatar name={admin?.name || 'VHI Admin'} size="md" />
-            <div className="topbar-admin-name" style={{ textAlign: 'left' }}>
-              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                {admin?.name || 'VHI Admin'}
-              </div>
-              <div style={{
-                fontSize: '11px',
-                color: 'var(--color-primary)',
-                background: 'var(--color-primary-light)',
-                padding: '3px 10px',
-                borderRadius: '12px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                lineHeight: 1,
-                marginTop: 4,
-                fontWeight: 600,
-              }}>
-                {roleLabels[admin?.activeRole || 'support_staff']}
+            <div style={{ position: 'relative' }}>
+              <Avatar name={admin?.name || 'VHI Admin'} size="md" />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: -2,
+                  right: -4,
+                  background: badgeConfig.bg,
+                  color: 'white',
+                  borderRadius: '6px',
+                  width: 20,
+                  height: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '2px solid var(--color-page-bg)',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+              >
+                {badgeConfig.icon(10)}
               </div>
             </div>
             <ChevronDown
-              className="topbar-admin-name"
-              size={16}
+              size={14}
               color="var(--color-text-muted)"
               style={{
-                marginLeft: 4,
                 transition: 'transform 0.2s ease',
                 transform: showProfile ? 'rotate(180deg)' : 'rotate(0deg)',
               }}
@@ -436,15 +446,47 @@ export function Topbar() {
                 position: 'absolute',
                 right: 0,
                 top: 'calc(100% + 8px)',
-                width: 200,
+                width: 240,
                 background: 'var(--color-page-bg)',
-                borderRadius: 'var(--border-radius-card)', /* 12px */
-                boxShadow: 'var(--shadow-lg)', /* 0 8px 24px rgba(0,0,0,0.12) */
+                borderRadius: 'var(--border-radius-card)',
+                boxShadow: 'var(--shadow-lg)',
                 border: '1px solid var(--color-border)',
                 zIndex: 1000,
                 overflow: 'hidden',
               }}
             >
+              {/* Dropdown Header with Name and Role */}
+              <div style={{ padding: '16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                <Avatar name={admin?.name || 'VHI Admin'} size="lg" />
+                <div>
+                  <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                    {admin?.name || 'VHI Admin'}
+                  </div>
+                  <div style={{
+                    marginTop: 6,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8
+                  }}>
+                    {/* Replacing the text completely with the beautiful badge as requested */}
+                    <div style={{
+                      background: badgeConfig.bg,
+                      color: 'white',
+                      borderRadius: '6px',
+                      width: 26,
+                      height: 26,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid var(--color-page-bg)',
+                      boxShadow: 'var(--shadow-sm)'
+                    }}>
+                      {badgeConfig.icon(14)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div style={{ padding: '8px' }}>
                 <button
                   onClick={() => handleDropdownNavigate('/admin/settings?tab=profile')}

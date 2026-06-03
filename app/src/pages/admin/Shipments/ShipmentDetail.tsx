@@ -4,6 +4,7 @@ import { ArrowLeft, Upload, Download, Trash2, Clock, Package, MapPin } from 'luc
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { formatDate, formatDateTime } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { shipmentService } from '@/services/shipment.service';
@@ -331,9 +332,12 @@ export default function ShipmentDetail() {
       >
         <div className="form-group">
           <label className="form-label">Status</label>
-          <select className="select" value={newStatus} onChange={(e) => setNewStatus(e.target.value as ShipmentStatus)} style={{ width: '100%' }}>
-            {statusOptions.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())}</option>)}
-          </select>
+          <CustomSelect
+            value={newStatus}
+            onChange={(val) => setNewStatus(val as ShipmentStatus)}
+            options={statusOptions.map((s) => ({ value: s, label: s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) }))}
+            width="100%"
+          />
         </div>
         <div className="form-group">
           <label className="form-label">Message</label>

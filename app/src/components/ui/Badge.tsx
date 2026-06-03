@@ -19,7 +19,7 @@ export function Badge({ status, type = 'shipment', size = 'md' }: BadgeProps) {
       colors = getShipmentStatusColor(status);
   }
 
-  const padding = size === 'sm' ? '2px 8px' : '4px 12px';
+  const padding = size === 'sm' ? '4px 10px' : '6px 14px';
   const fontSize = size === 'sm' ? '0.6875rem' : '0.75rem';
 
   return (
@@ -34,6 +34,8 @@ export function Badge({ status, type = 'shipment', size = 'md' }: BadgeProps) {
         background: colors.bg,
         color: colors.text,
         whiteSpace: 'nowrap',
+        lineHeight: 1,
+        flexShrink: 0,
       }}
     >
       {formatStatusLabel(status)}

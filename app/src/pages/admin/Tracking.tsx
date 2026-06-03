@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Search, AlertTriangle, X } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { Modal } from '@/components/ui/Modal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { trackingService } from '@/services/tracking.service';
@@ -273,21 +274,12 @@ export default function Tracking() {
               }}
             />
           )}
-          <select
-            className="select"
+          <CustomSelect
             value={filter}
-            onChange={(e) => updateFilter('filter', e.target.value)}
-            style={{
-              borderColor: filter ? 'var(--color-primary)' : 'var(--color-border)',
-              paddingRight: 32,
-            }}
-          >
-            {filters.map((f) => (
-              <option key={f.value} value={f.value}>
-                {f.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => updateFilter('filter', val)}
+            options={filters}
+            style={{ borderColor: filter ? 'var(--color-primary)' : 'var(--color-border)' }}
+          />
         </div>
 
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -305,21 +297,12 @@ export default function Tracking() {
               }}
             />
           )}
-          <select
-            className="select"
+          <CustomSelect
             value={mode}
-            onChange={(e) => updateFilter('mode', e.target.value)}
-            style={{
-              borderColor: mode ? 'var(--color-primary)' : 'var(--color-border)',
-              paddingRight: 32,
-            }}
-          >
-            {modes.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => updateFilter('mode', val)}
+            options={modes}
+            style={{ borderColor: mode ? 'var(--color-primary)' : 'var(--color-border)' }}
+          />
         </div>
 
         {isFilterActive && (

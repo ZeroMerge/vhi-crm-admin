@@ -4,6 +4,8 @@ import { ArrowLeft, Download, AlarmClock } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+import { DatePicker } from '@/components/ui/date-picker';
 import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { invoiceService } from '@/services/invoice.service';
@@ -187,11 +189,10 @@ export default function InvoiceDetail() {
               <h3 className="card-title" style={{ marginBottom: 16 }}>Set Follow-up Reminder</h3>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Follow-up Date</label>
-                <input
-                  type="date"
-                  className="input"
+                <DatePicker
+                  className="w-full"
                   value={followUpDate}
-                  onChange={(e) => setFollowUpDate(e.target.value)}
+                  onChange={(date) => setFollowUpDate(date ? date.toISOString() : '')}
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 16 }}>
@@ -245,16 +246,12 @@ export default function InvoiceDetail() {
           <div className="card">
             <h3 className="card-title" style={{ marginBottom: 16 }}>Status Control</h3>
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <select
-                className="select"
+              <CustomSelect
                 value={invoice.status}
-                onChange={(e) => setInvoice({ ...invoice, status: e.target.value as InvoiceStatus })}
+                onChange={(val) => setInvoice({ ...invoice, status: val as InvoiceStatus })}
+                options={statusOptions.map((s) => ({ value: s, label: s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) }))}
                 style={{ flex: 1 }}
-              >
-                {statusOptions.map((s) => (
-                  <option key={s} value={s}>{s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())}</option>
-                ))}
-              </select>
+              />
               <button className="btn btn-primary btn-sm" onClick={handleUpdateStatus} disabled={savingStatus}>
                 {savingStatus ? 'Saving...' : 'Update'}
               </button>
@@ -318,11 +315,16 @@ export default function InvoiceDetail() {
           </div>
           <div className="form-group">
             <label className="form-label">Payment Method</label>
-            <select className="select" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} style={{ width: '100%' }}>
-              <option value="manual">Manual/Cash</option>
-              <option value="paystack">Paystack</option>
-              <option value="stripe">Stripe</option>
-            </select>
+            <CustomSelect
+              value={paymentMethod}
+              onChange={setPaymentMethod}
+              options={[
+                { value: 'manual', label: 'Manual/Cash' },
+                { value: 'paystack', label: 'Paystack' },
+                { value: 'stripe', label: 'Stripe' }
+              ]}
+              width="100%"
+            />
           </div>
           <div className="form-group">
             <label className="form-label">Notes</label>

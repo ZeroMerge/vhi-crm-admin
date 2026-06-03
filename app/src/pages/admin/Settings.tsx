@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { User, Lock, Bell, Shield, Mail, Key, Plus, Trash2, Edit, Check, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar } from '@/components/shared/Avatar';
@@ -526,7 +527,7 @@ export default function Settings() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 'var(--font-size-xs)', background: 'var(--color-border)', padding: '2px 8px', borderRadius: 'var(--border-radius-pill)', fontWeight: 500 }}>Coming Soon</span>
-                  <input type="checkbox" className="toggle" disabled checked={false} />
+                  <Switch disabled checked={false} />
                 </div>
               </div>
             </div>
@@ -588,11 +589,9 @@ export default function Settings() {
                     <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{pref.label}</div>
                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>{pref.desc}</div>
                   </div>
-                  <input
-                    type="checkbox"
-                    className="toggle"
+                  <Switch
                     checked={prefs[pref.key] ?? false}
-                    onChange={() => handleTogglePref(pref.key)}
+                    onCheckedChange={() => handleTogglePref(pref.key)}
                   />
                 </label>
               ))}
@@ -679,12 +678,10 @@ export default function Settings() {
                             </td>
                             <td>
                               <div style={{ display: 'flex', alignItems: 'center' }}>
-                                <input
-                                  type="checkbox"
-                                  className="toggle"
+                                <Switch
                                   checked={adm.is_active}
                                   disabled={adm.id === admin?.id}
-                                  onChange={() => handleToggleAdminStatus(adm.id, adm.is_active)}
+                                  onCheckedChange={() => handleToggleAdminStatus(adm.id, adm.is_active)}
                                 />
                               </div>
                             </td>

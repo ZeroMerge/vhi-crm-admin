@@ -3,6 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, ChevronLeft, ChevronRight, MoreVertical, SlidersHorizontal, Package, X, AlertTriangle, Plus } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
+import { CustomSelect } from '@/components/ui/CustomSelect';
+import { DatePicker } from '@/components/ui/date-picker';
 import { ExportModal } from '@/components/shared/ExportModal';
 import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -122,7 +124,7 @@ export default function Shipments() {
   return (
     <PageWrapper title="Shipments">
       {/* Stats bar */}
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 20px', background: 'var(--color-primary)', borderRadius: 'var(--border-radius-pill)', marginBottom: 24 }}>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 20px', background: 'var(--color-primary)', borderRadius: 'var(--radius-badge)', marginBottom: 24 }}>
         <Package size={20} color="white" />
         <span style={{ color: 'white', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
           Total Shipments: {(total ?? 0).toLocaleString()}
@@ -177,21 +179,12 @@ export default function Shipments() {
               }}
             />
           )}
-          <select
-            className="select"
+          <CustomSelect
             value={status}
-            onChange={(e) => updateFilter('status', e.target.value)}
-            style={{
-              borderColor: status ? 'var(--color-primary)' : 'var(--color-border)',
-              paddingRight: 32,
-            }}
-          >
-            {statuses.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => updateFilter('status', val)}
+            options={statuses}
+            style={{ borderColor: status ? 'var(--color-primary)' : 'var(--color-border)' }}
+          />
         </div>
 
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
@@ -209,52 +202,27 @@ export default function Shipments() {
               }}
             />
           )}
-          <select
-            className="select"
+          <CustomSelect
             value={mode}
-            onChange={(e) => updateFilter('mode', e.target.value)}
-            style={{
-              borderColor: mode ? 'var(--color-primary)' : 'var(--color-border)',
-              paddingRight: 32,
-            }}
-          >
-            {modes.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => updateFilter('mode', val)}
+            options={modes}
+            style={{ borderColor: mode ? 'var(--color-primary)' : 'var(--color-border)' }}
+          />
         </div>
 
         {/* Date pickers inline */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)' }}>
           <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>From:</span>
-          <input
-            type="date"
-            className="input"
+          <DatePicker
             value={dateFrom}
-            onChange={(e) => updateFilter('dateFrom', e.target.value)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--border-radius-input)',
-              width: 130,
-              fontSize: 'var(--font-size-xs)',
-              borderColor: dateFrom ? 'var(--color-primary)' : 'var(--color-border)',
-            }}
+            onChange={(date) => updateFilter('dateFrom', date ? date.toISOString() : '')}
+            className="w-[130px]"
           />
           <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>To:</span>
-          <input
-            type="date"
-            className="input"
+          <DatePicker
             value={dateTo}
-            onChange={(e) => updateFilter('dateTo', e.target.value)}
-            style={{
-              padding: '6px 12px',
-              borderRadius: 'var(--border-radius-input)',
-              width: 130,
-              fontSize: 'var(--font-size-xs)',
-              borderColor: dateTo ? 'var(--color-primary)' : 'var(--color-border)',
-            }}
+            onChange={(date) => updateFilter('dateTo', date ? date.toISOString() : '')}
+            className="w-[130px]"
           />
         </div>
 
@@ -273,21 +241,12 @@ export default function Shipments() {
               }}
             />
           )}
-          <select
-            className="select"
+          <CustomSelect
             value={sortBy}
-            onChange={(e) => updateFilter('sortBy', e.target.value)}
-            style={{
-              borderColor: sortBy !== 'newest' ? 'var(--color-primary)' : 'var(--color-border)',
-              paddingRight: 32,
-            }}
-          >
-            {sorts.map((s) => (
-              <option key={s.value} value={s.value}>
-                Sort: {s.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => updateFilter('sortBy', val)}
+            options={sorts.map(s => ({ ...s, label: `Sort: ${s.label}` }))}
+            style={{ borderColor: sortBy !== 'newest' ? 'var(--color-primary)' : 'var(--color-border)' }}
+          />
         </div>
 
         {isFilterActive && (
@@ -411,12 +370,12 @@ export default function Shipments() {
                   <td><div className="skeleton" style={{ width: 16, height: 16, borderRadius: 4 }} /></td>
                   <td><div className="skeleton" style={{ width: 100, height: 16 }} /></td>
                   <td><div className="skeleton" style={{ width: 140, height: 16 }} /></td>
-                  <td><div className="skeleton" style={{ width: 80, height: 24, borderRadius: 12 }} /></td>
+                  <td><div className="skeleton" style={{ width: 80, height: 24, borderRadius: 'var(--radius-badge)' }} /></td>
                   <td><div className="skeleton" style={{ width: 60, height: 16 }} /></td>
                   <td><div className="skeleton" style={{ width: 120, height: 16 }} /></td>
                   <td><div className="skeleton" style={{ width: 90, height: 16 }} /></td>
                   <td><div className="skeleton" style={{ width: 80, height: 16, marginLeft: 'auto' }} /></td>
-                  <td><div className="skeleton" style={{ width: 90, height: 24, borderRadius: 12 }} /></td>
+                  <td><div className="skeleton" style={{ width: 90, height: 24, borderRadius: 'var(--radius-badge)' }} /></td>
                   <td><div className="skeleton" style={{ width: 32, height: 32, borderRadius: 16 }} /></td>
                 </tr>
               ))}

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, Send, ChevronLeft, AlertTriangle, Inbox, MessageSquareOff, MessageCircle } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { formatDate } from '@/utils/formatDate';
 import { communicationService } from '@/services/communication.service';
 import { Avatar } from '@/components/shared/Avatar';
@@ -185,35 +186,29 @@ export default function Communications() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <select
-            className="select"
+          <CustomSelect
             value={industry}
-            onChange={(e) => updateFilter('industry', e.target.value)}
-          >
-            {industries.map((ind) => (
-              <option key={ind.value} value={ind.value}>
-                {ind.label}
-              </option>
-            ))}
-          </select>
-          <select
-            className="select"
+            onChange={(val) => updateFilter('industry', val)}
+            options={industries}
+          />
+          <CustomSelect
             value={filter}
-            onChange={(e) => updateFilter('filter', e.target.value)}
-          >
-            <option value="">All Threads</option>
-            <option value="unread">Unread Only</option>
-          </select>
+            onChange={(val) => updateFilter('filter', val)}
+            options={[
+              { value: '', label: 'All Threads' },
+              { value: 'unread', label: 'Unread Only' }
+            ]}
+          />
         </div>
 
-        <select
-          className="select"
+        <CustomSelect
           value={sortBy}
-          onChange={(e) => updateFilter('sortBy', e.target.value)}
-        >
-          <option value="newest">Sort: Newest first</option>
-          <option value="oldest">Sort: Oldest first</option>
-        </select>
+          onChange={(val) => updateFilter('sortBy', val)}
+          options={[
+            { value: 'newest', label: 'Sort: Newest first' },
+            { value: 'oldest', label: 'Sort: Oldest first' }
+          ]}
+        />
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
@@ -336,7 +331,7 @@ export default function Communications() {
               <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
                 {[1, 2, 3].map((i) => (
                   <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: '60%', alignSelf: i % 2 === 0 ? 'flex-end' : 'flex-start', opacity: 1 - i * 0.2 }}>
-                    <div style={{ width: i === 2 ? 240 : 300, height: 60, borderRadius: '12px', background: 'var(--color-border)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
+                    <div style={{ width: i === 2 ? 240 : 300, height: 60, borderRadius: 'var(--radius-card)', background: 'var(--color-border)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite' }} />
                     <div style={{ width: 80, height: 10, borderRadius: 4, background: 'var(--color-border)', animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite', alignSelf: i % 2 === 0 ? 'flex-end' : 'flex-start' }} />
                   </div>
                 ))}

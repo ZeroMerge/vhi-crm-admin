@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { StarRating } from '@/components/ui/StarRating';
 import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -141,17 +142,17 @@ export default function CustomerDetail() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>Status:</span>
-              <select
-                className="select"
+              <CustomSelect
                 value={customerStatus}
-                onChange={(e) => setCustomerStatus(e.target.value as Customer['status'])}
-                style={{ minWidth: 140 }}
-              >
-                <option value="lead">Lead</option>
-                <option value="prospect">Prospect</option>
-                <option value="returning">Returning</option>
-                <option value="loyal">Loyal</option>
-              </select>
+                onChange={(val) => setCustomerStatus(val as Customer['status'])}
+                options={[
+                  { value: 'lead', label: 'Lead' },
+                  { value: 'prospect', label: 'Prospect' },
+                  { value: 'returning', label: 'Returning' },
+                  { value: 'loyal', label: 'Loyal' }
+                ]}
+                width={140}
+              />
             </div>
           </div>
         </div>

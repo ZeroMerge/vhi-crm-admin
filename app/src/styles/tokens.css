@@ -47,11 +47,11 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
-  /* Border radius — these are the ONLY allowed values */
-  --radius-input: 8px;       /* inputs, textareas, select dropdowns */
-  --radius-card: 8px;       /* cards, panels, modals, dropdowns */
-  --radius-button: 8px;      /* all buttons */
-  --radius-badge: 999px;     /* status badges, tags, small chips only */
+  /* Border radius — strictly 4px rectangular look everywhere */
+  --radius-input: 4px;       /* inputs, textareas, select dropdowns */
+  --radius-card: 4px;        /* cards, panels, modals, dropdowns */
+  --radius-button: 4px;      /* all buttons */
+  --radius-badge: 4px;       /* status badges, tags, small chips */
   --radius-avatar: 50%;      /* avatars only */
   --radius-none: 0px;        /* tables, table rows, dividers */
 

@@ -51,7 +51,7 @@ export default function ComposeNewsletter() {
                 onClick={() => setSelectedSegments(['all'])}
                 style={{
                   padding: '8px 16px',
-                  borderRadius: 'var(--border-radius-pill)',
+                  borderRadius: 'var(--radius-badge)',
                   border: selectedSegments.includes('all') ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
                   background: selectedSegments.includes('all') ? 'var(--color-primary-light)' : 'var(--color-page-bg)',
                   color: selectedSegments.includes('all') ? 'var(--color-primary)' : 'var(--color-text-secondary)',
@@ -69,7 +69,7 @@ export default function ComposeNewsletter() {
                   onClick={() => toggleSegment(ind.value)}
                   style={{
                     padding: '8px 16px',
-                    borderRadius: 'var(--border-radius-pill)',
+                    borderRadius: 'var(--radius-badge)',
                     border: selectedSegments.includes(ind.value) ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
                     background: selectedSegments.includes(ind.value) ? 'var(--color-primary-light)' : 'var(--color-page-bg)',
                     color: selectedSegments.includes(ind.value) ? 'var(--color-primary)' : 'var(--color-text-secondary)',

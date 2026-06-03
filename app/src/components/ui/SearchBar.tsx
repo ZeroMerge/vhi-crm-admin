@@ -6,7 +6,7 @@ interface SearchBarProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const SearchBar = React.forwardRef<HTMLInputElement, SearchBarProps>(
-  ({ className, onChange, onSearch, placeholder = 'Search...', ...props }, ref) => {
+  ({ onChange, onSearch, placeholder = 'Search...', ...props }, ref) => {
     const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       if (onChange) onChange(e);
       if (onSearch) onSearch(e.target.value);

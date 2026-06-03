@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
+import { Switch } from '@/components/ui/switch';
 import { FileText, FileSpreadsheet, Check } from 'lucide-react';
 
 interface ExportModalProps {
@@ -13,7 +14,7 @@ interface ExportModalProps {
 const csvFriendlyValue = (value: unknown) => {
   if (value === null || value === undefined) return '';
   const normalized = String(value);
-  if (/[,\n\"]/.test(normalized)) {
+  if (/[,\n"]/.test(normalized)) {
     return `"${normalized.replace(/"/g, '""')}"`;
   }
   return normalized;
@@ -201,11 +202,9 @@ export function ExportModal({ isOpen, onClose, selectedCount = 0, rows = [], fil
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              className="toggle"
+            <Switch
               checked={includePrice}
-              onChange={(e) => setIncludePrice(e.target.checked)}
+              onCheckedChange={setIncludePrice}
             />
             <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-primary)' }}>
               Include Price &amp; Billing Details
@@ -213,11 +212,9 @@ export function ExportModal({ isOpen, onClose, selectedCount = 0, rows = [], fil
           </label>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              className="toggle"
+            <Switch
               checked={includeShipper}
-              onChange={(e) => setIncludeShipper(e.target.checked)}
+              onCheckedChange={setIncludeShipper}
             />
             <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-primary)' }}>
               Include Shipper/Carrier Information
@@ -225,11 +222,9 @@ export function ExportModal({ isOpen, onClose, selectedCount = 0, rows = [], fil
           </label>
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 16, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              className="toggle"
+            <Switch
               checked={includeItems}
-              onChange={(e) => setIncludeItems(e.target.checked)}
+              onCheckedChange={setIncludeItems}
             />
             <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, color: 'var(--color-text-primary)' }}>
               Include Full Itemized List

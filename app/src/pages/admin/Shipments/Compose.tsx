@@ -5,6 +5,7 @@ import {
   Package, MapPin, Truck, FileText, X,
 } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { shipmentService } from '@/services/shipment.service';
 import { customerService } from '@/services/customer.service';
 import type { Customer } from '@/types';
@@ -139,9 +140,12 @@ function CustomerPicker({
 
   // Fetch as user types
   useEffect(() => {
-    if (!query || query.length < 2) { setResults([]); return; }
+    if (!query || query.length < 2) { 
+      const timer = setTimeout(() => setResults([]), 0);
+      return () => clearTimeout(timer);
+    }
     let active = true;
-    setLoading(true);
+    setTimeout(() => { if (active) setLoading(true); }, 0);
     customerService.list({ search: query, pageSize: 8 })
       .then((r) => { if (active) setResults(r.data); })
       .finally(() => { if (active) setLoading(false); });
@@ -301,16 +305,17 @@ export default function ComposeShipment() {
               onChange={(id) => set('customerId', id)}
             />
             <Field label="Initial Status">
-              <select
-                className="input"
+              <CustomSelect
                 value={form.status}
-                onChange={(e) => set('status', e.target.value)}
-              >
-                <option value="pending">Pending</option>
-                <option value="processing">Processing</option>
-                <option value="in_transit">In Transit</option>
-                <option value="clearance">Clearance</option>
-              </select>
+                onChange={(val) => set('status', val)}
+                options={[
+                  { value: 'pending', label: 'Pending' },
+                  { value: 'processing', label: 'Processing' },
+                  { value: 'in_transit', label: 'In Transit' },
+                  { value: 'clearance', label: 'Clearance' }
+                ]}
+                width="100%"
+              />
             </Field>
           </div>
         );
@@ -320,27 +325,21 @@ export default function ComposeShipment() {
         return (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }} className="compose-grid">
             <Field label="Shipping Mode" required>
-              <select
-                className="input"
+              <CustomSelect
                 value={form.shippingMode}
-                onChange={(e) => set('shippingMode', e.target.value)}
-              >
-                {SHIPPING_MODES.map((m) => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
-                ))}
-              </select>
+                onChange={(val) => set('shippingMode', val)}
+                options={SHIPPING_MODES}
+                width="100%"
+              />
             </Field>
 
             <Field label="Delivery Mode" required>
-              <select
-                className="input"
+              <CustomSelect
                 value={form.deliveryMode}
-                onChange={(e) => set('deliveryMode', e.target.value)}
-              >
-                {DELIVERY_MODES.map((m) => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
-                ))}
-              </select>
+                onChange={(val) => set('deliveryMode', val)}
+                options={DELIVERY_MODES}
+                width="100%"
+              />
             </Field>
 
             <div style={{ gridColumn: '1 / -1' }}>
@@ -374,14 +373,12 @@ export default function ComposeShipment() {
                   onChange={(e) => set('weight', e.target.value)}
                   style={{ flex: 1 }}
                 />
-                <select
-                  className="input"
+                <CustomSelect
                   value={form.weightUnit}
-                  onChange={(e) => set('weightUnit', e.target.value)}
-                  style={{ width: 90 }}
-                >
-                  {WEIGHT_UNITS.map((u) => <option key={u.value} value={u.value}>{u.label}</option>)}
-                </select>
+                  onChange={(val) => set('weightUnit', val)}
+                  options={WEIGHT_UNITS}
+                  width={90}
+                />
               </div>
             </Field>
 
@@ -396,14 +393,12 @@ export default function ComposeShipment() {
                   onChange={(e) => set('invoiceValue', e.target.value)}
                   style={{ flex: 1 }}
                 />
-                <select
-                  className="input"
+                <CustomSelect
                   value={form.invoiceCurrency}
-                  onChange={(e) => set('invoiceCurrency', e.target.value)}
-                  style={{ width: 90 }}
-                >
-                  {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
+                  onChange={(val) => set('invoiceCurrency', val)}
+                  options={CURRENCIES.map((c) => ({ value: c, label: c }))}
+                  width={90}
+                />
               </div>
             </Field>
           </div>
@@ -425,14 +420,15 @@ export default function ComposeShipment() {
             </Field>
 
             <Field label="Pickup Option">
-              <select
-                className="input"
+              <CustomSelect
                 value={form.originPickupOption}
-                onChange={(e) => set('originPickupOption', e.target.value)}
-              >
-                <option value="vhi_pickup">VHI Pickup</option>
-                <option value="supplier_dropoff">Supplier Drop-off</option>
-              </select>
+                onChange={(val) => set('originPickupOption', val)}
+                options={[
+                  { value: 'vhi_pickup', label: 'VHI Pickup' },
+                  { value: 'supplier_dropoff', label: 'Supplier Drop-off' }
+                ]}
+                width="100%"
+              />
             </Field>
 
             <Field label="Destination Address" required error={errors.destinationAddress}>

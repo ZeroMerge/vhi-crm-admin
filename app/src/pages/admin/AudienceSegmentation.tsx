@@ -3,6 +3,7 @@ import { ArrowLeft, Search, Move } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { customerService } from '@/services/customer.service';
 import type { Customer, Industry } from '@/types';
 
@@ -75,17 +76,20 @@ export default function AudienceSegmentation() {
           <Search size={18} className="search-icon" />
           <input className="input" placeholder="Search customers..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ minWidth: 280 }} />
         </div>
-        <select className="select" value={segmentFilter} onChange={(e) => setSegmentFilter(e.target.value)}>
-          <option value="">All Segments</option>
-          {industries.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
-        </select>
+        <CustomSelect 
+          value={segmentFilter} 
+          onChange={setSegmentFilter}
+          options={[{ value: '', label: 'All Segments' }, ...industries]}
+        />
         {selectedRows.size > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
             <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>{selectedRows.size} selected</span>
-            <select className="select">
-              <option>Move to segment...</option>
-              {industries.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
-            </select>
+            <CustomSelect 
+              value=""
+              onChange={() => {}}
+              options={industries}
+              placeholder="Move to segment..."
+            />
             <button className="btn btn-primary btn-sm">
               <Move size={14} />
               Move
@@ -100,7 +104,7 @@ export default function AudienceSegmentation() {
           <thead>
             <tr>
               <th style={{ width: 40 }}>
-                <input type="checkbox" className="toggle" style={{ width: 18, height: 18 }} checked={selectedRows.size === filtered.length && filtered.length > 0} onChange={toggleAll} />
+                <input type="checkbox" style={{ width: 18, height: 18 }} checked={selectedRows.size === filtered.length && filtered.length > 0} onChange={toggleAll} />
               </th>
               <th>Name</th>
               <th>Email</th>
@@ -125,7 +129,7 @@ export default function AudienceSegmentation() {
               filtered.map((customer) => (
                 <tr key={customer.id}>
                   <td>
-                    <input type="checkbox" className="toggle" style={{ width: 18, height: 18 }} checked={selectedRows.has(customer.id)} onChange={() => toggleRow(customer.id)} />
+                    <input type="checkbox" style={{ width: 18, height: 18 }} checked={selectedRows.has(customer.id)} onChange={() => toggleRow(customer.id)} />
                   </td>
                   <td style={{ fontWeight: 500 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -137,9 +141,12 @@ export default function AudienceSegmentation() {
                   </td>
                   <td>{customer.email}</td>
                   <td>
-                    <select className="select" value={customer.industry} style={{ minWidth: 180 }}>
-                      {industries.map((i) => <option key={i.value} value={i.value}>{i.label}</option>)}
-                    </select>
+                    <CustomSelect 
+                      value={customer.industry} 
+                      onChange={() => {}}
+                      options={industries}
+                      width={180}
+                    />
                   </td>
                   <td><Badge status={customer.status} type="customer" size="sm" /></td>
                 </tr>
