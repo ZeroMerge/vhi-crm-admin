@@ -1737,8 +1737,7 @@ input[type="checkbox"]:checked::after {
 .rdp-weekday {
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-text-primary);
-  /* Text transform removed so it stays Title Case (Mo, Tu, We) */
+  color: #94a3b8; /* Muted days of week */
   padding-bottom: 12px;
   text-align: center;
 }
@@ -1746,29 +1745,30 @@ input[type="checkbox"]:checked::after {
 .rdp-day {
   text-align: center;
   vertical-align: middle;
-  padding: 2px 0;
+  padding: 3px; /* Creates the gap between the grid blocks */
 }
 
 .rdp-day_button {
-  width: 32px !important;
-  height: 32px !important;
-  border-radius: 6px !important; /* Slightly rounded square */
-  font-size: 13px !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 8px !important; /* Rounded square */
+  font-size: 14px !important;
   font-weight: 500 !important;
-  color: var(--color-text-secondary);
-  transition: all 0.2s ease !important;
+  color: #334155 !important;
+  background-color: #f8fafc !important; /* Default faint grid block */
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto;
-  border: none;
-  background: transparent;
+  border: 2px solid transparent !important; /* Space for hover ring */
   cursor: pointer;
 }
 
 .rdp-day_button:not(:disabled):hover {
-  background-color: #f5f5f5 !important;
-  color: var(--color-text-primary) !important;
+  background-color: #f1f5f9 !important;
+  border-color: var(--color-primary) !important; /* Blue/Purple hover ring */
+  color: var(--color-primary) !important;
 }
 
 /* Selected Date */
@@ -1776,7 +1776,7 @@ input[type="checkbox"]:checked::after {
   background-color: var(--color-primary) !important;
   color: white !important;
   font-weight: 600 !important;
-  border: none !important;
+  border-color: var(--color-primary) !important;
 }
 
 .rdp-selected .rdp-day_button:hover {
@@ -1784,8 +1784,25 @@ input[type="checkbox"]:checked::after {
 }
 
 .rdp-outside .rdp-day_button {
-  color: var(--color-text-muted) !important;
+  color: #cbd5e1 !important;
+  background-color: #ffffff !important; /* Make outside dates fade into the background */
   opacity: 0.5;
+}
+
+/* Optional: "Today" indicator dot (mimicking the yellow dot in screenshot) */
+.rdp-today:not(.rdp-selected) .rdp-day_button {
+  position: relative;
+  font-weight: 700 !important;
+  color: var(--color-primary) !important;
+}
+.rdp-today:not(.rdp-selected) .rdp-day_button::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background-color: #f59e0b; /* Orange/Yellow dot */
 }
 
 /* Hide the default focus outlines and use our custom focus */

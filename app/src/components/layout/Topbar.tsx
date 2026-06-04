@@ -161,7 +161,7 @@ export function Topbar() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
-                borderRadius: 'var(--border-radius-pill)',
+                borderRadius: '9999px',
                 paddingLeft: '16px',
                 height: '40px',
                 fontSize: 'var(--font-size-sm)',
