@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Shield, User, Truck, Users, HelpCircle, Crown, Trophy, Medal, Briefcase, FileText, PieChart } from 'lucide-react';
+import { ArrowRight, Truck, Users, HelpCircle, Crown, Trophy, Medal } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/auth.service';
 import type { AdminRole } from '@/types';
@@ -13,11 +13,6 @@ const roleMeta: Record<string, { title: string; icon: React.ElementType }> = {
   logistics_officer: { title: 'Logistics Officer', icon: Truck },
   crm_officer: { title: 'CRM Officer', icon: Users },
   support_staff: { title: 'Support Staff', icon: HelpCircle },
-  executive: { title: 'Executive', icon: Briefcase },
-  operations_manager: { title: 'Operations', icon: Shield },
-  account_officer: { title: 'Account Officer', icon: FileText },
-  sales_officer: { title: 'Sales Officer', icon: PieChart },
-  staff: { title: 'General Staff', icon: User },
 };
 
 export default function AdminLogin() {
@@ -201,8 +196,10 @@ export default function AdminLogin() {
           </p>
 
           <div className="pills-container">
-            {rolesToSelect.map((role) => {
-              const meta = roleMeta[role] || { title: role.replace(/_/g, ' ') };
+            {rolesToSelect
+              .filter(role => roleMeta[role]) // Filter out extraneous roles
+              .map((role) => {
+              const meta = roleMeta[role];
               return (
                 <div
                   key={role}
