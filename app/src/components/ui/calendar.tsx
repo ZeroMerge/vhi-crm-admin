@@ -15,7 +15,7 @@ function Calendar({
 }: CalendarProps) {
   return (
     <div className={cn("p-3 bg-white border border-gray-200 rounded-[4px] shadow-sm", className)} style={{ 
-      /* Provide custom RDP variables matching our brand */
+      
       '--rdp-accent-color': 'var(--color-primary)',
       '--rdp-background-color': 'var(--color-primary-light)',
       '--rdp-accent-color-dark': 'var(--color-primary)',

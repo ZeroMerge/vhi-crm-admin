@@ -79,9 +79,9 @@ export function ExportModal({ isOpen, onClose, selectedCount = 0, rows = [], fil
           : 'Choose your preferred document format and customize the data fields to include for all shipments.'}
       </p>
 
-      {/* Horizontal Format Cards */}
+      {}
       <div style={{ display: 'flex', gap: 16, marginBottom: 28 }}>
-        {/* PDF Option */}
+        {}
         <button
           onClick={() => setFormat('pdf')}
           style={{
@@ -137,7 +137,7 @@ export function ExportModal({ isOpen, onClose, selectedCount = 0, rows = [], fil
           </div>
         </button>
 
-        {/* CSV Option */}
+        {}
         <button
           onClick={() => setFormat('csv')}
           style={{

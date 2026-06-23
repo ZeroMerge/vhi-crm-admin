@@ -6,15 +6,15 @@ import { logAuditEvent } from '../../utils/audit';
 
 const router = Router();
 
-// Apply super_admin requirement globally to this router
+
 router.use(adminMiddleware);
 router.use(requireActiveRole('super_admin'));
 
-// GET /api/admin/admins -> List all admins
+
 router.get('/', async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, email, assigned_roles, is_active, created_at
+      `SELECT id, name, email, assigned_roles, is_active, created_at, last_login_at
        FROM admins
        WHERE deleted_at IS NULL
        ORDER BY created_at DESC;`
@@ -25,7 +25,7 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-// POST /api/admin/admins/invite -> Invite new admin
+
 router.post('/invite', async (req, res, next) => {
   try {
     const { name, email, assignedRoles } = req.body;
@@ -33,13 +33,13 @@ router.post('/invite', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Name, email, and assigned roles are required' });
     }
 
-    // Check if email already exists
+    
     const checkEmail = await pool.query('SELECT id FROM admins WHERE email = $1', [email]);
     if (checkEmail.rows.length > 0) {
       return res.status(400).json({ success: false, message: 'An admin with this email already exists' });
     }
 
-    // Generate a temporary password (since they will get an invite set-password link)
+    
     const tempPassword = Math.random().toString(36).slice(-10) + 'A@1';
     const passwordHash = await bcrypt.hash(tempPassword, 10);
 
@@ -52,7 +52,7 @@ router.post('/invite', async (req, res, next) => {
 
     const newAdmin = result.rows[0];
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
@@ -68,7 +68,7 @@ router.post('/invite', async (req, res, next) => {
       data: {
         admin: newAdmin,
         inviteLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/setup-password?token=${newAdmin.id}`,
-        tempPassword // included for convenience in testing/local dev
+        tempPassword 
       }
     });
   } catch (err) {
@@ -76,7 +76,7 @@ router.post('/invite', async (req, res, next) => {
   }
 });
 
-// PUT /api/admin/admins/:id/roles -> Update admin roles
+
 router.put('/:id/roles', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -99,7 +99,7 @@ router.put('/:id/roles', async (req, res, next) => {
 
     const updatedAdmin = result.rows[0];
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
@@ -115,7 +115,7 @@ router.put('/:id/roles', async (req, res, next) => {
   }
 });
 
-// PUT /api/admin/admins/:id/status -> Toggle admin active status
+
 router.put('/:id/status', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -124,7 +124,7 @@ router.put('/:id/status', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'isActive boolean status is required' });
     }
 
-    // Prevent deactivating oneself
+    
     if (id === req.admin!.id) {
       return res.status(400).json({ success: false, message: 'You cannot deactivate your own account' });
     }
@@ -143,7 +143,7 @@ router.put('/:id/status', async (req, res, next) => {
 
     const updatedAdmin = result.rows[0];
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
@@ -159,12 +159,12 @@ router.put('/:id/status', async (req, res, next) => {
   }
 });
 
-// DELETE /api/admin/admins/:id -> Soft delete admin
+
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
 
-    // Prevent deleting oneself
+    
     if (id === req.admin!.id) {
       return res.status(400).json({ success: false, message: 'You cannot delete your own account' });
     }
@@ -181,7 +181,7 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Admin not found' });
     }
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
@@ -191,6 +191,45 @@ router.delete('/:id', async (req, res, next) => {
     );
 
     res.json({ success: true, message: 'Admin deleted successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+router.post('/:id/reset-password', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    
+    
+    const checkAdmin = await pool.query('SELECT id, email FROM admins WHERE id = $1 AND deleted_at IS NULL', [id]);
+    if (checkAdmin.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Admin not found' });
+    }
+
+    const { newPassword } = req.body;
+    const tempPassword = newPassword || (Math.random().toString(36).slice(-10) + 'A@1');
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    await pool.query(
+      'UPDATE admins SET password_hash = $1 WHERE id = $2',
+      [passwordHash, id]
+    );
+
+    
+    await logAuditEvent(
+      req.admin!.id,
+      req.admin!.activeRole,
+      'RESET_ADMIN_PASSWORD',
+      'admin',
+      id
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Password reset successfully.', 
+      data: { tempPassword } 
+    });
   } catch (err) {
     next(err);
   }

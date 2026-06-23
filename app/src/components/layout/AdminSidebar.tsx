@@ -54,13 +54,13 @@ export function AdminSidebar() {
 
   const activeRole = admin?.activeRole;
 
-  // Filter navigation items by active role permissions
+  
   const filteredPrimary = primaryNav.filter((item) => hasModuleAccess(activeRole, item.module));
   const filteredSecondary = secondaryNav.filter((item) => hasModuleAccess(activeRole, item.module));
 
   return (
     <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-      {/* Logo */}
+      {}
       <div
         className="sidebar-logo-container"
         style={{
@@ -190,10 +190,10 @@ export function AdminSidebar() {
           );
         })}
 
-        {/* Divider */}
+        {}
         <div style={{ height: 1, background: 'var(--color-border)', margin: '8px 16px' }} />
 
-        {/* Log Out */}
+        {}
         <button
           onClick={handleLogout}
           data-tooltip="Log Out"
@@ -202,7 +202,7 @@ export function AdminSidebar() {
             alignItems: 'center',
             gap: 12,
             padding: '10px 16px',
-            borderRadius: 'var(--radius-button)', /* 8px */
+            borderRadius: 'var(--radius-button)', 
             background: 'transparent',
             color: 'var(--color-text-secondary)',
             border: 'none',

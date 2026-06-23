@@ -48,7 +48,7 @@ export function CustomSelect({
       className={`custom-select-container ${className}`}
       style={{ position: 'relative', width, ...style }}
     >
-      {/* Trigger */}
+      {}
       <button
         type="button"
         className="custom-select-trigger"
@@ -153,7 +153,7 @@ export function CustomSelect({
                       {opt.icon}
                     </span>
                   ) : options.some(o => o.icon) ? (
-                    <span style={{ width: 16 }} /> /* Alignment spacer if mixed icons */
+                    <span style={{ width: 16 }} /> 
                   ) : null}
                   <span>{opt.label}</span>
                 </div>

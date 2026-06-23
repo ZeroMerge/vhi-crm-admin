@@ -1,16 +1,43 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, AlertTriangle, X } from 'lucide-react';
+import { Search, AlertTriangle, X, Box, Plane } from 'lucide-react';
+import { format } from 'date-fns';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { Modal } from '@/components/ui/Modal';
-import { formatCurrency } from '@/utils/formatCurrency';
 import { trackingService } from '@/services/tracking.service';
 import { shipmentService } from '@/services/shipment.service';
 import { useAuthStore } from '@/store/authStore';
 import { useIsMobile } from '@/hooks/use-mobile';
-import type { Shipment } from '@/types';
+import type { Shipment, TrackingUpdate } from '@/types';
+
+const TIMELINE_STEPS = [
+  { value: 'pending', label: 'Order Placed', description: 'Shipment registered' },
+  { value: 'processing', label: 'Processing', description: 'Preparing for dispatch' },
+  { value: 'in_transit', label: 'In Transit', description: 'On the way' },
+  { value: 'clearance', label: 'Customs Clearance', description: 'Awaiting customs' },
+  { value: 'delivered', label: 'Delivered', description: 'Package delivered' },
+];
+
+const statusOptions = [
+  { value: 'pending', label: 'Pending' },
+  { value: 'processing', label: 'Processing' },
+  { value: 'in_transit', label: 'In Transit' },
+  { value: 'clearance', label: 'Customs Clearance' },
+  { value: 'delivered', label: 'Delivered' },
+];
+
+const safeFormatDate = (dateStr: any) => {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return '';
+  try {
+    return format(date, 'MMM dd, yyyy');
+  } catch (e) {
+    return '';
+  }
+};
 
 const filters = [
   { value: '', label: 'All Shipments' },
@@ -35,7 +62,6 @@ export default function Tracking() {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Read filter state from URL parameters
   const search = searchParams.get('search') || '';
   const filter = searchParams.get('filter') || '';
   const mode = searchParams.get('mode') || '';
@@ -47,6 +73,11 @@ export default function Tracking() {
   const [trackingType, setTrackingType] = useState<'awb' | 'bol' | 'uniqueId'>('awb');
   const [saveLoading, setSaveLoading] = useState(false);
 
+  const [events, setEvents] = useState<TrackingUpdate[]>([]);
+  const [newEventStatus, setNewEventStatus] = useState('');
+  const [newEventMessage, setNewEventMessage] = useState('');
+  const [addingEvent, setAddingEvent] = useState(false);
+
   useEffect(() => {
     let active = true;
     const fetchTrackingList = async () => {
@@ -56,7 +87,6 @@ export default function Tracking() {
         if (active) {
           setShipments(data);
           if (data.length > 0) {
-            // Find currently selected shipment in the new list, or default to the first one
             const currentSelected = selectedShipment
               ? data.find((s) => s.id === selectedShipment.id) || data[0]
               : data[0];
@@ -64,7 +94,7 @@ export default function Tracking() {
             setSelectedShipment(currentSelected);
             setTrackingType(getTrackingType(currentSelected));
             setTrackingNumber(
-              currentSelected.awbNumber || currentSelected.bolNumber || currentSelected.uniqueId || ''
+              currentSelected.awb_number || currentSelected.bol_number || currentSelected.unique_id || ''
             );
           } else {
             setSelectedShipment(null);
@@ -82,16 +112,30 @@ export default function Tracking() {
     };
   }, [search, filter, mode]);
 
-  const getTrackingType = (shipment: Shipment): 'awb' | 'bol' | 'uniqueId' => {
-    if (shipment.shippingMode === 'air_freight') return 'awb';
-    if (['groupage', 'consolidation', 'china_groupage'].includes(shipment.shippingMode)) return 'uniqueId';
+  useEffect(() => {
+    let active = true;
+    if (selectedShipment) {
+      trackingService.getEvents(selectedShipment.id).then((data) => {
+        if (active) setEvents(data);
+      }).catch(err => {
+        console.error('Failed to get events', err);
+      });
+    } else {
+      setEvents([]);
+    }
+    return () => { active = false; };
+  }, [selectedShipment]);
+
+  const getTrackingType = (shipment: any): 'awb' | 'bol' | 'uniqueId' => {
+    if (shipment.shipping_mode === 'air_freight') return 'awb';
+    if (['groupage', 'consolidation', 'china_groupage'].includes(shipment.shipping_mode)) return 'uniqueId';
     return 'bol';
   };
 
-  const handleSelectShipment = (shipment: Shipment) => {
+  const handleSelectShipment = (shipment: any) => {
     setSelectedShipment(shipment);
     setTrackingType(getTrackingType(shipment));
-    setTrackingNumber(shipment.awbNumber || shipment.bolNumber || shipment.uniqueId || '');
+    setTrackingNumber(shipment.awb_number || shipment.bol_number || shipment.unique_id || '');
   };
 
   const updateFilter = (key: string, value: string) => {
@@ -127,12 +171,14 @@ export default function Tracking() {
       await shipmentService.updateTracking(selectedShipment.id, data);
       alert('Tracking information updated successfully!');
       
-      // Refresh the shipment selection
-      const updatedShipment = { ...selectedShipment, ...data };
+      const updatedShipment = { 
+        ...selectedShipment, 
+        awb_number: data.awbNumber !== undefined ? data.awbNumber : selectedShipment.awb_number,
+        bol_number: data.bolNumber !== undefined ? data.bolNumber : selectedShipment.bol_number,
+        unique_id: data.uniqueId !== undefined ? data.uniqueId : selectedShipment.unique_id,
+      };
       setSelectedShipment(updatedShipment);
-      
-      // Trigger list refresh
-      window.location.reload();
+      setShipments((prev) => prev.map(s => s.id === updatedShipment.id ? updatedShipment : s));
     } catch (err) {
       console.error('Failed to update tracking:', err);
       alert('Failed to update tracking info.');
@@ -141,100 +187,233 @@ export default function Tracking() {
     }
   };
 
+  const handleUpdateStatus = async () => {
+    if (!selectedShipment || isSupportStaff) return;
+    if (!newEventStatus) {
+      alert('Please select a status.');
+      return;
+    }
+    setAddingEvent(true);
+    try {
+      const updatedShipment = await shipmentService.updateStatus(
+        selectedShipment.id,
+        newEventStatus,
+        newEventMessage
+      );
+
+      setSelectedShipment(updatedShipment);
+      setShipments((prev) => prev.map(s => s.id === updatedShipment.id ? updatedShipment : s));
+      
+      setNewEventStatus('');
+      setNewEventMessage('');
+
+      const updatedEvents = await trackingService.getEvents(selectedShipment.id);
+      setEvents(updatedEvents);
+
+      alert('Package status updated successfully!');
+    } catch (err) {
+      console.error('Failed to update package status:', err);
+      alert('Failed to update status.');
+    } finally {
+      setAddingEvent(false);
+    }
+  };
+
   const renderDetails = () => {
     if (!selectedShipment) return null;
+    
+    const s = selectedShipment as any;
+    const currentStatusIndex = TIMELINE_STEPS.findIndex(step => step.value === s.status);
+
     return (
       <>
-        {/* Header - Only needed on desktop, Modal has its own title on mobile */}
         {!isMobile && (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-            <h2 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 400 }}>
-              Order ID: <span style={{ fontWeight: 600 }}>{selectedShipment.orderId}</span>
-            </h2>
-            <Badge status={selectedShipment.status} type="shipment" />
+            <div>
+              <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                Shipment
+              </div>
+              <h2 style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-text-primary)', margin: 0 }}>
+                {s.order_id}
+              </h2>
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                {safeFormatDate(s.created_at)}
+              </div>
+            </div>
+            <Badge status={s.status} type="shipment" />
           </div>
         )}
 
-        {/* Info Cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-          <div className="card" style={{ padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', fontWeight: 500 }}>
-                Shipping Mode
-              </span>
-            </div>
-            <div style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, textTransform: 'capitalize' }}>
-              {(selectedShipment.shippingMode ?? '').replace(/_/g, ' ')}
-            </div>
+        <div style={{ 
+          background: 'var(--color-surface)', 
+          border: '1px solid var(--color-border)', 
+          borderRadius: 'var(--border-radius-card)', 
+          padding: '16px 20px', 
+          marginBottom: 24 
+        }}>
+          <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 6 }}>
+            {s.origin_address} &rarr; {s.destination_address}
           </div>
-          <div className="card" style={{ padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', fontWeight: 500 }}>
-                Address
-              </span>
-            </div>
-            <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
-              {selectedShipment.destinationAddress}
-            </div>
+          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+            {(s.shipping_mode ?? '').replace(/_/g, ' ').toUpperCase()}
+            <span style={{ margin: '0 8px', color: 'var(--color-border)' }}>|</span>
+            {(s.weight ?? 0).toLocaleString()} {s.weight_unit || 'kg'}
+            <span style={{ margin: '0 8px', color: 'var(--color-border)' }}>|</span>
+            {s.nature_of_item || 'No Category'}
           </div>
         </div>
 
-        {/* Tracking Form */}
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h3 className="card-title" style={{ marginBottom: 16 }}>Update Tracking Number</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div>
-              <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>
-                {trackingType === 'awb' ? 'AWB Number' : trackingType === 'bol' ? 'Bill of Lading Number' : 'Unique ID'}
-              </label>
-              <input
-                className="input"
-                value={trackingNumber}
-                onChange={(e) => setTrackingNumber(e.target.value)}
-                placeholder={`Enter ${trackingType === 'awb' ? 'AWB' : trackingType === 'bol' ? 'BoL' : 'unique'} number...`}
-                disabled={isSupportStaff}
-              />
+        <div className="card" style={{ marginBottom: 24, padding: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+            <h3 className="card-title" style={{ marginBottom: 0 }}>Tracking Timeline</h3>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+              Tracking: <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{trackingNumber || 'Not assigned'}</span>
             </div>
-            {!isSupportStaff && (
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={handleSaveTracking}
-                disabled={saveLoading}
-                style={{ alignSelf: 'flex-start' }}
-              >
-                {saveLoading ? 'Saving...' : 'Save Tracking Info'}
-              </button>
-            )}
+          </div>
+
+          <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '0 20px 24px 20px', minHeight: '80px' }}>
+            <div style={{
+              position: 'absolute',
+              top: '12px',
+              left: '0',
+              right: '0',
+              height: '4px',
+              backgroundColor: 'var(--color-border)',
+              zIndex: 1,
+            }} />
+            
+            <div style={{
+              position: 'absolute',
+              top: '12px',
+              left: '0',
+              width: `${(Math.max(0, currentStatusIndex) / (TIMELINE_STEPS.length - 1)) * 100}%`,
+              height: '4px',
+              backgroundColor: 'var(--color-primary)',
+              zIndex: 1,
+              transition: 'width 0.3s ease',
+            }} />
+
+            {TIMELINE_STEPS.map((step, idx) => {
+              const isCompleted = idx < currentStatusIndex;
+              const isActive = idx === currentStatusIndex;
+
+              return (
+                <div key={step.value} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2, flex: 1, textAlign: 'center' }}>
+                  <div style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '50%',
+                    backgroundColor: isCompleted ? 'var(--color-primary)' : isActive ? 'var(--color-page-bg)' : 'var(--color-page-bg)',
+                    border: `3px solid ${isCompleted || isActive ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: isCompleted ? '#ffffff' : isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    boxShadow: isActive ? '0 0 0 4px var(--color-primary-light)' : 'none',
+                    transition: 'all 0.3s ease',
+                  }}>
+                    {isCompleted ? '✓' : isActive ? '●' : ''}
+                  </div>
+
+                  <div style={{ marginTop: '12px', padding: '0 8px' }}>
+                    <div style={{
+                      fontWeight: isActive || isCompleted ? 600 : 500,
+                      fontSize: 'var(--font-size-sm)',
+                      color: isActive ? 'var(--color-primary)' : isCompleted ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {step.label}
+                      {isActive && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: '4px', color: 'var(--color-primary)', fontWeight: 'bold' }}>• Now</span>}
+                    </div>
+                    <div style={{
+                      fontSize: 'var(--font-size-xs)',
+                      color: 'var(--color-text-muted)',
+                      marginTop: '4px',
+                      maxWidth: '120px',
+                      margin: '4px auto 0 auto',
+                    }}>
+                      {step.description}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Details and Description */}
-        <div className="card">
-          <h3 className="card-title" style={{ marginBottom: 16 }}>Shipment details</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <div>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Nature of Item</div>
-              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{selectedShipment.natureOfItem}</div>
-              
-              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Declared Value</div>
-              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{formatCurrency(selectedShipment.invoiceValue, selectedShipment.invoiceCurrency)}</div>
+        {!isSupportStaff && (
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 24, marginBottom: 24 }}>
+            <div className="card" style={{ padding: '20px' }}>
+              <h3 className="card-title" style={{ marginBottom: 16 }}>Manage Tracking ID</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>
+                    {trackingType === 'awb' ? 'AWB Number' : trackingType === 'bol' ? 'Bill of Lading Number' : 'Unique ID'}
+                  </label>
+                  <input
+                    className="input"
+                    value={trackingNumber}
+                    onChange={(e) => setTrackingNumber(e.target.value)}
+                    placeholder={`Enter ${trackingType === 'awb' ? 'AWB' : trackingType === 'bol' ? 'BoL' : 'unique'} number...`}
+                  />
+                </div>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={handleSaveTracking}
+                  disabled={saveLoading}
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  {saveLoading ? 'Saving...' : 'Update ID'}
+                </button>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Weight</div>
-              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{(selectedShipment.weight ?? 0).toLocaleString()} {selectedShipment.weightUnit || 'kg'}</div>
 
-              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Origin Address</div>
-              <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 12 }}>{selectedShipment.originAddress}</div>
+            <div className="card" style={{ padding: '20px' }}>
+              <h3 className="card-title" style={{ marginBottom: 16 }}>Update Package Status</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>
+                    New Status
+                  </label>
+                  <CustomSelect
+                    value={newEventStatus}
+                    onChange={(val) => setNewEventStatus(val)}
+                    options={statusOptions}
+                    placeholder="Select status..."
+                    width="100%"
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>
+                    Status Update Message (Optional)
+                  </label>
+                  <input
+                    className="input"
+                    placeholder="e.g. Arrived at transit hub, Paris..."
+                    value={newEventMessage}
+                    onChange={(e) => setNewEventMessage(e.target.value)}
+                  />
+                </div>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleUpdateStatus}
+                  disabled={addingEvent || !newEventStatus}
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  {addingEvent ? 'Updating...' : 'Update Status'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </>
     );
   };
 
   return (
     <PageWrapper title="Tracking">
-      {/* Search and Filters horizontal panel */}
       <div
         className="filter-toolbar"
         style={{
@@ -346,10 +525,7 @@ export default function Tracking() {
         </div>
       )}
 
-      {/* Grid Layout */}
       <div className="two-col-layout tracking-layout" style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '380px 1fr', gap: 24 }}>
-        
-        {/* Left Panel - Shipment List */}
         <div>
           <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, marginBottom: 16 }}>
             Shipments ({shipments.length})
@@ -366,69 +542,51 @@ export default function Tracking() {
                   No shipments matching filters
                 </div>
               ) : (
-                shipments.map((shipment) => (
-                  <button
-                    key={shipment.id}
-                    onClick={() => handleSelectShipment(shipment)}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      padding: 16,
-                      background: selectedShipment?.id === shipment.id ? 'var(--color-primary-light)' : 'var(--color-page-bg)',
-                      border: `1px solid ${selectedShipment?.id === shipment.id ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                      borderRadius: 'var(--border-radius-card)',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      fontFamily: 'var(--font-family)',
-                      transition: 'all 0.15s ease',
-                      boxShadow: 'var(--shadow-sm)',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Order ID</span>
-                      <Badge status={shipment.status} type="shipment" size="sm" />
-                    </div>
-                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-lg)', marginBottom: 12 }}>
-                      {shipment.orderId}
-                    </div>
-
-                    {/* Timeline */}
-                    <div className="tracking-timeline" style={{ position: 'relative', paddingLeft: 16 }}>
-                      <div className="tracking-timeline-line" style={{ position: 'absolute', left: 3, top: 8, bottom: 8, width: 2, borderLeft: '2px dashed var(--color-border)' }} />
-                      {/* Origin */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                        <div className="tracking-timeline-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary)', marginLeft: -16, flexShrink: 0 }} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>From</div>
-                          <div style={{ fontSize: 'var(--font-size-sm)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {shipment.originAddress?.split(',')[0] || 'Unknown'}
-                          </div>
-                        </div>
+                shipments.map((shipment) => {
+                  const sh = shipment as any;
+                  return (
+                    <button
+                      key={sh.id}
+                      onClick={() => handleSelectShipment(sh)}
+                      style={{
+                        display: 'block',
+                        width: '100%',
+                        padding: '14px 16px',
+                        background: selectedShipment?.id === sh.id ? 'var(--color-primary-light)' : 'var(--color-surface)',
+                        border: 'none',
+                        borderBottom: '1px solid var(--color-border)',
+                        borderLeft: selectedShipment?.id === sh.id ? '4px solid var(--color-primary)' : '4px solid transparent',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        fontFamily: 'var(--font-family)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' }}>
+                          {sh.order_id}
+                        </span>
+                        <Badge status={sh.status} type="shipment" size="sm" />
                       </div>
-                      {/* Destination */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div className="tracking-timeline-dot" style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--color-primary)', marginLeft: -16, flexShrink: 0 }} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>To</div>
-                          <div style={{ fontSize: 'var(--font-size-sm)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {shipment.destinationAddress?.split(',')[0] || 'Unknown'}
-                          </div>
-                        </div>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 4 }}>
+                        {sh.origin_address?.split(',')[0] || 'Unknown'} &rarr; {sh.destination_address?.split(',')[0] || 'Unknown'}
                       </div>
-                    </div>
-                  </button>
-                ))
+                      <div style={{ fontSize: '10px', color: 'var(--color-text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em' }}>
+                        {(sh.shipping_mode ?? '').replace(/_/g, ' ')}
+                      </div>
+                    </button>
+                  );
+                })
               )}
             </div>
           )}
         </div>
 
-        {/* Right Panel - Detail */}
         {isMobile ? (
           <Modal
             isOpen={!!selectedShipment}
             onClose={() => setSelectedShipment(null)}
-            title={selectedShipment ? `Order ID: ${selectedShipment.orderId}` : ''}
+            title={selectedShipment ? `Order ID: ${(selectedShipment as any).order_id}` : ''}
           >
             <div style={{ padding: '0 4px 16px' }}>
               {renderDetails()}

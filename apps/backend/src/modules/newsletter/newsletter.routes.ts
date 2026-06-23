@@ -4,7 +4,7 @@ import { adminMiddleware } from '../../middleware/adminMiddleware';
 
 const router = Router();
 
-// GET /api/admin/newsletter/segments
+
 router.get('/segments', adminMiddleware, async (req, res, next) => {
   try {
     const result = await pool.query(
@@ -16,7 +16,7 @@ router.get('/segments', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// PUT /api/admin/newsletter/segments/move
+
 router.put('/segments/move', adminMiddleware, async (req, res, next) => {
   try {
     const { customerId, toIndustry } = req.body;
@@ -25,7 +25,7 @@ router.put('/segments/move', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// DELETE /api/admin/newsletter/segments/remove
+
 router.delete('/segments/remove', adminMiddleware, async (req, res, next) => {
   try {
     const { customerId } = req.body;
@@ -34,7 +34,7 @@ router.delete('/segments/remove', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/admin/newsletter/send
+
 router.post('/send', adminMiddleware, async (req, res, next) => {
   try {
     const { subject, body, segments } = req.body;
@@ -57,7 +57,7 @@ router.post('/send', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/admin/newsletter/history
+
 router.get('/history', adminMiddleware, async (req, res, next) => {
   try {
     const result = await pool.query('SELECT * FROM newsletter_sends ORDER BY sent_at DESC');

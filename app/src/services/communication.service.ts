@@ -27,7 +27,7 @@ export const communicationService = {
   },
 };
 
-// Newsletter service
+
 export const newsletterService = {
   getSegments: async (): Promise<{ industry: string; count: number; customers: Customer[] }[]> => {
     const res = await api.get<ApiResponse<{ industry: string; count: number; customers: Customer[] }[]>>('/api/admin/newsletter/segments');

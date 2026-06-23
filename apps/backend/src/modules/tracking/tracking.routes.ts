@@ -5,7 +5,7 @@ import { logAuditEvent } from '../../utils/audit';
 
 const router = Router();
 
-// GET /api/admin/tracking -> List with page-adaptive tracking filters
+
 router.get('/', adminMiddleware, async (req, res, next) => {
   try {
     const { search, filter, mode } = req.query;
@@ -18,7 +18,7 @@ router.get('/', adminMiddleware, async (req, res, next) => {
     const params: any[] = [];
     let paramIdx = 1;
 
-    // Tracking ID status filter
+    
     if (filter === 'missing') {
       sql += ` AND s.awb_number IS NULL AND s.bol_number IS NULL AND s.unique_id IS NULL`;
     } else if (filter === 'has_awb') {
@@ -29,7 +29,7 @@ router.get('/', adminMiddleware, async (req, res, next) => {
       sql += ` AND s.unique_id IS NOT NULL`;
     }
 
-    // Shipping mode filter
+    
     if (mode && mode !== 'all') {
       if (mode === 'sea') {
         sql += ` AND s.shipping_mode IN ('groupage', 'consolidation', 'china_groupage')`;
@@ -40,7 +40,7 @@ router.get('/', adminMiddleware, async (req, res, next) => {
       }
     }
 
-    // Search query
+    
     if (search) {
       sql += ` AND (s.order_id ILIKE $${paramIdx} OR s.awb_number ILIKE $${paramIdx} OR s.bol_number ILIKE $${paramIdx} OR s.unique_id ILIKE $${paramIdx})`;
       params.push(`%${search}%`);
@@ -54,7 +54,7 @@ router.get('/', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/admin/tracking/pending
+
 router.get('/pending', adminMiddleware, async (req, res, next) => {
   try {
     const result = await pool.query(
@@ -68,7 +68,7 @@ router.get('/pending', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/admin/tracking/:shipmentId/update
+
 router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
   try {
     const { status, message } = req.body;
@@ -78,7 +78,7 @@ router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
     );
     await pool.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [status, req.params.shipmentId]);
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
@@ -92,7 +92,18 @@ router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/tracking/:trackingId (public)
+
+router.get('/:shipmentId/events', adminMiddleware, async (req, res, next) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM tracking_updates WHERE shipment_id = $1 ORDER BY created_at ASC',
+      [req.params.shipmentId]
+    );
+    res.json({ success: true, data: result.rows });
+  } catch (err) { next(err); }
+});
+
+
 const publicRouter = Router();
 publicRouter.get('/:trackingId', async (req, res, next) => {
   try {

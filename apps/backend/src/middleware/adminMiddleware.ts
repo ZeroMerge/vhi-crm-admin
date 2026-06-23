@@ -6,7 +6,7 @@ export interface AdminPayload {
   email: string;
   activeRole: string;
   assignedRoles: string[];
-  role?: string; // backward compatibility fallback
+  role?: string; 
 }
 
 declare global {
@@ -27,7 +27,7 @@ export const adminMiddleware = (req: Request, res: Response, next: NextFunction)
   try {
     const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'fallback_secret') as AdminPayload;
     
-    // Ensure we support activeRole and fallback role
+    
     if (!decoded.activeRole && decoded.role) {
       decoded.activeRole = decoded.role;
     }
@@ -37,8 +37,8 @@ export const adminMiddleware = (req: Request, res: Response, next: NextFunction)
     
     req.admin = decoded;
 
-    // Support staff is strictly read-only on all backend mutating routes (POST, PUT, DELETE).
-    // Exceptions: /switch-role and /logout are administrative auth actions and allowed.
+    
+    
     if (
       req.admin.activeRole === 'support_staff' &&
       ['POST', 'PUT', 'DELETE'].includes(req.method)
@@ -66,13 +66,13 @@ export const requireActiveRole = (...allowedRoles: string[]) => {
     
     const activeRole = req.admin.activeRole;
     
-    // If the allowedRoles includes '*', full access is allowed
+    
     if (allowedRoles.includes('*') && activeRole === 'super_admin') {
       return next();
     }
     
     if (activeRole === 'super_admin') {
-      return next(); // super admin has access to everything
+      return next(); 
     }
 
     if (!allowedRoles.includes(activeRole)) {
@@ -83,5 +83,5 @@ export const requireActiveRole = (...allowedRoles: string[]) => {
   };
 };
 
-// Keep old requireRole exported as fallback alias pointing to requireActiveRole
+
 export const requireRole = requireActiveRole;

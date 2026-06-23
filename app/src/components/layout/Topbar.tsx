@@ -10,7 +10,7 @@ import type { AdminRole } from '@/types';
 import api from '@/services/api';
 import { useUIStore } from '@/store/uiStore';
 
-// Map roles to human-readable labels
+
 const roleLabels: Record<AdminRole, string> = {
   super_admin: 'Super Admin',
   manager: 'Manager',
@@ -29,7 +29,7 @@ export function Topbar() {
   
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  // Search states
+  
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
@@ -43,7 +43,7 @@ export function Topbar() {
   const profileRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdowns on click outside
+  
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -62,7 +62,7 @@ export function Topbar() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Collapse search on Escape key
+  
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -74,7 +74,7 @@ export function Topbar() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // 300ms Debounced Global Search
+  
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults(null);
@@ -126,7 +126,7 @@ export function Topbar() {
 
   return (
     <header className="topbar">
-      {/* Left - Hamburger (Mobile) + Date */}
+      {}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <button 
           className="topbar-hamburger" 
@@ -242,7 +242,7 @@ export function Topbar() {
                     </div>
                   )}
 
-                  {/* Shipments Group */}
+                  {}
                   {searchResults.shipments.length > 0 && (
                     <div style={{ marginTop: '8px' }}>
                       <div style={{ padding: '8px 16px 4px', fontSize: 'var(--font-size-xs)', fontWeight: 600, color: 'var(--color-primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

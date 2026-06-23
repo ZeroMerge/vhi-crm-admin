@@ -15,6 +15,18 @@ interface LoginResponse {
 }
 
 export const authService = {
+  verifyEmail: async (email: string): Promise<boolean> => {
+    try {
+      const res = await api.post<ApiResponse<null>>('/api/auth/admin/verify-email', { email });
+      return res.data.success;
+    } catch (err: any) {
+      if (err.response?.data?.message) {
+        throw new Error(err.response.data.message);
+      }
+      throw err;
+    }
+  },
+
   login: async (data: LoginData): Promise<LoginResponse> => {
     const res = await api.post<ApiResponse<LoginResponse>>('/api/auth/admin/login', data);
     return res.data.data;

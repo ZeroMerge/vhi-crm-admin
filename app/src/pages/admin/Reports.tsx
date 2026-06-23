@@ -78,7 +78,7 @@ export default function Reports() {
 
   return (
     <PageWrapper title="Reports">
-      {/* Tabs + Export */}
+      {}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
         <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface)', padding: 6, borderRadius: 'var(--border-radius-pill)', border: '1px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
           {tabs.map((tab) => (
@@ -157,7 +157,7 @@ export default function Reports() {
             ))}
           </div>
 
-          {/* Shipment Breakdown */}
+          {}
           <div className="card" style={{ marginBottom: 24 }}>
             <h3 className="card-title" style={{ marginBottom: 20 }}>Shipment Breakdown</h3>
             <div className="vhi-table-container" style={{ border: 'none' }}>
@@ -203,7 +203,7 @@ export default function Reports() {
             </div>
           </div>
 
-          {/* Customer Overview */}
+          {}
           <div className="card">
             <h3 className="card-title" style={{ marginBottom: 20 }}>Customer Overview</h3>
             {totalCustomers === 0 ? (

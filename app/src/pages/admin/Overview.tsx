@@ -22,7 +22,7 @@ const tabs: { label: string; value: string; count?: number }[] = [
   { label: 'Processing', value: 'processing' },
 ];
 
-// adminStats moved into component to allow runtime metrics (overdue count)
+
 
 export default function Overview() {
   const navigate = useNavigate();
@@ -58,7 +58,7 @@ export default function Overview() {
     }
   }, [page, savedScrollLeft]);
 
-  // Fetch Dashboard Stats
+  
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -88,7 +88,7 @@ export default function Overview() {
     fetchDashboardData();
   }, []);
 
-  // Fetch Shipments Table Data
+  
   useEffect(() => {
     let active = true;
     const fetchTableData = async () => {
@@ -160,7 +160,7 @@ export default function Overview() {
 
   return (
     <PageWrapper title={`Welcome ${admin?.name || 'Admin'}!`}>
-      {/* Cards Grid */}
+      {}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginBottom: 32 }}>
         {adminStats.map((stat) => (
           <div key={stat.label} style={{ 

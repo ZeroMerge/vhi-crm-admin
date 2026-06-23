@@ -5,7 +5,7 @@ import { logAuditEvent } from '../../utils/audit';
 
 const router = Router();
 
-// GET /api/admin/shipments
+
 router.get('/', adminMiddleware, async (req, res, next) => {
   try {
     const { status, mode, customerId, search, dateFrom, dateTo, sortBy, page = '1', pageSize = '10' } = req.query;
@@ -37,8 +37,8 @@ router.get('/', adminMiddleware, async (req, res, next) => {
     const countResult = await pool.query(`SELECT COUNT(*) FROM (${sql}) AS count_query`, params);
     const total = parseInt(countResult.rows[0].count);
 
-    // Apply sorting
-    let orderSql = ' ORDER BY s.created_at DESC'; // default newest
+    
+    let orderSql = ' ORDER BY s.created_at DESC'; 
     if (sortBy === 'oldest') {
       orderSql = ' ORDER BY s.created_at ASC';
     } else if (sortBy === 'price-high-low' || sortBy === 'price_desc') {
@@ -60,7 +60,7 @@ router.get('/', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/admin/shipments/:id
+
 router.get('/:id', adminMiddleware, async (req, res, next) => {
   try {
     const shipmentResult = await pool.query('SELECT * FROM shipments WHERE id = $1', [req.params.id]);
@@ -78,7 +78,7 @@ router.get('/:id', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/admin/shipments
+
 router.post('/', adminMiddleware, async (req, res, next) => {
   try {
     const {
@@ -112,7 +112,7 @@ router.post('/', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// PUT /api/admin/shipments/:id/status
+
 router.put('/:id/status', adminMiddleware, async (req, res, next) => {
   try {
     const { status, message } = req.body;
@@ -124,7 +124,7 @@ router.put('/:id/status', adminMiddleware, async (req, res, next) => {
 
     const result = await pool.query('SELECT * FROM shipments WHERE id = $1', [req.params.id]);
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
@@ -138,7 +138,7 @@ router.put('/:id/status', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// PUT /api/admin/shipments/:id/tracking
+
 router.put('/:id/tracking', adminMiddleware, async (req, res, next) => {
   try {
     const { awbNumber, bolNumber, uniqueId } = req.body;
@@ -154,7 +154,7 @@ router.put('/:id/tracking', adminMiddleware, async (req, res, next) => {
     await pool.query(`UPDATE shipments SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, params);
     const result = await pool.query('SELECT * FROM shipments WHERE id = $1', [req.params.id]);
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
@@ -168,7 +168,7 @@ router.put('/:id/tracking', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/admin/shipments/:id/documents
+
 router.post('/:id/documents', adminMiddleware, async (req, res, next) => {
   try {
     const { fileUrl, documentType } = req.body;
@@ -178,7 +178,7 @@ router.post('/:id/documents', adminMiddleware, async (req, res, next) => {
     );
     const doc = result.rows[0];
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
@@ -192,12 +192,12 @@ router.post('/:id/documents', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// DELETE /api/admin/shipments/:id/documents/:docId
+
 router.delete('/:id/documents/:docId', adminMiddleware, async (req, res, next) => {
   try {
     await pool.query('DELETE FROM shipment_documents WHERE id = $1 AND shipment_id = $2', [req.params.docId, req.params.id]);
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
