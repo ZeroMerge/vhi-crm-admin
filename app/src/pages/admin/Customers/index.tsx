@@ -46,7 +46,7 @@ export default function Customers() {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Read filter state from URL parameters
+  
   const search = searchParams.get('search') || '';
   const industry = searchParams.get('industry') || '';
   const star = searchParams.get('star') || '';
@@ -97,7 +97,7 @@ export default function Customers() {
     } else {
       newParams.delete(key);
     }
-    newParams.set('page', '1'); // Reset to page 1 on filter change
+    newParams.set('page', '1'); 
     setSearchParams(newParams);
   };
 
@@ -107,7 +107,7 @@ export default function Customers() {
 
   const isFilterActive = !!(search || industry || star || status || sortBy !== 'newest');
 
-  // Handle pagination clicks
+  
   const totalPages = Math.ceil(total / pageSize);
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
@@ -120,7 +120,7 @@ export default function Customers() {
     if (window.confirm('Are you sure you want to delete this customer?')) {
       try {
         await customerService.delete(id);
-        // Refresh customer list
+        
         window.location.reload();
       } catch (err) {
         console.error('Failed to delete customer:', err);
@@ -145,7 +145,7 @@ export default function Customers() {
 
   return (
     <PageWrapper title="Customers">
-      {/* Page-adaptive filter bar */}
+      {}
       <div
         className="filter-toolbar"
         style={{
@@ -160,7 +160,7 @@ export default function Customers() {
           border: '1px solid var(--color-border)',
         }}
       >
-        {/* Search on left */}
+        {}
         <div className="search-input-wrapper" style={{ maxWidth: 260 }}>
           <Search size={18} className="search-icon" />
           <input
@@ -322,7 +322,7 @@ export default function Customers() {
         </div>
       )}
 
-      {/* Table */}
+      {}
       <div className="vhi-table-container">
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-muted)' }}>

@@ -4,7 +4,7 @@ import { adminMiddleware } from '../../middleware/adminMiddleware';
 
 const router = Router();
 
-// GET /api/admin/feedback
+
 router.get('/', adminMiddleware, async (_req, res, next) => {
   try {
     const result = await pool.query(
@@ -20,7 +20,7 @@ router.get('/', adminMiddleware, async (_req, res, next) => {
   }
 });
 
-// POST /api/admin/feedback
+
 router.post('/', adminMiddleware, async (req, res, next) => {
   try {
     const { customerId, rating, message } = req.body;

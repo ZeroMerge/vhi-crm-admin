@@ -12,7 +12,7 @@ async function check() {
       assigned_roles: row.assigned_roles,
       role: row.role
     });
-    // Check if 'Admin@123' is valid for this hash
+    
     const isValid = await bcrypt.compare('Admin@123', row.password_hash);
     console.log(`Password 'Admin@123' is ${isValid ? 'VALID' : 'INVALID'} for ${row.email}`);
   }

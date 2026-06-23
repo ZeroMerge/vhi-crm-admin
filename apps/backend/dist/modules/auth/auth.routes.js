@@ -10,11 +10,33 @@ const db_1 = __importDefault(require("../../config/db"));
 const adminMiddleware_1 = require("../../middleware/adminMiddleware");
 const audit_1 = require("../../utils/audit");
 const router = (0, express_1.Router)();
+// POST /api/auth/admin/verify-email
+router.post('/admin/verify-email', async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ success: false, message: 'Email required' });
+        }
+        const result = await db_1.default.query('SELECT assigned_roles FROM admins WHERE email = $1', [email]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Email not found' });
+        }
+        const admin = result.rows[0];
+        const assignedRoles = admin.assigned_roles || [];
+        if (assignedRoles.length === 0) {
+            return res.status(403).json({ success: false, message: 'Registered role not attached' });
+        }
+        res.json({ success: true, message: 'Email verified' });
+    }
+    catch (err) {
+        next(err);
+    }
+});
 // POST /api/auth/admin/login
 router.post('/admin/login', async (req, res, next) => {
     try {
-        const { email, password, selectedRole } = req.body;
-        console.log('[DEBUG] Login attempt received:', { email, passwordLength: password ? password.length : 0, selectedRole });
+        const { email, password } = req.body;
+        console.log('[DEBUG] Login attempt received:', { email, passwordLength: password ? password.length : 0 });
         if (!email || !password) {
             console.log('[DEBUG] Missing email or password');
             return res.status(400).json({ success: false, message: 'Email and password required' });
@@ -32,26 +54,17 @@ router.post('/admin/login', async (req, res, next) => {
             console.log('[DEBUG] Password hash mismatch');
             return res.status(401).json({ success: false, message: 'Invalid credentials' });
         }
-        const assignedRoles = admin.assigned_roles || ['support_staff'];
-        // If the account has multiple roles and they haven't picked one, return role selection trigger
-        if (assignedRoles.length > 1 && !selectedRole) {
-            return res.json({
-                success: true,
-                data: {
-                    requiresRoleSelection: true,
-                    assignedRoles,
-                    admin: { id: admin.id, name: admin.name, email: admin.email }
-                }
-            });
+        const assignedRoles = admin.assigned_roles || [];
+        if (assignedRoles.length === 0) {
+            return res.status(403).json({ success: false, message: 'Registered role not attached' });
         }
-        // Determine the active role
-        let activeRole = assignedRoles[0];
-        if (selectedRole) {
-            if (!assignedRoles.includes(selectedRole)) {
-                return res.status(400).json({ success: false, message: 'Invalid selected role for this admin' });
-            }
-            activeRole = selectedRole;
+        // Determine the active role (from memory, or default to first)
+        let activeRole = admin.last_active_role;
+        if (!activeRole || !assignedRoles.includes(activeRole)) {
+            activeRole = assignedRoles[0];
         }
+        // Update last login timestamp and last_active_role
+        await db_1.default.query('UPDATE admins SET last_login_at = NOW(), last_active_role = $1 WHERE id = $2', [activeRole, admin.id]);
         const token = jsonwebtoken_1.default.sign({
             id: admin.id,
             adminId: admin.id,
@@ -99,6 +112,8 @@ router.post('/admin/switch-role', adminMiddleware_1.adminMiddleware, async (req,
         if (!assignedRoles.includes(role)) {
             return res.status(403).json({ success: false, message: 'Role is not assigned to this account' });
         }
+        // Update last active role
+        await db_1.default.query('UPDATE admins SET last_active_role = $1 WHERE id = $2', [role, adminId]);
         // Generate new JWT
         const token = jsonwebtoken_1.default.sign({
             id: adminId,

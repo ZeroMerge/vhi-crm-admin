@@ -50,7 +50,7 @@ export default function Invoices() {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Read filter state from URL parameters
+  
   const search = searchParams.get('search') || '';
   const status = searchParams.get('status') || '';
   const currency = searchParams.get('currency') || '';
@@ -67,11 +67,11 @@ export default function Invoices() {
   const [showCreate, setShowCreate] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // States for dropdowns inside Create Invoice Modal
+  
   const [customersList, setCustomersList] = useState<Customer[]>([]);
   const [shipmentsList, setShipmentsList] = useState<Shipment[]>([]);
   
-  // Form states for creating invoice
+  
   const [formCustomerId, setFormCustomerId] = useState('');
   const [formShipmentId, setFormShipmentId] = useState('');
   const [formAmount, setFormAmount] = useState('');
@@ -112,7 +112,7 @@ export default function Invoices() {
     };
   }, [search, status, currency, dateFrom, dateTo, overdue, sortBy, page]);
 
-  // Load dropdown choices when the "Create Invoice" modal is opened
+  
   useEffect(() => {
     if (showCreate) {
       const loadChoices = async () => {
@@ -136,7 +136,7 @@ export default function Invoices() {
     } else {
       newParams.delete(key);
     }
-    newParams.set('page', '1'); // Reset to page 1
+    newParams.set('page', '1'); 
     setSearchParams(newParams);
   };
 
@@ -162,7 +162,7 @@ export default function Invoices() {
     return new Date(invoice.followUpDate) < new Date() && invoice.status !== 'paid';
   };
 
-  // Handle pagination clicks
+  
   const totalPages = Math.ceil(total / pageSize);
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
@@ -192,14 +192,14 @@ export default function Invoices() {
         notes: formNotes,
       });
       setShowCreate(false);
-      // Reset form
+      
       setFormCustomerId('');
       setFormShipmentId('');
       setFormAmount('');
       setFormCurrency('NGN');
       setFormDueDate('');
       setFormNotes('');
-      // Reload page to reflect newly created invoice
+      
       window.location.reload();
     } catch (err) {
       console.error(err);
@@ -237,10 +237,10 @@ export default function Invoices() {
 
   return (
     <PageWrapper title="Invoices">
-      {/* Page-adaptive layout */}
+      {}
       <div className="two-col-layout" style={{ gap: 20, marginBottom: 24 }}>
         <div>
-          {/* Filters & Header Actions */}
+          {}
           <div
             className="filter-toolbar"
             style={{
@@ -255,7 +255,7 @@ export default function Invoices() {
               border: '1px solid var(--color-border)',
             }}
           >
-        {/* Search input on left */}
+        {}
         <div className="search-input-wrapper" style={{ maxWidth: 220 }}>
           <Search size={18} className="search-icon" />
           <input
@@ -329,7 +329,7 @@ export default function Invoices() {
           />
         </div>
 
-        {/* Overdue Toggle */}
+        {}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
             Overdue Only:
@@ -423,7 +423,7 @@ export default function Invoices() {
         </div>
       )}
 
-      {/* Table */}
+      {}
       <div className="vhi-table-container">
         {loading ? (
           <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-text-muted)' }}>

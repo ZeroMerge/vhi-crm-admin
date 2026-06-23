@@ -10,7 +10,7 @@ import { shipmentService } from '@/services/shipment.service';
 import { customerService } from '@/services/customer.service';
 import type { Customer } from '@/types';
 
-// ─── Step Definitions ────────────────────────────────────────────────────────
+
 const STEPS = [
   { id: 1, label: 'Customer',  icon: FileText  },
   { id: 2, label: 'Shipment',  icon: Package   },
@@ -44,7 +44,7 @@ const WEIGHT_UNITS = [
 
 const CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR'];
 
-// ─── Empty Form State ─────────────────────────────────────────────────────────
+
 const emptyForm = {
   customerId:          '',
   shippingMode:        'air_freight',
@@ -68,7 +68,7 @@ const emptyForm = {
 
 type FormState = typeof emptyForm;
 
-// ─── Validation ───────────────────────────────────────────────────────────────
+
 function validate(step: number, form: FormState): Record<string, string> {
   const e: Record<string, string> = {};
   if (step === 1) {
@@ -88,7 +88,7 @@ function validate(step: number, form: FormState): Record<string, string> {
   return e;
 }
 
-// ─── Field Helper ─────────────────────────────────────────────────────────────
+
 function Field({
   label, required, error, children,
 }: {
@@ -112,7 +112,7 @@ function Field({
   );
 }
 
-// ─── Customer Search Combobox ─────────────────────────────────────────────────
+
 function CustomerPicker({
   value,
   onChange,
@@ -129,7 +129,7 @@ function CustomerPicker({
   const [loading, setLoading]           = useState(false);
   const ref                             = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
+  
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
@@ -138,7 +138,7 @@ function CustomerPicker({
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Fetch as user types
+  
   useEffect(() => {
     if (!query || query.length < 2) { 
       const timer = setTimeout(() => setResults([]), 0);

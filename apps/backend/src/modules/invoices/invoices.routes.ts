@@ -35,7 +35,7 @@ function mapInvoice(row: any) {
   };
 }
 
-// GET /api/admin/invoices
+
 router.get('/', adminMiddleware, async (req, res, next) => {
   try {
     const { status, currency, customerId, search, dateFrom, dateTo, overdue, sortBy, page = '1', pageSize = '10' } = req.query;
@@ -71,8 +71,8 @@ router.get('/', adminMiddleware, async (req, res, next) => {
     const countResult = await pool.query(`SELECT COUNT(*) FROM (${sql}) AS count_query`, params);
     const total = parseInt(countResult.rows[0].count);
 
-    // Apply sorting
-    let orderSql = ' ORDER BY i.created_at DESC'; // default newest
+    
+    let orderSql = ' ORDER BY i.created_at DESC'; 
     if (sortBy === 'oldest') {
       orderSql = ' ORDER BY i.created_at ASC';
     } else if (sortBy === 'amount-high-low' || sortBy === 'amount_desc') {
@@ -94,7 +94,7 @@ router.get('/', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/admin/invoices/:id
+
 router.get('/:id', adminMiddleware, async (req, res, next) => {
   try {
     const invoiceResult = await pool.query(
@@ -127,7 +127,7 @@ router.get('/:id', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/admin/invoices
+
 router.post('/', adminMiddleware, async (req, res, next) => {
   try {
     const { customerId, shipmentId, amount, currency, dueDate, notes } = req.body;
@@ -138,7 +138,7 @@ router.post('/', adminMiddleware, async (req, res, next) => {
     );
     const invoice = result.rows[0];
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
@@ -152,14 +152,14 @@ router.post('/', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// PUT /api/admin/invoices/:id/status
+
 router.put('/:id/status', adminMiddleware, async (req, res, next) => {
   try {
     const { status } = req.body;
     await pool.query('UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2', [status, req.params.id]);
     const result = await pool.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
@@ -173,7 +173,7 @@ router.put('/:id/status', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// PUT /api/admin/invoices/:id/reminder
+
 router.put('/:id/reminder', adminMiddleware, async (req, res, next) => {
   try {
     const { followUpDate } = req.body;
@@ -193,7 +193,7 @@ router.put('/:id/reminder', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// PUT /api/admin/invoices/:id/payment
+
 router.put('/:id/payment', adminMiddleware, async (req, res, next) => {
   try {
     const { amount, paymentMethod, notes } = req.body;
@@ -208,7 +208,7 @@ router.put('/:id/payment', adminMiddleware, async (req, res, next) => {
     await pool.query('UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2', ['paid', req.params.id]);
     const updatedInvoiceResult = await pool.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
@@ -222,7 +222,7 @@ router.put('/:id/payment', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/admin/invoices/:id/pdf
+
 router.get('/:id/pdf', adminMiddleware, async (req, res, next) => {
   try {
     res.setHeader('Content-Type', 'application/pdf');
@@ -231,12 +231,12 @@ router.get('/:id/pdf', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// DELETE /api/admin/invoices/:id
+
 router.delete('/:id', adminMiddleware, async (req, res, next) => {
   try {
     await pool.query('DELETE FROM invoices WHERE id = $1', [req.params.id]);
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,

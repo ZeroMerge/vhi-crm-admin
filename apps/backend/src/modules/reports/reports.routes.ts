@@ -13,7 +13,7 @@ const getPeriodFilter = (period: string): string => {
   }
 };
 
-// GET /api/admin/reports/:period
+
 router.get('/:period', adminMiddleware, async (req, res, next) => {
   try {
     const period = req.params.period;
@@ -47,7 +47,7 @@ router.get('/:period', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/admin/reports/export
+
 router.get('/export', adminMiddleware, async (req, res, next) => {
   try {
     const period = (req.query.period as string) || 'monthly';

@@ -36,7 +36,7 @@ export default function Newsletter() {
         overflow: 'hidden',
         marginBottom: 24
       }}>
-        {/* Table Header */}
+        {}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 

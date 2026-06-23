@@ -88,6 +88,16 @@ router.post('/:shipmentId/update', adminMiddleware_1.adminMiddleware, async (req
         next(err);
     }
 });
+// GET /api/admin/tracking/:shipmentId/events
+router.get('/:shipmentId/events', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
+    try {
+        const result = await db_1.default.query('SELECT * FROM tracking_updates WHERE shipment_id = $1 ORDER BY created_at ASC', [req.params.shipmentId]);
+        res.json({ success: true, data: result.rows });
+    }
+    catch (err) {
+        next(err);
+    }
+});
 // GET /api/tracking/:trackingId (public)
 const publicRouter = (0, express_1.Router)();
 exports.publicTrackingRoutes = publicRouter;

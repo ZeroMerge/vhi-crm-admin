@@ -7,17 +7,17 @@ interface AvatarProps {
 }
 
 const avatarColors = [
-  '#7B2D8B', // primary purple
-  '#E91E8C', // accent pink
-  '#1565C0', // blue
-  '#2E7D32', // green
-  '#E65100', // orange
-  '#4527A0', // deep purple
-  '#00838F', // teal
-  '#AD1457', // pink
+  '#7B2D8B', 
+  '#E91E8C', 
+  '#1565C0', 
+  '#2E7D32', 
+  '#E65100', 
+  '#4527A0', 
+  '#00838F', 
+  '#AD1457', 
 ];
 
-// Hash function: sum of char codes % avatarColors.length
+
 function getAvatarColor(name: string): string {
   if (!name) return avatarColors[0];
   let sum = 0;
