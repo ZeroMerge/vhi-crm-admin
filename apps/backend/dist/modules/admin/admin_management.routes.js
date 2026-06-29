@@ -15,7 +15,7 @@ router.use((0, adminMiddleware_1.requireActiveRole)('super_admin'));
 // GET /api/admin/admins -> List all admins
 router.get('/', async (req, res, next) => {
     try {
-        const result = await db_1.default.query(`SELECT id, name, email, assigned_roles, is_active, created_at
+        const result = await db_1.default.query(`SELECT id, name, email, assigned_roles, is_active, created_at, last_login_at
        FROM admins
        WHERE deleted_at IS NULL
        ORDER BY created_at DESC;`);
@@ -130,6 +130,31 @@ router.delete('/:id', async (req, res, next) => {
         // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'DELETE_ADMIN', 'admin', id);
         res.json({ success: true, message: 'Admin deleted successfully' });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+// POST /api/admin/admins/:id/reset-password -> Reset admin password
+router.post('/:id/reset-password', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        // Check if admin exists
+        const checkAdmin = await db_1.default.query('SELECT id, email FROM admins WHERE id = $1 AND deleted_at IS NULL', [id]);
+        if (checkAdmin.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Admin not found' });
+        }
+        const { newPassword } = req.body;
+        const tempPassword = newPassword || (Math.random().toString(36).slice(-10) + 'A@1');
+        const passwordHash = await bcryptjs_1.default.hash(tempPassword, 10);
+        await db_1.default.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [passwordHash, id]);
+        // Log audit event
+        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'RESET_ADMIN_PASSWORD', 'admin', id);
+        res.json({
+            success: true,
+            message: 'Password reset successfully.',
+            data: { tempPassword }
+        });
     }
     catch (err) {
         next(err);

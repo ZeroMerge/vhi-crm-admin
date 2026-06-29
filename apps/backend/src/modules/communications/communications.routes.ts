@@ -5,7 +5,7 @@ import { logAuditEvent } from '../../utils/audit';
 
 const router = Router();
 
-// GET /api/admin/communications -> List conversations with adaptive filters
+
 router.get('/', adminMiddleware, async (req, res, next) => {
   try {
     const { search, filter, sortBy, industry } = req.query;
@@ -36,8 +36,8 @@ router.get('/', adminMiddleware, async (req, res, next) => {
       paramIdx++;
     }
 
-    // Apply sorting
-    let orderSql = ' ORDER BY last_message_at DESC'; // default newest
+    
+    let orderSql = ' ORDER BY last_message_at DESC'; 
     if (sortBy === 'oldest') {
       orderSql = ' ORDER BY last_message_at ASC';
     }
@@ -49,7 +49,7 @@ router.get('/', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /api/admin/communications/:customerId
+
 router.get('/:customerId', adminMiddleware, async (req, res, next) => {
   try {
     const result = await pool.query(
@@ -57,7 +57,7 @@ router.get('/:customerId', adminMiddleware, async (req, res, next) => {
       [req.params.customerId]
     );
 
-    // Mark messages as read since we are opening the thread
+    
     await pool.query(
       'UPDATE communications SET is_read = true WHERE customer_id = $1 AND is_read = false',
       [req.params.customerId]
@@ -67,7 +67,7 @@ router.get('/:customerId', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /api/admin/communications/send
+
 router.post('/send', adminMiddleware, async (req, res, next) => {
   try {
     const { customerId, subject, body } = req.body;
@@ -77,7 +77,7 @@ router.post('/send', adminMiddleware, async (req, res, next) => {
     );
     const comm = result.rows[0];
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,
@@ -91,12 +91,12 @@ router.post('/send', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// DELETE /api/admin/communications/:messageId
+
 router.delete('/:messageId', adminMiddleware, async (req, res, next) => {
   try {
     await pool.query('DELETE FROM communications WHERE id = $1', [req.params.messageId]);
 
-    // Log audit event
+    
     await logAuditEvent(
       req.admin!.id,
       req.admin!.activeRole,

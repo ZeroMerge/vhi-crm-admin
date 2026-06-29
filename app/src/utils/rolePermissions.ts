@@ -1,7 +1,7 @@
 import type { AdminRole } from '@/types';
 
 export const rolePermissions: Record<AdminRole, string[]> = {
-  super_admin: ['*'], // Full access
+  super_admin: ['*'], 
   manager: [
     'overview',
     'customers',

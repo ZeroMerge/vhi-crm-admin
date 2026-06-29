@@ -4,7 +4,7 @@ import { adminMiddleware } from '../../middleware/adminMiddleware';
 
 const router = Router();
 
-// GET /api/admin/search?q=string
+
 router.get('/', adminMiddleware, async (req, res, next) => {
   try {
     const { q } = req.query;
@@ -21,7 +21,7 @@ router.get('/', adminMiddleware, async (req, res, next) => {
 
     const term = `%${q}%`;
 
-    // 1. Parallel SQL queries across customers, shipments, and invoices
+    
     const customersPromise = pool.query(
       `SELECT id, user_id, firstname, lastname, email, industry, status
        FROM customers

@@ -49,7 +49,7 @@ export default function Shipments() {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Read filter state from URL parameters
+  
   const search = searchParams.get('search') || '';
   const status = searchParams.get('status') || '';
   const mode = searchParams.get('mode') || '';
@@ -102,7 +102,7 @@ export default function Shipments() {
     } else {
       newParams.delete(key);
     }
-    newParams.set('page', '1'); // Reset to page 1
+    newParams.set('page', '1'); 
     setSearchParams(newParams);
   };
 
@@ -112,7 +112,7 @@ export default function Shipments() {
 
   const isFilterActive = !!(search || status || mode || dateFrom || dateTo || sortBy !== 'newest');
 
-  // Handle pagination clicks
+  
   const totalPages = Math.ceil(total / pageSize);
   const handlePageChange = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages) return;
@@ -123,7 +123,7 @@ export default function Shipments() {
 
   return (
     <PageWrapper title="Shipments">
-      {/* Stats bar */}
+      {}
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 20px', background: 'var(--color-primary)', borderRadius: 'var(--radius-badge)', marginBottom: 24 }}>
         <Package size={20} color="white" />
         <span style={{ color: 'white', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
@@ -256,7 +256,7 @@ export default function Shipments() {
         )}
           </div>
 
-          {/* Right Side: Actions & Pagination */}
+          {}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <button className="btn btn-ghost" onClick={() => setExportOpen(true)}>
               <SlidersHorizontal size={16} /> Export

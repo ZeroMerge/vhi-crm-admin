@@ -85,7 +85,7 @@ export default function ComposeNewsletter() {
             </div>
           </div>
 
-          {/* Subject */}
+          {}
           <div className="card">
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Subject</label>
@@ -99,7 +99,7 @@ export default function ComposeNewsletter() {
             </div>
           </div>
 
-          {/* Body */}
+          {}
           <div className="card" style={{ flex: 1 }}>
             <div className="form-group" style={{ marginBottom: 0, height: '100%' }}>
               <label className="form-label">Body</label>
@@ -119,7 +119,7 @@ export default function ComposeNewsletter() {
           <div className="card" style={{ position: 'sticky', top: 24 }}>
             <h3 className="card-title" style={{ marginBottom: 16 }}>Preview</h3>
 
-            {/* Recipient Count */}
+            {}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 16, background: 'var(--color-primary-light)', borderRadius: 'var(--border-radius-md)', marginBottom: 20 }}>
               <Users size={20} color="var(--color-primary)" />
               <div>

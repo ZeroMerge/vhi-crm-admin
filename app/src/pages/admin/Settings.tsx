@@ -25,19 +25,19 @@ export default function Settings() {
 
   const isSuperAdmin = admin?.activeRole === 'super_admin';
 
-  // Profile Tab State
+  
   const [name, setName] = useState(admin?.name || '');
   const [phone, setPhone] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
 
-  // Password Tab State
+  
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // Notifications Tab State
+  
   const [prefs, setPrefs] = useState<Record<string, boolean>>({
     registration: true,
     shipment_created: true,
@@ -48,11 +48,11 @@ export default function Settings() {
     newsletter_sent: false
   });
 
-  // Manage Admins Tab State
+  
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loadingAdmins, setLoadingAdmins] = useState(false);
   
-  // Modals state
+  
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
@@ -65,7 +65,11 @@ export default function Settings() {
   const [selectedAdminRoles, setSelectedAdminRoles] = useState<string[]>([]);
   const [updatingRoles, setUpdatingRoles] = useState(false);
 
-  // Sync profile details when admin store loads
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [resettingPassword, setResettingPassword] = useState(false);
+
+  
   useEffect(() => {
     if (admin) {
       setName(admin.name);
@@ -83,7 +87,7 @@ export default function Settings() {
     }
   }, [admin]);
 
-  // Load admins list for Super Admins
+  
   useEffect(() => {
     if (activeTab === 'admins' && isSuperAdmin) {
       let active = true;
@@ -111,7 +115,7 @@ export default function Settings() {
     setSearchParams(newParams);
   };
 
-  // Profile Save
+  
   const handleSaveProfile = async () => {
     if (!name.trim()) return;
     setSavingProfile(true);
@@ -128,7 +132,7 @@ export default function Settings() {
     }
   };
 
-  // Password Change
+  
   const handleUpdatePassword = async () => {
     if (!currentPassword || !newPassword || !confirmPassword) {
       alert('All password fields are required.');
@@ -153,7 +157,7 @@ export default function Settings() {
     }
   };
 
-  // Immediate reactive notification preferences update
+  
   const handleTogglePref = async (key: string) => {
     const nextVal = !prefs[key];
     const updatedPrefs = { ...prefs, [key]: nextVal };
@@ -165,12 +169,12 @@ export default function Settings() {
       }
     } catch (err) {
       console.error('Failed to save notification preferences:', err);
-      setPrefs(prefs); // revert
+      setPrefs(prefs); 
       alert('Failed to save preference update');
     }
   };
 
-  // Admin status toggle (is_active)
+  
   const handleToggleAdminStatus = async (id: string, currentStatus: boolean) => {
     if (id === admin?.id) {
       alert('You cannot deactivate your own account.');
@@ -185,7 +189,7 @@ export default function Settings() {
     }
   };
 
-  // Soft delete admin
+  
   const handleDeleteAdmin = async (id: string) => {
     if (id === admin?.id) {
       alert('You cannot delete your own account.');
@@ -203,7 +207,34 @@ export default function Settings() {
     }
   };
 
-  // Invite Admin
+  
+  const openResetPasswordModal = (user: AdminUser) => {
+    setSelectedAdmin(user);
+    setNewAdminPassword('');
+    setPasswordModalOpen(true);
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAdmin || !newAdminPassword.trim()) {
+      alert('Please provide a new password.');
+      return;
+    }
+    setResettingPassword(true);
+    try {
+      await adminManagementService.resetPassword(selectedAdmin.id, newAdminPassword);
+      alert('Password updated successfully for ' + selectedAdmin.name);
+      setPasswordModalOpen(false);
+      setSelectedAdmin(null);
+    } catch (err) {
+      console.error('Failed to reset password:', err);
+      alert('Failed to reset admin password.');
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
+  
   const handleInviteSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteName.trim() || !inviteEmail.trim() || inviteRoles.length === 0) {
@@ -238,7 +269,7 @@ export default function Settings() {
     setInviteSuccessData(null);
   };
 
-  // Edit Roles
+  
   const openEditRolesModal = (user: AdminUser) => {
     setSelectedAdmin(user);
     setSelectedAdminRoles(user.assigned_roles || []);
@@ -266,7 +297,7 @@ export default function Settings() {
     }
   };
 
-  // Password Strength helper
+  
   const getPasswordStrength = (pwd: string) => {
     if (!pwd) return { label: '', color: 'transparent', width: '0%' };
     let score = 0;
@@ -287,13 +318,13 @@ export default function Settings() {
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'account', label: 'Account Settings', icon: Lock },
     { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'admins', label: 'Manage Admins', icon: Shield, superAdminOnly: true }
+    { id: 'admins', label: 'Staff Management', icon: Shield, superAdminOnly: true }
   ];
 
   return (
     <PageWrapper title="Settings">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        {/* Horizontal Underline Tabs */}
+        {}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', gap: 32, overflowX: 'auto', paddingBottom: 1 }}>
           {tabsConfig
             .filter((tc) => !tc.superAdminOnly || isSuperAdmin)
@@ -327,8 +358,8 @@ export default function Settings() {
             })}
         </div>
 
-      <div style={{ width: '100%', maxWidth: 880 }}>
-        {/* Tab 1: Profile */}
+      <div style={{ width: '100%', maxWidth: activeTab === 'admins' ? '100%' : 880 }}>
+        {}
         {activeTab === 'profile' && (
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)', paddingBottom: 16 }}>
@@ -434,10 +465,10 @@ export default function Settings() {
           </div>
         )}
 
-        {/* Tab 2: Account Settings */}
+        {}
         {activeTab === 'account' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            {/* Change Password */}
+            {}
             <div className="card">
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)', paddingBottom: 16, marginBottom: 20 }}>
                 <Lock size={20} color="var(--color-primary)" />
@@ -474,7 +505,7 @@ export default function Settings() {
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
-                  {/* Realtime password complexity meter */}
+                  {}
                   {newPassword && (
                     <div style={{ marginTop: 8 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
@@ -611,19 +642,23 @@ export default function Settings() {
                 </p>
               </div>
             ) : (
-              <div className="card">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--color-border)', paddingBottom: 16, marginBottom: 20 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <Shield size={20} color="var(--color-primary)" />
-                    <h3 className="card-title" style={{ marginBottom: 0 }}>Manage Admins</h3>
-                  </div>
+              <div style={{ 
+                background: 'var(--color-surface)', 
+                borderRadius: '12px', 
+                border: '1px solid var(--color-border)',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+              }}>
+                <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 className="card-title" style={{ marginBottom: 0 }}>System Administrators</h3>
                   <button className="btn btn-primary btn-sm" onClick={() => setInviteModalOpen(true)}>
-                    <Plus size={16} />
+                    <Plus size={14} style={{ marginRight: 6 }} />
                     Invite Admin
                   </button>
                 </div>
 
-                <div className="vhi-table-container">
+                <div style={{ overflowX: 'auto', width: '100%' }}>
                   {loadingAdmins ? (
                     <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-muted)' }}>
                       Loading administrator accounts...
@@ -633,14 +668,15 @@ export default function Settings() {
                       No administrators found.
                     </div>
                   ) : (
-                    <table className="vhi-table">
+                    <table className="vhi-table" style={{ whiteSpace: 'nowrap' }}>
                       <thead>
                         <tr>
                           <th>Name</th>
                           <th>Email Address</th>
                           <th>Assigned Roles</th>
                           <th>Status</th>
-                          <th style={{ width: 110 }}>Actions</th>
+                          <th>Last Login</th>
+                          <th style={{ width: 140 }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -654,26 +690,60 @@ export default function Settings() {
                             </td>
                             <td>{adm.email}</td>
                             <td>
-                              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                                {adm.assigned_roles?.map((role: string) => {
-                                  const rMatch = ALL_ROLES.find((r) => r.value === role);
+                              <div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap', alignItems: 'center' }}>
+                                {(() => {
+                                  // Super Admin Check
+                                  if (adm.assigned_roles?.includes('super_admin')) {
+                                    return (
+                                      <span style={{ background: '#000', color: '#fff', fontSize: 10, padding: '2px 8px', borderRadius: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        Super Admin
+                                      </span>
+                                    );
+                                  }
+
+                                  const rolesToRender = adm.assigned_roles?.slice(0, 2) || [];
+                                  const hiddenCount = (adm.assigned_roles?.length || 0) - 2;
+
                                   return (
-                                    <span
-                                      key={role}
-                                      style={{
-                                        background: `${rMatch?.color || '#ccc'}15`,
-                                        color: rMatch?.color || '#333',
-                                        fontSize: 10,
-                                        padding: '2px 8px',
-                                        borderRadius: 'var(--border-radius-pill)',
-                                        fontWeight: 600,
-                                        textTransform: 'capitalize'
-                                      }}
-                                    >
-                                      {role.replace(/_/g, ' ')}
-                                    </span>
+                                    <>
+                                      {rolesToRender.map((role: string) => {
+                                        const rMatch = ALL_ROLES.find((r) => r.value === role);
+                                        return (
+                                          <span
+                                            key={role}
+                                            style={{
+                                              background: `${rMatch?.color || '#ccc'}15`,
+                                              color: rMatch?.color || '#333',
+                                              fontSize: 10,
+                                              padding: '2px 8px',
+                                              borderRadius: 'var(--border-radius-pill)',
+                                              fontWeight: 600,
+                                              textTransform: 'capitalize'
+                                            }}
+                                          >
+                                            {role.replace(/_/g, ' ')}
+                                          </span>
+                                        );
+                                      })}
+                                      {hiddenCount > 0 && (
+                                        <span
+                                          title={adm.assigned_roles?.slice(2).map(r => r.replace(/_/g, ' ')).join(', ')}
+                                          style={{
+                                            background: 'var(--color-border)',
+                                            color: 'var(--color-text-secondary)',
+                                            fontSize: 10,
+                                            padding: '2px 8px',
+                                            borderRadius: 'var(--border-radius-pill)',
+                                            fontWeight: 600,
+                                            cursor: 'help'
+                                          }}
+                                        >
+                                          +{hiddenCount} more
+                                        </span>
+                                      )}
+                                    </>
                                   );
-                                })}
+                                })()}
                               </div>
                             </td>
                             <td>
@@ -686,12 +756,21 @@ export default function Settings() {
                               </div>
                             </td>
                             <td>
+                              <span style={{ fontSize: '13px', color: '#64748b' }}>
+                                {adm.last_login_at ? new Date(adm.last_login_at).toLocaleString() : 'Never'}
+                              </span>
+                            </td>
+                            <td>
                               <div style={{ display: 'flex', gap: 4 }}>
-                                <button className="btn btn-icon btn-ghost" style={{ width: 28, height: 28 }} onClick={() => openEditRolesModal(adm)}>
+                                <button className="btn btn-icon btn-ghost" title="Edit Password" style={{ width: 28, height: 28 }} onClick={() => openResetPasswordModal(adm)}>
+                                  <Key size={14} />
+                                </button>
+                                <button className="btn btn-icon btn-ghost" title="Edit Roles" style={{ width: 28, height: 28 }} onClick={() => openEditRolesModal(adm)}>
                                   <Edit size={14} />
                                 </button>
                                 <button
                                   className="btn btn-icon btn-ghost text-red"
+                                  title="Delete Admin"
                                   style={{ width: 28, height: 28, color: 'var(--color-status-cancelled-text)' }}
                                   disabled={adm.id === admin?.id}
                                   onClick={() => handleDeleteAdmin(adm.id)}
@@ -711,7 +790,44 @@ export default function Settings() {
           </>
         )}
       </div>
-      </div>
+
+      {}
+      {passwordModalOpen && selectedAdmin && (
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: 440 }}>
+            <button className="modal-close" onClick={() => setPasswordModalOpen(false)}>×</button>
+            <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, marginBottom: 8 }}>Edit Account Password</h3>
+            <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 20 }}>
+              Updating password for: <strong style={{ color: 'var(--color-text-primary)' }}>{selectedAdmin.name}</strong>.
+              <br /><br />
+              <span style={{ color: 'var(--color-warning, #d97706)' }}>
+                Note: Passwords are encrypted via bcrypt and cannot be viewed. You may overwrite it with a new password here.
+              </span>
+            </div>
+
+            <form onSubmit={handleResetPasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="form-group">
+                <label className="form-label">New Password</label>
+                <input
+                  className="input"
+                  type="text"
+                  required
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  placeholder="Enter new password..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 12 }}>
+                <button type="button" className="btn btn-outline" onClick={() => setPasswordModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" disabled={resettingPassword || !newAdminPassword.trim()}>
+                  {resettingPassword ? 'Updating...' : 'Save New Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Invite Admin Modal */}
       {inviteModalOpen && (
@@ -798,7 +914,7 @@ export default function Settings() {
         </div>
       )}
 
-      {/* Edit Roles Modal */}
+      {}
       {editRolesModalOpen && selectedAdmin && (
         <div className="modal-backdrop">
           <div className="modal-content" style={{ maxWidth: 440 }}>
@@ -841,6 +957,7 @@ export default function Settings() {
           </div>
         </div>
       )}
+      </div>
     </PageWrapper>
   );
 }

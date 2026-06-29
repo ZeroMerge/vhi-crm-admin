@@ -46,10 +46,23 @@ router.get('/:period', adminMiddleware_1.adminMiddleware, async (req, res, next)
 // GET /api/admin/reports/export
 router.get('/export', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
-        const { period = 'monthly' } = req.query;
+        const period = req.query.period || 'monthly';
+        const filter = getPeriodFilter(period);
+        const newUsers = await db_1.default.query(`SELECT COUNT(*) FROM customers WHERE ${filter}`);
+        const pendingShipments = await db_1.default.query(`SELECT COUNT(*) FROM shipments WHERE status = 'pending' AND ${filter}`);
+        const totalEnquiries = await db_1.default.query(`SELECT COUNT(*) FROM shipments WHERE ${filter}`);
+        const revenue = await db_1.default.query(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE payment_status = 'success' AND ${filter}`);
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', `attachment; filename=report-${period}.csv`);
-        res.send('Date,Metric,Value\n2024-05-01,New Users,12\n2024-05-01,Shipments,5\n');
+        const today = new Date().toISOString().split('T')[0];
+        const csvRows = [
+            'Date,Metric,Value',
+            `${today},New Users,${parseInt(newUsers.rows[0].count)}`,
+            `${today},Pending Shipments,${parseInt(pendingShipments.rows[0].count)}`,
+            `${today},Total Shipments,${parseInt(totalEnquiries.rows[0].count)}`,
+            `${today},Revenue,${parseFloat(revenue.rows[0].total)}`
+        ];
+        res.send(csvRows.join('\n') + '\n');
     }
     catch (err) {
         next(err);

@@ -8,6 +8,7 @@ export interface AdminUser {
   assigned_roles: string[];
   is_active: boolean;
   created_at: string;
+  last_login_at?: string;
 }
 
 export const adminManagementService = {
@@ -33,5 +34,10 @@ export const adminManagementService = {
   
   delete: async (id: string): Promise<void> => {
     await api.delete(`/api/admin/admins/${id}`);
+  },
+
+  resetPassword: async (id: string, newPassword?: string): Promise<{ tempPassword: string }> => {
+    const res = await api.post<ApiResponse<{ tempPassword: string }>>(`/api/admin/admins/${id}/reset-password`, { newPassword });
+    return res.data.data;
   }
 };

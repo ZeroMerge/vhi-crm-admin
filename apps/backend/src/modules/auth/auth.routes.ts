@@ -7,11 +7,37 @@ import { logAuditEvent } from '../../utils/audit';
 
 const router = Router();
 
-// POST /api/auth/admin/login
+
+router.post('/admin/verify-email', async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, message: 'Email required' });
+    }
+
+    const result = await pool.query('SELECT assigned_roles FROM admins WHERE email = $1', [email]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Email not found' });
+    }
+
+    const admin = result.rows[0];
+    const assignedRoles = admin.assigned_roles || [];
+    
+    if (assignedRoles.length === 0) {
+      return res.status(403).json({ success: false, message: 'Registered role not attached' });
+    }
+
+    res.json({ success: true, message: 'Email verified' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
 router.post('/admin/login', async (req, res, next) => {
   try {
-    const { email, password, selectedRole } = req.body;
-    console.log('[DEBUG] Login attempt received:', { email, passwordLength: password ? password.length : 0, selectedRole });
+    const { email, password } = req.body;
+    console.log('[DEBUG] Login attempt received:', { email, passwordLength: password ? password.length : 0 });
     if (!email || !password) {
       console.log('[DEBUG] Missing email or password');
       return res.status(400).json({ success: false, message: 'Email and password required' });
@@ -32,28 +58,22 @@ router.post('/admin/login', async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    const assignedRoles = admin.assigned_roles || ['support_staff'];
-
-    // If the account has multiple roles and they haven't picked one, return role selection trigger
-    if (assignedRoles.length > 1 && !selectedRole) {
-      return res.json({
-        success: true,
-        data: {
-          requiresRoleSelection: true,
-          assignedRoles,
-          admin: { id: admin.id, name: admin.name, email: admin.email }
-        }
-      });
+    const assignedRoles = admin.assigned_roles || [];
+    if (assignedRoles.length === 0) {
+      return res.status(403).json({ success: false, message: 'Registered role not attached' });
     }
 
-    // Determine the active role
-    let activeRole = assignedRoles[0];
-    if (selectedRole) {
-      if (!assignedRoles.includes(selectedRole)) {
-        return res.status(400).json({ success: false, message: 'Invalid selected role for this admin' });
-      }
-      activeRole = selectedRole;
+    
+    let activeRole = admin.last_active_role;
+    if (!activeRole || !assignedRoles.includes(activeRole)) {
+      activeRole = assignedRoles[0];
     }
+
+    
+    await pool.query(
+      'UPDATE admins SET last_login_at = NOW(), last_active_role = $1 WHERE id = $2',
+      [activeRole, admin.id]
+    );
 
     const token = jwt.sign(
       {
@@ -67,7 +87,7 @@ router.post('/admin/login', async (req, res, next) => {
       { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any }
     );
 
-    // Audit log login
+    
     await logAuditEvent(admin.id, activeRole, 'LOGIN', 'admin', admin.id, { activeRole });
 
     res.json({
@@ -89,7 +109,7 @@ router.post('/admin/login', async (req, res, next) => {
   }
 });
 
-// POST /api/auth/admin/switch-role
+
 router.post('/admin/switch-role', adminMiddleware, async (req, res, next) => {
   try {
     const { role } = req.body;
@@ -100,7 +120,7 @@ router.post('/admin/switch-role', adminMiddleware, async (req, res, next) => {
     const adminId = req.admin!.id;
     const email = req.admin!.email;
 
-    // Fetch the latest assigned roles from the database to make sure it's accurate
+    
     const result = await pool.query('SELECT * FROM admins WHERE id = $1', [adminId]);
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Admin not found' });
@@ -113,7 +133,10 @@ router.post('/admin/switch-role', adminMiddleware, async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'Role is not assigned to this account' });
     }
 
-    // Generate new JWT
+    
+    await pool.query('UPDATE admins SET last_active_role = $1 WHERE id = $2', [role, adminId]);
+
+    
     const token = jwt.sign(
       {
         id: adminId,
@@ -126,7 +149,7 @@ router.post('/admin/switch-role', adminMiddleware, async (req, res, next) => {
       { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any }
     );
 
-    // Audit log role switch
+    
     await logAuditEvent(adminId, role, 'SWITCH_ROLE', 'admin', adminId, { previousRole: req.admin!.activeRole, newRole: role });
 
     res.json({
@@ -148,7 +171,7 @@ router.post('/admin/switch-role', adminMiddleware, async (req, res, next) => {
   }
 });
 
-// GET /api/auth/admin/me
+
 router.get('/admin/me', adminMiddleware, async (req, res, next) => {
   try {
     const adminId = req.admin!.id;
@@ -173,7 +196,7 @@ router.get('/admin/me', adminMiddleware, async (req, res, next) => {
   }
 });
 
-// POST /api/auth/admin/logout
+
 router.post('/admin/logout', adminMiddleware, async (req, res, next) => {
   try {
     if (req.admin) {
@@ -185,7 +208,7 @@ router.post('/admin/logout', adminMiddleware, async (req, res, next) => {
   }
 });
 
-// PUT /api/auth/admin/change-password
+
 router.put('/admin/change-password', adminMiddleware, async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
@@ -205,7 +228,7 @@ router.put('/admin/change-password', adminMiddleware, async (req, res, next) => 
     const hash = await bcrypt.hash(newPassword, 10);
     await pool.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hash, adminId]);
 
-    // Audit log password update
+    
     await logAuditEvent(adminId, activeRole, 'CHANGE_PASSWORD', 'admin', adminId);
 
     res.json({ success: true, message: 'Password updated' });
@@ -214,7 +237,7 @@ router.put('/admin/change-password', adminMiddleware, async (req, res, next) => 
   }
 });
 
-// PUT /api/auth/admin/profile
+
 router.put('/admin/profile', adminMiddleware, async (req, res, next) => {
   try {
     const { name, phone } = req.body;
@@ -223,7 +246,7 @@ router.put('/admin/profile', adminMiddleware, async (req, res, next) => {
 
     await pool.query('UPDATE admins SET name = $1 WHERE id = $2', [name, adminId]);
     
-    // Audit log profile update
+    
     await logAuditEvent(adminId, activeRole, 'UPDATE_PROFILE', 'admin', adminId, { name, phone });
 
     res.json({ success: true, message: 'Profile updated successfully' });
@@ -232,7 +255,7 @@ router.put('/admin/profile', adminMiddleware, async (req, res, next) => {
   }
 });
 
-// PUT /api/auth/admin/notification-preferences
+
 router.put('/admin/notification-preferences', adminMiddleware, async (req, res, next) => {
   try {
     const { notificationPrefs } = req.body;
