@@ -44,7 +44,9 @@ export const adminMiddleware = (req: Request, res: Response, next: NextFunction)
       ['POST', 'PUT', 'DELETE'].includes(req.method)
     ) {
       const isAuthAction = req.path.endsWith('/switch-role') || req.path.endsWith('/logout') || req.path.endsWith('/admin/logout');
-      if (!isAuthAction) {
+      const isCustomerAction = req.path.includes('/admin/customers') && req.method !== 'DELETE';
+      
+      if (!isAuthAction && !isCustomerAction) {
         return res.status(403).json({
           success: false,
           message: 'Operation denied: Support staff role is read-only.'

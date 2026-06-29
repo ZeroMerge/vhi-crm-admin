@@ -15,7 +15,6 @@ const getPeriodFilter = (period) => {
         default: return "created_at >= CURRENT_DATE";
     }
 };
-// GET /api/admin/reports/:period
 router.get('/:period', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const period = req.params.period;
@@ -43,7 +42,6 @@ router.get('/:period', adminMiddleware_1.adminMiddleware, async (req, res, next)
         next(err);
     }
 });
-// GET /api/admin/reports/export
 router.get('/export', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const period = req.query.period || 'monthly';
