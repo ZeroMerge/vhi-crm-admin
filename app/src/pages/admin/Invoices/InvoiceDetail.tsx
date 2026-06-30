@@ -152,11 +152,11 @@ export default function InvoiceDetail() {
         </div>
       )}
 
-      <div className="two-col-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-        <div className="col-right" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div className="two-col-layout">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div className="card">
-            <h3 className="card-title" style={{ marginBottom: 16 }}>Invoice Details</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <h3 className="card-title" style={{ marginBottom: 16 }}>Invoice Overview</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 4 }}>Created</div>
                 <div>{formatDate(invoice.createdAt)}</div>
@@ -165,75 +165,51 @@ export default function InvoiceDetail() {
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 4 }}>Due Date</div>
                 <div>{formatDate(invoice.dueDate)}</div>
               </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 4 }}>Amount</div>
-                <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 600, color: 'var(--color-primary)' }}>
-                  {formatCurrency(invoice.amount, invoice.currency)}
-                </div>
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 4 }}>Currency</div>
-                <div>{invoice.currency}</div>
-              </div>
             </div>
             {invoice.notes && (
-              <div style={{ marginTop: 16, padding: 12, background: 'var(--color-surface)', borderRadius: 'var(--border-radius-sm)' }}>
+              <div style={{ padding: 12, background: 'var(--color-surface)', borderRadius: 'var(--border-radius-sm)', marginBottom: 16 }}>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 4 }}>Notes</div>
                 <div style={{ fontSize: 'var(--font-size-sm)' }}>{invoice.notes}</div>
               </div>
             )}
-          </div>
-
-          {['draft', 'pending'].includes(invoice.status) && (
-            <div className="card">
-              <h3 className="card-title" style={{ marginBottom: 16 }}>Set Follow-up Reminder</h3>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Follow-up Date</label>
-                <DatePicker
-                  className="w-full"
-                  value={followUpDate}
-                  onChange={(date) => setFollowUpDate(date ? date.toISOString() : '')}
-                />
+            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Amount</div>
+                <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 600 }}>{formatCurrency(invoice.amount, invoice.currency)}</div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 16 }}>
-                {followUpDate && new Date(followUpDate) < new Date() ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-status-cancelled-text)', fontSize: 'var(--font-size-sm)' }}>
-                    <AlarmClock size={16} />
-                    Reminder is overdue.
-                  </div>
-                ) : (
-                  <div />
-                )}
-                <button className="btn btn-primary btn-sm" onClick={handleSaveReminder} disabled={savingReminder}>
-                  {savingReminder ? 'Saving...' : 'Save Reminder'}
-                </button>
+              <div>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Paid</div>
+                <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 600, color: 'var(--color-status-delivered-text)' }}>
+                  {formatCurrency(payments.filter(p => p.paymentStatus === 'success').reduce((sum, p) => sum + p.amount, 0), invoice.currency)}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Balance Due</div>
+                <div style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 700, color: 'var(--color-status-pending-text)' }}>
+                  {formatCurrency(invoice.amount - payments.filter(p => p.paymentStatus === 'success').reduce((sum, p) => sum + p.amount, 0), invoice.currency)}
+                </div>
               </div>
             </div>
-          )}
+          </div>
 
           <div className="card">
-            <h3 className="card-title" style={{ marginBottom: 16 }}>Customer</h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--color-primary-light)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600 }}>
+            <h3 className="card-title" style={{ marginBottom: 16 }}>Associated Entities</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+              <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--color-primary-light)', color: 'var(--color-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: 'var(--font-size-lg)' }}>
                 {invoice.customer?.firstname?.[0]}{invoice.customer?.lastname?.[0]}
               </div>
               <div>
-                <div style={{ fontWeight: 500 }}>{invoice.customer?.firstname} {invoice.customer?.lastname}</div>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{invoice.customer?.email}</div>
+                <div style={{ fontWeight: 600, fontSize: 'var(--font-size-lg)', marginBottom: 4 }}>{invoice.customer?.firstname} {invoice.customer?.lastname}</div>
+                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>{invoice.customer?.email} &bull; {invoice.customer?.phone}</div>
               </div>
             </div>
-            <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-              {invoice.customer?.phone}
-            </div>
-          </div>
-
-          <div className="card">
-            <h3 className="card-title" style={{ marginBottom: 16 }}>Linked Shipment</h3>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>Order ID</div>
-                <div style={{ fontWeight: 500, fontSize: 'var(--font-size-lg)' }}>{invoice.shipment?.orderId}</div>
-                <Badge status={invoice.shipment?.status || ''} type="shipment" size="sm" />
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 4 }}>Linked Shipment</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontWeight: 500 }}>{invoice.shipment?.orderId || 'Unknown'}</span>
+                  <Badge status={invoice.shipment?.status || ''} type="shipment" size="sm" />
+                </div>
               </div>
               <button className="btn btn-outline btn-sm" onClick={() => navigate(`/admin/shipments/${invoice.shipmentId}`)}>
                 View Shipment
@@ -244,18 +220,43 @@ export default function InvoiceDetail() {
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div className="card">
-            <h3 className="card-title" style={{ marginBottom: 16 }}>Status Control</h3>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <CustomSelect
-                value={invoice.status}
-                onChange={(val) => setInvoice({ ...invoice, status: val as InvoiceStatus })}
-                options={statusOptions.map((s) => ({ value: s, label: s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) }))}
-                style={{ flex: 1 }}
-              />
-              <button className="btn btn-primary btn-sm" onClick={handleUpdateStatus} disabled={savingStatus}>
-                {savingStatus ? 'Saving...' : 'Update'}
-              </button>
+            <h3 className="card-title" style={{ marginBottom: 16 }}>Invoice Management</h3>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Status</label>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <CustomSelect
+                  value={invoice.status}
+                  onChange={(val) => setInvoice({ ...invoice, status: val as InvoiceStatus })}
+                  options={statusOptions.map((s) => ({ value: s, label: s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) }))}
+                  style={{ flex: 1 }}
+                />
+                <button className="btn btn-primary btn-sm" onClick={handleUpdateStatus} disabled={savingStatus}>
+                  {savingStatus ? 'Saving...' : 'Update'}
+                </button>
+              </div>
             </div>
+
+            {['draft', 'pending'].includes(invoice.status) && (
+              <div className="form-group" style={{ marginBottom: 0, marginTop: 16, borderTop: '1px solid var(--color-border)', paddingTop: 16 }}>
+                <label className="form-label">Follow-up Reminder</label>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <DatePicker
+                    className="w-full"
+                    value={followUpDate}
+                    onChange={(date) => setFollowUpDate(date ? date.toISOString() : '')}
+                  />
+                  <button className="btn btn-outline btn-sm" onClick={handleSaveReminder} disabled={savingReminder}>
+                    {savingReminder ? 'Saving...' : 'Save'}
+                  </button>
+                </div>
+                {followUpDate && new Date(followUpDate).getTime() < Date.now() && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-status-cancelled-text)', fontSize: 'var(--font-size-xs)', marginTop: 8 }}>
+                    <AlarmClock size={14} />
+                    Reminder is overdue
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="card">

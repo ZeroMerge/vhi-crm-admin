@@ -8,12 +8,16 @@ import { CustomSelect } from '@/components/ui/CustomSelect';
 import { formatDate, formatDateTime } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { shipmentService } from '@/services/shipment.service';
+import { useAuthStore } from '@/store/authStore';
 import type { Shipment, ShipmentStatus } from '@/types';
 
 const statusOptions: ShipmentStatus[] = ['draft', 'pending', 'processing', 'in_transit', 'clearance', 'delivered', 'cancelled'];
 
 export default function ShipmentDetail() {
   const navigate = useNavigate();
+  const admin = useAuthStore((s) => s.admin);
+  const isSupportStaff = admin?.activeRole === 'support_staff';
+  const isSuperAdmin = admin?.activeRole === 'super_admin';
   const { id } = useParams();
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -212,10 +216,12 @@ export default function ShipmentDetail() {
           <div className="card">
             <div className="card-header">
               <h3 className="card-title">Documents</h3>
-              <button className="btn btn-outline btn-sm">
-                <Upload size={14} />
-                Upload
-              </button>
+              {!isSupportStaff && (
+                <button className="btn btn-outline btn-sm">
+                  <Upload size={14} />
+                  Upload
+                </button>
+              )}
             </div>
             {shipment.documents && shipment.documents.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -224,7 +230,9 @@ export default function ShipmentDetail() {
                     <span style={{ fontSize: 'var(--font-size-sm)' }}>{docTypeLabel(doc.documentType)}</span>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button className="btn btn-icon btn-ghost" title="Download"><Download size={16} /></button>
-                      <button className="btn btn-icon btn-ghost" title="Delete" style={{ color: 'var(--color-status-pending-text)' }}><Trash2 size={16} /></button>
+                      {isSuperAdmin && (
+                        <button className="btn btn-icon btn-ghost" title="Delete" style={{ color: 'var(--color-status-pending-text)' }}><Trash2 size={16} /></button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -245,19 +253,21 @@ export default function ShipmentDetail() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>AWB Number</label>
-                <input className="input" value={awbNumber} onChange={(e) => setAwbNumber(e.target.value)} placeholder="Enter AWB number..." />
+                <input className="input" value={awbNumber} onChange={(e) => setAwbNumber(e.target.value)} placeholder="Enter AWB number..." disabled={isSupportStaff} />
               </div>
               <div>
                 <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>BoL Number</label>
-                <input className="input" value={bolNumber} onChange={(e) => setBolNumber(e.target.value)} placeholder="Enter BoL number..." />
+                <input className="input" value={bolNumber} onChange={(e) => setBolNumber(e.target.value)} placeholder="Enter BoL number..." disabled={isSupportStaff} />
               </div>
               <div>
                 <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 4, display: 'block' }}>Unique ID</label>
-                <input className="input" value={uniqueId} onChange={(e) => setUniqueId(e.target.value)} placeholder="Enter unique ID..." />
+                <input className="input" value={uniqueId} onChange={(e) => setUniqueId(e.target.value)} placeholder="Enter unique ID..." disabled={isSupportStaff} />
               </div>
-              <button className="btn btn-primary btn-sm" onClick={handleSaveTracking} style={{ alignSelf: 'flex-start' }}>
-                Save Tracking Info
-              </button>
+              {!isSupportStaff && (
+                <button className="btn btn-primary btn-sm" onClick={handleSaveTracking} style={{ alignSelf: 'flex-start' }}>
+                  Save Tracking Info
+                </button>
+              )}
             </div>
           </div>
 
@@ -265,9 +275,11 @@ export default function ShipmentDetail() {
           <div className="card">
             <div className="card-header">
               <h3 className="card-title">Status Timeline</h3>
-              <button className="btn btn-primary btn-sm" onClick={() => setShowStatusModal(true)}>
-                Add Update
-              </button>
+              {!isSupportStaff && (
+                <button className="btn btn-primary btn-sm" onClick={() => setShowStatusModal(true)}>
+                  Add Update
+                </button>
+              )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
               {shipment.trackingUpdates?.map((update, idx) => (

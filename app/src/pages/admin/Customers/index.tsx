@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, ChevronLeft, ChevronRight, MoreVertical, Download, X, AlertTriangle } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, MoreVertical, Download, X } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { CustomSelect } from '@/components/ui/CustomSelect';
 import { Badge } from '@/components/ui/Badge';
@@ -9,6 +9,7 @@ import { formatDate } from '@/utils/formatDate';
 import { customerService } from '@/services/customer.service';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar } from '@/components/shared/Avatar';
+import { CustomerModal } from '@/components/shared/CustomerModal';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import type { Customer } from '@/types';
 
@@ -42,7 +43,7 @@ const sorts = [
 export default function Customers() {
   const navigate = useNavigate();
   const admin = useAuthStore((s) => s.admin);
-  const isSupportStaff = admin?.activeRole === 'support_staff';
+  const isSuperAdmin = admin?.activeRole === 'super_admin';
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -59,35 +60,31 @@ export default function Customers() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showModal, setShowModal] = useState(false);
+
+  const fetchCustomers = async () => {
+    setLoading(true);
+    try {
+      const response = await customerService.list({
+        search,
+        industry,
+        star,
+        status,
+        sortBy,
+        page,
+        pageSize,
+      });
+      setCustomers(response.data);
+      setTotal(response.total);
+    } catch (err) {
+      console.error('Failed to load customers:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    let active = true;
-    const fetchCustomers = async () => {
-      setLoading(true);
-      try {
-        const response = await customerService.list({
-          search,
-          industry,
-          star,
-          status,
-          sortBy,
-          page,
-          pageSize,
-        });
-        if (active) {
-          setCustomers(response.data);
-          setTotal(response.total);
-        }
-      } catch (err) {
-        console.error('Failed to load customers:', err);
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
     fetchCustomers();
-    return () => {
-      active = false;
-    };
   }, [search, industry, star, status, sortBy, page]);
 
   const updateFilter = (key: string, value: string) => {
@@ -290,6 +287,12 @@ export default function Customers() {
         {/* Action buttons on right */}
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <button
+            className="btn btn-primary btn-sm"
+            onClick={() => setShowModal(true)}
+          >
+            New Customer
+          </button>
+          <button
             className="btn btn-outline btn-sm"
             onClick={() => {
               // Simulating export
@@ -302,25 +305,7 @@ export default function Customers() {
         </div>
       </div>
 
-      {isSupportStaff && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'var(--color-primary-light)',
-            color: 'var(--color-primary)',
-            padding: '10px 16px',
-            borderRadius: 'var(--border-radius-sm)',
-            fontSize: 'var(--font-size-xs)',
-            marginBottom: '16px',
-            fontWeight: 500,
-          }}
-        >
-          <AlertTriangle size={14} />
-          <span>You are logged in with the read-only Support Staff role. Action buttons are disabled.</span>
-        </div>
-      )}
+
 
       {}
       <div className="vhi-table-container">
@@ -397,15 +382,13 @@ export default function Customers() {
                           <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/customers/${customer.id}`)}>
                             View Detail
                           </DropdownMenu.Item>
-                          {!isSupportStaff && (
-                            <>
-                              <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/customers/${customer.id}`)}>
-                                Edit Status
-                              </DropdownMenu.Item>
-                              <DropdownMenu.Item className="dropdown-item danger" onClick={() => handleDeleteCustomer(customer.id)}>
-                                Delete
-                              </DropdownMenu.Item>
-                            </>
+                          <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/customers/${customer.id}`)}>
+                            Edit Status
+                          </DropdownMenu.Item>
+                          {isSuperAdmin && (
+                            <DropdownMenu.Item className="dropdown-item danger" onClick={() => handleDeleteCustomer(customer.id)}>
+                              Delete
+                            </DropdownMenu.Item>
                           )}
                         </DropdownMenu.Content>
                       </DropdownMenu.Portal>
@@ -452,6 +435,12 @@ export default function Customers() {
           </div>
         </div>
       )}
+
+      <CustomerModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSuccess={fetchCustomers}
+      />
     </PageWrapper>
   );
 }

@@ -9,6 +9,7 @@ import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { customerService } from '@/services/customer.service';
 import { communicationService } from '@/services/communication.service';
+import { CustomerModal } from '@/components/shared/CustomerModal';
 import type { Customer, Shipment, Payment, Communication } from '@/types';
 
 type TabType = 'shipments' | 'payments' | 'messages';
@@ -25,6 +26,7 @@ export default function CustomerDetail() {
   const [starRating, setStarRating] = useState(0);
   const [customerStatus, setCustomerStatus] = useState<Customer['status']>('loyal');
   const [showCompose, setShowCompose] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [messageSubject, setMessageSubject] = useState('');
   const [messageBody, setMessageBody] = useState('');
 
@@ -70,6 +72,18 @@ export default function CustomerDetail() {
       active = false;
     };
   }, [id]);
+
+  const refreshCustomer = async () => {
+    if (!id) return;
+    try {
+      const customerData = await customerService.getById(id);
+      setCustomer(customerData);
+      setStarRating(customerData.starRating);
+      setCustomerStatus(customerData.status);
+    } catch (err) {
+      console.error('Failed to refresh customer:', err);
+    }
+  };
 
   if (loading) {
     return (
@@ -124,6 +138,13 @@ export default function CustomerDetail() {
                 {customer.firstname} {customer.lastname}
               </h1>
               <Badge status={customerStatus} type="customer" />
+              <button 
+                className="btn btn-outline btn-sm" 
+                style={{ padding: '4px 8px', height: 'auto', fontSize: '12px' }}
+                onClick={() => setShowEditModal(true)}
+              >
+                Edit
+              </button>
             </div>
             <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', marginBottom: 8 }}>
               User ID: {customer.userId} · Joined {formatDate(customer.createdAt)}
@@ -160,16 +181,22 @@ export default function CustomerDetail() {
 
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 className="card-title" style={{ marginBottom: 16 }}>Financial Summary</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+          <div className="card" style={{ padding: 20 }}>
+            <div style={{ fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: 8 }}>Total Invoiced</div>
+            <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              {formatCurrency(customer.totalInvoiced || 0, 'NGN')}
+            </div>
+          </div>
           <div className="card" style={{ padding: 20 }}>
             <div style={{ fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: 8 }}>Total Cleared</div>
-            <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+            <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-status-delivered-text)' }}>
               {formatCurrency(customer.totalPaid || 0, 'NGN')}
             </div>
           </div>
           <div className="card" style={{ padding: 20 }}>
             <div style={{ fontSize: 'var(--font-size-xs)', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-muted)', marginBottom: 8 }}>Outstanding Balance</div>
-            <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-primary)' }}>
+            <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700, color: 'var(--color-status-pending-text)' }}>
               {formatCurrency(customer.outstandingBalance || 0, 'NGN')}
             </div>
           </div>
@@ -304,6 +331,13 @@ export default function CustomerDetail() {
           </div>
         </div>
       )}
+
+      <CustomerModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        customer={customer}
+        onSuccess={refreshCustomer}
+      />
     </PageWrapper>
   );
 }

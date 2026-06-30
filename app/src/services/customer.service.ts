@@ -32,6 +32,14 @@ export const customerService = {
     const res = await api.get<ApiResponse<Customer>>(`/api/admin/customers/${id}`);
     return res.data.data;
   },
+  create: async (data: Partial<Customer>): Promise<Customer> => {
+    const res = await api.post<ApiResponse<Customer>>(`/api/admin/customers`, data);
+    return res.data.data;
+  },
+  update: async (id: string, data: Partial<Customer>): Promise<Customer> => {
+    const res = await api.put<ApiResponse<Customer>>(`/api/admin/customers/${id}`, data);
+    return res.data.data;
+  },
   updateStar: async (id: string, starRating: number): Promise<Customer> => {
     const res = await api.put<ApiResponse<Customer>>(`/api/admin/customers/${id}/star`, { starRating });
     return res.data.data;

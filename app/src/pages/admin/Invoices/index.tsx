@@ -47,6 +47,7 @@ export default function Invoices() {
   const navigate = useNavigate();
   const admin = useAuthStore((s) => s.admin);
   const isSupportStaff = admin?.activeRole === 'support_staff';
+  const isSuperAdmin = admin?.activeRole === 'super_admin';
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -511,10 +512,12 @@ export default function Invoices() {
                               <DropdownMenu.Item className="dropdown-item" onClick={() => navigate(`/admin/invoices/${inv.id}`)}>
                                 Record Payment
                               </DropdownMenu.Item>
-                              <DropdownMenu.Item className="dropdown-item danger" onClick={() => handleDeleteInvoice(inv.id)}>
-                                Delete
-                              </DropdownMenu.Item>
                             </>
+                          )}
+                          {isSuperAdmin && (
+                            <DropdownMenu.Item className="dropdown-item danger" onClick={() => handleDeleteInvoice(inv.id)}>
+                              Delete
+                            </DropdownMenu.Item>
                           )}
                         </DropdownMenu.Content>
                       </DropdownMenu.Portal>
