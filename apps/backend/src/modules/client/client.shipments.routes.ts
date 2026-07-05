@@ -12,7 +12,7 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 const shipmentSchema = z.object({
-  shippingMode:       z.enum(['air_freight', 'groupage', 'consolidation', 'china_groupage', 'cargo_clearing', 'export']),
+  shippingMode:       z.enum(['air_freight', 'sea_freight', 'groupage', 'consolidation', 'china_groupage', 'cargo_clearing', 'export']),
   deliveryMode:       z.string().min(1, 'deliveryMode is required'),
   natureOfItem:       z.string().min(1, 'natureOfItem is required'),
   originAddress:      z.string().min(1, 'originAddress is required'),
