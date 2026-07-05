@@ -27,7 +27,6 @@ function mapCustomer(row) {
         updatedAt: row.updated_at,
     };
 }
-// GET /api/admin/customers
 router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { search, industry, star, status, sortBy, page = '1', pageSize = '10' } = req.query;
@@ -56,8 +55,7 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         }
         const countResult = await db_1.default.query(`SELECT COUNT(*) FROM (${sql}) AS count_query`, params);
         const total = parseInt(countResult.rows[0].count);
-        // Apply sorting
-        let orderSql = ' ORDER BY created_at DESC'; // default Newest
+        let orderSql = ' ORDER BY created_at DESC';
         if (sortBy === 'oldest') {
             orderSql = ' ORDER BY created_at ASC';
         }
@@ -84,7 +82,36 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         next(err);
     }
 });
-// GET /api/admin/customers/:id
+router.post('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
+    try {
+        const { firstname, lastname, email, phone, industry, status } = req.body;
+        const idResult = await db_1.default.query('SELECT COUNT(*) as count FROM customers');
+        const newCount = parseInt(idResult.rows[0].count) + 1;
+        const userId = `CUST-${newCount.toString().padStart(4, '0')}`;
+        const result = await db_1.default.query(`INSERT INTO customers (user_id, firstname, lastname, email, phone, industry, status) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`, [userId, firstname, lastname, email, phone, industry, status || 'lead']);
+        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'CREATE_CUSTOMER', 'customer', result.rows[0].id);
+        res.status(201).json({ success: true, data: mapCustomer(result.rows[0]) });
+    }
+    catch (err) {
+        next(err);
+    }
+});
+router.put('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
+    try {
+        const { firstname, lastname, email, phone, industry, status } = req.body;
+        const result = await db_1.default.query(`UPDATE customers 
+       SET firstname = $1, lastname = $2, email = $3, phone = $4, industry = $5, status = $6, updated_at = NOW() 
+       WHERE id = $7 RETURNING *`, [firstname, lastname, email, phone, industry, status, req.params.id]);
+        if (result.rows.length === 0)
+            return res.status(404).json({ success: false, message: 'Customer not found' });
+        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_CUSTOMER', 'customer', req.params.id);
+        res.json({ success: true, data: mapCustomer(result.rows[0]) });
+    }
+    catch (err) {
+        next(err);
+    }
+});
 router.get('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const result = await db_1.default.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);
@@ -110,13 +137,11 @@ router.get('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => 
         next(err);
     }
 });
-// PUT /api/admin/customers/:id/star
 router.put('/:id/star', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { starRating } = req.body;
         await db_1.default.query('UPDATE customers SET star_rating = $1 WHERE id = $2', [starRating, req.params.id]);
         const result = await db_1.default.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);
-        // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_CUSTOMER_STAR', 'customer', req.params.id, { starRating });
         res.json({ success: true, data: mapCustomer(result.rows[0]) });
     }
@@ -124,13 +149,11 @@ router.put('/:id/star', adminMiddleware_1.adminMiddleware, async (req, res, next
         next(err);
     }
 });
-// PUT /api/admin/customers/:id/status
 router.put('/:id/status', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { status } = req.body;
         await db_1.default.query('UPDATE customers SET status = $1 WHERE id = $2', [status, req.params.id]);
         const result = await db_1.default.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);
-        // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_CUSTOMER_STATUS', 'customer', req.params.id, { status });
         res.json({ success: true, data: mapCustomer(result.rows[0]) });
     }
@@ -138,13 +161,11 @@ router.put('/:id/status', adminMiddleware_1.adminMiddleware, async (req, res, ne
         next(err);
     }
 });
-// PUT /api/admin/customers/:id/segment
 router.put('/:id/segment', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { industry } = req.body;
         await db_1.default.query('UPDATE customers SET industry = $1 WHERE id = $2', [industry, req.params.id]);
         const result = await db_1.default.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);
-        // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_CUSTOMER_SEGMENT', 'customer', req.params.id, { industry });
         res.json({ success: true, data: mapCustomer(result.rows[0]) });
     }
@@ -152,11 +173,9 @@ router.put('/:id/segment', adminMiddleware_1.adminMiddleware, async (req, res, n
         next(err);
     }
 });
-// DELETE /api/admin/customers/:id
 router.delete('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         await db_1.default.query('DELETE FROM customers WHERE id = $1', [req.params.id]);
-        // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'DELETE_CUSTOMER', 'customer', req.params.id);
         res.json({ success: true, message: 'Customer deleted' });
     }
@@ -164,11 +183,9 @@ router.delete('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) 
         next(err);
     }
 });
-// GET /api/admin/customers/:id/shipments
 router.get('/:id/shipments', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const result = await db_1.default.query('SELECT * FROM shipments WHERE customer_id = $1 ORDER BY created_at DESC', [req.params.id]);
-        // Map shipments if needed
         const mapped = result.rows.map(row => ({
             id: row.id,
             orderId: row.order_id,
@@ -193,7 +210,6 @@ router.get('/:id/shipments', adminMiddleware_1.adminMiddleware, async (req, res,
         next(err);
     }
 });
-// GET /api/admin/customers/:id/payments
 router.get('/:id/payments', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const result = await db_1.default.query('SELECT * FROM payments WHERE customer_id = $1 ORDER BY created_at DESC', [req.params.id]);

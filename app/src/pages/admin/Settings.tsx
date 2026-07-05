@@ -24,6 +24,8 @@ export default function Settings() {
   const activeTab = searchParams.get('tab') || 'profile';
 
   const isSuperAdmin = admin?.activeRole === 'super_admin';
+  const isManager = admin?.activeRole === 'manager';
+  const canViewAdmins = isSuperAdmin || isManager;
 
   
   const [name, setName] = useState(admin?.name || '');
@@ -89,7 +91,7 @@ export default function Settings() {
 
   
   useEffect(() => {
-    if (activeTab === 'admins' && isSuperAdmin) {
+    if (activeTab === 'admins' && canViewAdmins) {
       let active = true;
       const fetchAdmins = async () => {
         setLoadingAdmins(true);
@@ -107,7 +109,7 @@ export default function Settings() {
         active = false;
       };
     }
-  }, [activeTab, isSuperAdmin]);
+  }, [activeTab, canViewAdmins]);
 
   const setActiveTab = (tabId: string) => {
     const newParams = new URLSearchParams(searchParams);
@@ -318,7 +320,7 @@ export default function Settings() {
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'account', label: 'Account Settings', icon: Lock },
     { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'admins', label: 'Staff Management', icon: Shield, superAdminOnly: true }
+    { id: 'admins', label: 'Staff Management', icon: Shield, requiresAdminView: true }
   ];
 
   return (
@@ -327,7 +329,7 @@ export default function Settings() {
         {}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', gap: 32, overflowX: 'auto', paddingBottom: 1 }}>
           {tabsConfig
-            .filter((tc) => !tc.superAdminOnly || isSuperAdmin)
+            .filter((tc) => !tc.requiresAdminView || canViewAdmins)
             .map((t) => {
               const isActive = activeTab === t.id;
               return (
@@ -630,15 +632,15 @@ export default function Settings() {
           </div>
         )}
 
-        {/* Tab 4: Manage Admins (Super Admin Only) */}
+        {/* Tab 4: Manage Admins */}
         {activeTab === 'admins' && (
           <>
-            {!isSuperAdmin ? (
+            {!canViewAdmins ? (
               <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 40, textAlign: 'center' }}>
                 <AlertTriangle size={36} color="var(--color-accent-pink)" style={{ marginBottom: 12 }} />
                 <h4 style={{ fontWeight: 600 }}>Insufficient Permissions</h4>
                 <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', marginTop: 4 }}>
-                  Only logged-in Super Administrators can manage other accounts and assign role levels.
+                  Only logged-in Super Administrators and Managers can view staff accounts.
                 </p>
               </div>
             ) : (
@@ -652,10 +654,12 @@ export default function Settings() {
               }}>
                 <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 className="card-title" style={{ marginBottom: 0 }}>System Administrators</h3>
-                  <button className="btn btn-primary btn-sm" onClick={() => setInviteModalOpen(true)}>
-                    <Plus size={14} style={{ marginRight: 6 }} />
-                    Invite Admin
-                  </button>
+                  {isSuperAdmin && (
+                    <button className="btn btn-primary btn-sm" onClick={() => setInviteModalOpen(true)}>
+                      <Plus size={14} style={{ marginRight: 6 }} />
+                      Invite Admin
+                    </button>
+                  )}
                 </div>
 
                 <div style={{ overflowX: 'auto', width: '100%' }}>
@@ -761,23 +765,27 @@ export default function Settings() {
                               </span>
                             </td>
                             <td>
-                              <div style={{ display: 'flex', gap: 4 }}>
-                                <button className="btn btn-icon btn-ghost" title="Edit Password" style={{ width: 28, height: 28 }} onClick={() => openResetPasswordModal(adm)}>
-                                  <Key size={14} />
-                                </button>
-                                <button className="btn btn-icon btn-ghost" title="Edit Roles" style={{ width: 28, height: 28 }} onClick={() => openEditRolesModal(adm)}>
-                                  <Edit size={14} />
-                                </button>
-                                <button
-                                  className="btn btn-icon btn-ghost text-red"
-                                  title="Delete Admin"
-                                  style={{ width: 28, height: 28, color: 'var(--color-status-cancelled-text)' }}
-                                  disabled={adm.id === admin?.id}
-                                  onClick={() => handleDeleteAdmin(adm.id)}
-                                >
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
+                              {isSuperAdmin ? (
+                                <div style={{ display: 'flex', gap: 4 }}>
+                                  <button className="btn btn-icon btn-ghost" title="Edit Password" style={{ width: 28, height: 28 }} onClick={() => openResetPasswordModal(adm)}>
+                                    <Key size={14} />
+                                  </button>
+                                  <button className="btn btn-icon btn-ghost" title="Edit Roles" style={{ width: 28, height: 28 }} onClick={() => openEditRolesModal(adm)}>
+                                    <Edit size={14} />
+                                  </button>
+                                  <button
+                                    className="btn btn-icon btn-ghost text-red"
+                                    title="Delete Admin"
+                                    style={{ width: 28, height: 28, color: 'var(--color-status-cancelled-text)' }}
+                                    disabled={adm.id === admin?.id}
+                                    onClick={() => handleDeleteAdmin(adm.id)}
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              ) : (
+                                <span style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>No access</span>
+                              )}
                             </td>
                           </tr>
                         ))}

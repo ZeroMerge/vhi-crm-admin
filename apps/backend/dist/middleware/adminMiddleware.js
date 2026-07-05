@@ -13,7 +13,6 @@ const adminMiddleware = (req, res, next) => {
     const token = authHeader.split(' ')[1];
     try {
         const decoded = jsonwebtoken_1.default.verify(token, process.env.ADMIN_JWT_SECRET || 'fallback_secret');
-        // Ensure we support activeRole and fallback role
         if (!decoded.activeRole && decoded.role) {
             decoded.activeRole = decoded.role;
         }
@@ -21,12 +20,11 @@ const adminMiddleware = (req, res, next) => {
             decoded.assignedRoles = [decoded.activeRole];
         }
         req.admin = decoded;
-        // Support staff is strictly read-only on all backend mutating routes (POST, PUT, DELETE).
-        // Exceptions: /switch-role and /logout are administrative auth actions and allowed.
         if (req.admin.activeRole === 'support_staff' &&
             ['POST', 'PUT', 'DELETE'].includes(req.method)) {
             const isAuthAction = req.path.endsWith('/switch-role') || req.path.endsWith('/logout') || req.path.endsWith('/admin/logout');
-            if (!isAuthAction) {
+            const isCustomerAction = req.path.includes('/admin/customers') && req.method !== 'DELETE';
+            if (!isAuthAction && !isCustomerAction) {
                 return res.status(403).json({
                     success: false,
                     message: 'Operation denied: Support staff role is read-only.'
@@ -46,12 +44,11 @@ const requireActiveRole = (...allowedRoles) => {
             return res.status(401).json({ success: false, message: 'Unauthorized' });
         }
         const activeRole = req.admin.activeRole;
-        // If the allowedRoles includes '*', full access is allowed
         if (allowedRoles.includes('*') && activeRole === 'super_admin') {
             return next();
         }
         if (activeRole === 'super_admin') {
-            return next(); // super admin has access to everything
+            return next();
         }
         if (!allowedRoles.includes(activeRole)) {
             return res.status(403).json({ success: false, message: 'Insufficient permissions' });
@@ -60,6 +57,5 @@ const requireActiveRole = (...allowedRoles) => {
     };
 };
 exports.requireActiveRole = requireActiveRole;
-// Keep old requireRole exported as fallback alias pointing to requireActiveRole
 exports.requireRole = exports.requireActiveRole;
 //# sourceMappingURL=adminMiddleware.js.map

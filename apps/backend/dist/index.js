@@ -29,7 +29,6 @@ const allowedOrigins = [
     process.env.FRONTEND_URL,
     process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined
 ].filter((origin) => Boolean(origin));
-// Basic request logging to help diagnose CORS/preflight and auth issues
 app.use((req, _res, next) => {
     const origin = req.headers.origin || 'no-origin';
     console.log(`[REQ] ${req.method} ${req.path} Origin=${origin}`);
@@ -40,19 +39,16 @@ app.use((req, _res, next) => {
 });
 app.use((0, cors_1.default)({
     origin: (origin, callback) => {
-        // allow non-browser requests (like curl, server-to-server) which have no origin
         if (!origin)
             return callback(null, true);
         if (allowedOrigins.includes(origin))
             return callback(null, true);
-        // allow any localhost with different port (development convenience)
         try {
             const url = new URL(origin);
             if (url.hostname === 'localhost')
                 return callback(null, true);
         }
         catch (e) {
-            // ignore
         }
         return callback(new Error('Not allowed by CORS'));
     },
@@ -60,7 +56,6 @@ app.use((0, cors_1.default)({
 }));
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
-// Routes
 app.use('/api/auth', auth_routes_1.default);
 app.use('/api/admin/search', search_routes_1.default);
 app.use('/api/admin/admins', admin_management_routes_1.default);
@@ -75,11 +70,9 @@ app.use('/api/admin/communications', communications_routes_1.default);
 app.use('/api/admin/newsletter', newsletter_routes_1.default);
 app.use('/api/admin/reports', reports_routes_1.default);
 app.use('/api/admin/feedback', feedback_routes_1.default);
-// Health check
 app.get('/api/health', (_req, res) => {
     res.json({ success: true, message: 'VHI CRM API is running' });
 });
-// Error handler
 app.use(errorHandler_1.errorHandler);
 app.listen(PORT, () => {
     console.log(`VHI CRM Server running on port ${PORT}`);

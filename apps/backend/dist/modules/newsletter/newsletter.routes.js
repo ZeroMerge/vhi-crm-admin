@@ -7,7 +7,6 @@ const express_1 = require("express");
 const db_1 = __importDefault(require("../../config/db"));
 const adminMiddleware_1 = require("../../middleware/adminMiddleware");
 const router = (0, express_1.Router)();
-// GET /api/admin/newsletter/segments
 router.get('/segments', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const result = await db_1.default.query(`SELECT industry, COUNT(*) as count, 
@@ -19,7 +18,6 @@ router.get('/segments', adminMiddleware_1.adminMiddleware, async (req, res, next
         next(err);
     }
 });
-// PUT /api/admin/newsletter/segments/move
 router.put('/segments/move', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { customerId, toIndustry } = req.body;
@@ -30,7 +28,6 @@ router.put('/segments/move', adminMiddleware_1.adminMiddleware, async (req, res,
         next(err);
     }
 });
-// DELETE /api/admin/newsletter/segments/remove
 router.delete('/segments/remove', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { customerId } = req.body;
@@ -41,7 +38,6 @@ router.delete('/segments/remove', adminMiddleware_1.adminMiddleware, async (req,
         next(err);
     }
 });
-// POST /api/admin/newsletter/send
 router.post('/send', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { subject, body, segments } = req.body;
@@ -61,7 +57,6 @@ router.post('/send', adminMiddleware_1.adminMiddleware, async (req, res, next) =
         next(err);
     }
 });
-// GET /api/admin/newsletter/history
 router.get('/history', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const result = await db_1.default.query('SELECT * FROM newsletter_sends ORDER BY sent_at DESC');

@@ -38,7 +38,6 @@ function mapInvoice(row) {
         } : null,
     };
 }
-// GET /api/admin/invoices
 router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { status, currency, customerId, search, dateFrom, dateTo, overdue, sortBy, page = '1', pageSize = '10' } = req.query;
@@ -80,8 +79,7 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         }
         const countResult = await db_1.default.query(`SELECT COUNT(*) FROM (${sql}) AS count_query`, params);
         const total = parseInt(countResult.rows[0].count);
-        // Apply sorting
-        let orderSql = ' ORDER BY i.created_at DESC'; // default newest
+        let orderSql = ' ORDER BY i.created_at DESC';
         if (sortBy === 'oldest') {
             orderSql = ' ORDER BY i.created_at ASC';
         }
@@ -105,7 +103,6 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         next(err);
     }
 });
-// GET /api/admin/invoices/:id
 router.get('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const invoiceResult = await db_1.default.query(`SELECT i.*, 
@@ -137,14 +134,12 @@ router.get('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => 
         next(err);
     }
 });
-// POST /api/admin/invoices
 router.post('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { customerId, shipmentId, amount, currency, dueDate, notes } = req.body;
         const invoiceNumber = `INV-${Date.now()}`;
         const result = await db_1.default.query('INSERT INTO invoices (invoice_number, shipment_id, customer_id, amount, currency, due_date, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *', [invoiceNumber, shipmentId, customerId, amount, currency || 'NGN', dueDate, notes]);
         const invoice = result.rows[0];
-        // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'CREATE_INVOICE', 'invoice', invoice.id, { amount, currency, invoiceNumber });
         res.json({ success: true, data: mapInvoice(invoice) });
     }
@@ -152,13 +147,11 @@ router.post('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         next(err);
     }
 });
-// PUT /api/admin/invoices/:id/status
 router.put('/:id/status', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { status } = req.body;
         await db_1.default.query('UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2', [status, req.params.id]);
         const result = await db_1.default.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
-        // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_INVOICE_STATUS', 'invoice', req.params.id, { status });
         res.json({ success: true, data: mapInvoice(result.rows[0]) });
     }
@@ -166,7 +159,6 @@ router.put('/:id/status', adminMiddleware_1.adminMiddleware, async (req, res, ne
         next(err);
     }
 });
-// PUT /api/admin/invoices/:id/reminder
 router.put('/:id/reminder', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { followUpDate } = req.body;
@@ -179,7 +171,6 @@ router.put('/:id/reminder', adminMiddleware_1.adminMiddleware, async (req, res, 
         next(err);
     }
 });
-// PUT /api/admin/invoices/:id/payment
 router.put('/:id/payment', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { amount, paymentMethod, notes } = req.body;
@@ -189,7 +180,6 @@ router.put('/:id/payment', adminMiddleware_1.adminMiddleware, async (req, res, n
         const result = await db_1.default.query('INSERT INTO payments (invoice_id, customer_id, amount, currency, payment_method, payment_status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', [req.params.id, invoice.rows[0].customer_id, amount, invoice.rows[0].currency, paymentMethod, 'success']);
         await db_1.default.query('UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2', ['paid', req.params.id]);
         const updatedInvoiceResult = await db_1.default.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
-        // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'RECORD_INVOICE_PAYMENT', 'invoice', req.params.id, { amount, paymentMethod, notes });
         res.json({ success: true, data: updatedInvoiceResult.rows[0] });
     }
@@ -197,7 +187,6 @@ router.put('/:id/payment', adminMiddleware_1.adminMiddleware, async (req, res, n
         next(err);
     }
 });
-// GET /api/admin/invoices/:id/pdf
 router.get('/:id/pdf', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         res.setHeader('Content-Type', 'application/pdf');
@@ -208,11 +197,9 @@ router.get('/:id/pdf', adminMiddleware_1.adminMiddleware, async (req, res, next)
         next(err);
     }
 });
-// DELETE /api/admin/invoices/:id
 router.delete('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         await db_1.default.query('DELETE FROM invoices WHERE id = $1', [req.params.id]);
-        // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'DELETE_INVOICE', 'invoice', req.params.id);
         res.json({ success: true, message: 'Invoice deleted' });
     }

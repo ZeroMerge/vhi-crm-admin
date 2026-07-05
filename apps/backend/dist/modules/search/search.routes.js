@@ -7,7 +7,6 @@ const express_1 = require("express");
 const db_1 = __importDefault(require("../../config/db"));
 const adminMiddleware_1 = require("../../middleware/adminMiddleware");
 const router = (0, express_1.Router)();
-// GET /api/admin/search?q=string
 router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { q } = req.query;
@@ -22,7 +21,6 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
             });
         }
         const term = `%${q}%`;
-        // 1. Parallel SQL queries across customers, shipments, and invoices
         const customersPromise = db_1.default.query(`SELECT id, user_id, firstname, lastname, email, industry, status
        FROM customers
        WHERE firstname ILIKE $1 OR lastname ILIKE $1 OR email ILIKE $1 OR user_id ILIKE $1

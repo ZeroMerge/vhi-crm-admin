@@ -118,7 +118,7 @@ img {
   position: fixed;
   top: 0;
   left: 0;
-  height: 100vh;
+  height: 100dvh;
   width: var(--sidebar-width);
   background: var(--color-sidebar-bg);
   /* Removed border-right */

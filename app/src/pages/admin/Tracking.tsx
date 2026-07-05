@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, AlertTriangle, X, Box, Plane } from 'lucide-react';
+import { Search, AlertTriangle, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
@@ -73,7 +73,7 @@ export default function Tracking() {
   const [trackingType, setTrackingType] = useState<'awb' | 'bol' | 'uniqueId'>('awb');
   const [saveLoading, setSaveLoading] = useState(false);
 
-  const [events, setEvents] = useState<TrackingUpdate[]>([]);
+  const [_events, setEvents] = useState<TrackingUpdate[]>([]);
   const [newEventStatus, setNewEventStatus] = useState('');
   const [newEventMessage, setNewEventMessage] = useState('');
   const [addingEvent, setAddingEvent] = useState(false);
@@ -94,7 +94,7 @@ export default function Tracking() {
             setSelectedShipment(currentSelected);
             setTrackingType(getTrackingType(currentSelected));
             setTrackingNumber(
-              currentSelected.awb_number || currentSelected.bol_number || currentSelected.unique_id || ''
+              (currentSelected as any).awb_number || (currentSelected as any).bol_number || (currentSelected as any).unique_id || ''
             );
           } else {
             setSelectedShipment(null);
@@ -173,9 +173,9 @@ export default function Tracking() {
       
       const updatedShipment = { 
         ...selectedShipment, 
-        awb_number: data.awbNumber !== undefined ? data.awbNumber : selectedShipment.awb_number,
-        bol_number: data.bolNumber !== undefined ? data.bolNumber : selectedShipment.bol_number,
-        unique_id: data.uniqueId !== undefined ? data.uniqueId : selectedShipment.unique_id,
+        awb_number: data.awbNumber !== undefined ? data.awbNumber : (selectedShipment as any).awb_number,
+        bol_number: data.bolNumber !== undefined ? data.bolNumber : (selectedShipment as any).bol_number,
+        unique_id: data.uniqueId !== undefined ? data.uniqueId : (selectedShipment as any).unique_id,
       };
       setSelectedShipment(updatedShipment);
       setShipments((prev) => prev.map(s => s.id === updatedShipment.id ? updatedShipment : s));

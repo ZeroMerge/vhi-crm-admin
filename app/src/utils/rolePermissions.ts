@@ -19,6 +19,7 @@ export const rolePermissions: Record<AdminRole, string[]> = {
     'communications',
   ],
   finance_officer: [
+    'customers',
     'invoices',
     'payments',
     'reports',
@@ -30,8 +31,10 @@ export const rolePermissions: Record<AdminRole, string[]> = {
     'communications',
   ],
   support_staff: [
+    'customers',
     'shipments',
     'communications',
+    'reports',
   ],
 };
 

@@ -8,7 +8,6 @@ const db_1 = __importDefault(require("../../config/db"));
 const adminMiddleware_1 = require("../../middleware/adminMiddleware");
 const audit_1 = require("../../utils/audit");
 const router = (0, express_1.Router)();
-// GET /api/admin/shipments
 router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { status, mode, customerId, search, dateFrom, dateTo, sortBy, page = '1', pageSize = '10' } = req.query;
@@ -47,8 +46,7 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         }
         const countResult = await db_1.default.query(`SELECT COUNT(*) FROM (${sql}) AS count_query`, params);
         const total = parseInt(countResult.rows[0].count);
-        // Apply sorting
-        let orderSql = ' ORDER BY s.created_at DESC'; // default newest
+        let orderSql = ' ORDER BY s.created_at DESC';
         if (sortBy === 'oldest') {
             orderSql = ' ORDER BY s.created_at ASC';
         }
@@ -72,7 +70,6 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         next(err);
     }
 });
-// GET /api/admin/shipments/:id
 router.get('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const shipmentResult = await db_1.default.query('SELECT * FROM shipments WHERE id = $1', [req.params.id]);
@@ -91,7 +88,6 @@ router.get('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => 
         next(err);
     }
 });
-// POST /api/admin/shipments
 router.post('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { customerId, shippingMode, deliveryMode, natureOfItem, hsCode, invoiceValue, invoiceCurrency, weight, weightUnit, originAddress, destinationAddress, originPickupOption, portOfDischarge, awbNumber, bolNumber, uniqueId, status = 'pending', isDraft = false, } = req.body;
@@ -116,7 +112,6 @@ router.post('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         next(err);
     }
 });
-// PUT /api/admin/shipments/:id/status
 router.put('/:id/status', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { status, message } = req.body;
@@ -125,7 +120,6 @@ router.put('/:id/status', adminMiddleware_1.adminMiddleware, async (req, res, ne
             await db_1.default.query('INSERT INTO tracking_updates (shipment_id, status, message, updated_by) VALUES ($1, $2, $3, $4)', [req.params.id, status, message, req.admin.id]);
         }
         const result = await db_1.default.query('SELECT * FROM shipments WHERE id = $1', [req.params.id]);
-        // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_SHIPMENT_STATUS', 'shipment', req.params.id, { status, message });
         res.json({ success: true, data: result.rows[0] });
     }
@@ -133,7 +127,6 @@ router.put('/:id/status', adminMiddleware_1.adminMiddleware, async (req, res, ne
         next(err);
     }
 });
-// PUT /api/admin/shipments/:id/tracking
 router.put('/:id/tracking', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { awbNumber, bolNumber, uniqueId } = req.body;
@@ -155,7 +148,6 @@ router.put('/:id/tracking', adminMiddleware_1.adminMiddleware, async (req, res, 
         params.push(req.params.id);
         await db_1.default.query(`UPDATE shipments SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, params);
         const result = await db_1.default.query('SELECT * FROM shipments WHERE id = $1', [req.params.id]);
-        // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_SHIPMENT_TRACKING_FIELDS', 'shipment', req.params.id, { awbNumber, bolNumber, uniqueId });
         res.json({ success: true, data: result.rows[0] });
     }
@@ -163,13 +155,11 @@ router.put('/:id/tracking', adminMiddleware_1.adminMiddleware, async (req, res, 
         next(err);
     }
 });
-// POST /api/admin/shipments/:id/documents
 router.post('/:id/documents', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { fileUrl, documentType } = req.body;
         const result = await db_1.default.query('INSERT INTO shipment_documents (shipment_id, document_type, file_url, uploaded_by) VALUES ($1, $2, $3, $4) RETURNING *', [req.params.id, documentType || 'other', fileUrl, req.admin.id]);
         const doc = result.rows[0];
-        // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPLOAD_SHIPMENT_DOCUMENT', 'shipment', req.params.id, { documentId: doc.id, documentType });
         res.json({ success: true, data: doc });
     }
@@ -177,11 +167,9 @@ router.post('/:id/documents', adminMiddleware_1.adminMiddleware, async (req, res
         next(err);
     }
 });
-// DELETE /api/admin/shipments/:id/documents/:docId
 router.delete('/:id/documents/:docId', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         await db_1.default.query('DELETE FROM shipment_documents WHERE id = $1 AND shipment_id = $2', [req.params.docId, req.params.id]);
-        // Log audit event
         await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'DELETE_SHIPMENT_DOCUMENT', 'shipment', req.params.id, { documentId: req.params.docId });
         res.json({ success: true, message: 'Document deleted' });
     }

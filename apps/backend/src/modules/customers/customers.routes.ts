@@ -70,6 +70,45 @@ router.get('/', adminMiddleware, async (req, res, next) => {
 });
 
 
+router.post('/', adminMiddleware, async (req, res, next) => {
+  try {
+    const { firstname, lastname, email, phone, industry, status } = req.body;
+    
+    const idResult = await pool.query('SELECT COUNT(*) as count FROM customers');
+    const newCount = parseInt(idResult.rows[0].count) + 1;
+    const userId = `CUST-${newCount.toString().padStart(4, '0')}`;
+
+    const result = await pool.query(
+      `INSERT INTO customers (user_id, firstname, lastname, email, phone, industry, status) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [userId, firstname, lastname, email, phone, industry, status || 'lead']
+    );
+
+    await logAuditEvent(req.admin!.id, req.admin!.activeRole, 'CREATE_CUSTOMER', 'customer', result.rows[0].id);
+
+    res.status(201).json({ success: true, data: mapCustomer(result.rows[0]) });
+  } catch (err) { next(err); }
+});
+
+router.put('/:id', adminMiddleware, async (req, res, next) => {
+  try {
+    const { firstname, lastname, email, phone, industry, status } = req.body;
+    
+    const result = await pool.query(
+      `UPDATE customers 
+       SET firstname = $1, lastname = $2, email = $3, phone = $4, industry = $5, status = $6, updated_at = NOW() 
+       WHERE id = $7 RETURNING *`,
+      [firstname, lastname, email, phone, industry, status, req.params.id]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Customer not found' });
+
+    await logAuditEvent(req.admin!.id, req.admin!.activeRole, 'UPDATE_CUSTOMER', 'customer', req.params.id);
+
+    res.json({ success: true, data: mapCustomer(result.rows[0]) });
+  } catch (err) { next(err); }
+});
+
 router.get('/:id', adminMiddleware, async (req, res, next) => {
   try {
     const result = await pool.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);

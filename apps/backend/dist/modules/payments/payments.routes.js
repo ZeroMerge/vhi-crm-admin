@@ -7,7 +7,6 @@ const express_1 = require("express");
 const db_1 = __importDefault(require("../../config/db"));
 const adminMiddleware_1 = require("../../middleware/adminMiddleware");
 const router = (0, express_1.Router)();
-// GET /api/admin/payments
 router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { status, page = '1', pageSize = '10' } = req.query;
@@ -34,7 +33,6 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         next(err);
     }
 });
-// Paystack routes
 router.post('/paystack/initialize', async (req, res, next) => {
     try {
         const { invoiceId, email, amount, currency } = req.body;
@@ -65,7 +63,6 @@ router.post('/paystack/webhook', async (req, res, next) => {
         next(err);
     }
 });
-// Stripe routes
 router.post('/stripe/intent', async (req, res, next) => {
     try {
         const { invoiceId, amount, currency } = req.body;

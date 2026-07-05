@@ -7,7 +7,6 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const db_1 = __importDefault(require("../config/db"));
 async function seed() {
     console.log('Seeding database...');
-    // Create admin
     const adminHash = await bcryptjs_1.default.hash('Admin@123', 10);
     const adminResult = await db_1.default.query(`INSERT INTO admins (name, email, password_hash, role, assigned_roles, notification_prefs, is_active)
      VALUES ($1, $2, $3, $4, $5, $6, true)
@@ -19,7 +18,6 @@ async function seed() {
        is_active = true
      RETURNING *`, ['VHI Admin', 'admin@valuehandlers.com', adminHash, 'super_admin', ['super_admin'], '{}']);
     console.log('Admin created:', adminResult.rows[0]?.email || 'already exists');
-    // Create customers
     const customerData = [
         { user_id: 'USR001', firstname: 'Jane', lastname: 'Smith', email: 'jane@vhi.com', phone: '+2348012345678', industry: 'oil_gas', star_rating: 4, status: 'loyal', password_hash: await bcryptjs_1.default.hash('password123', 10) },
         { user_id: 'USR002', firstname: 'John', lastname: 'Doe', email: 'john@vhi.com', phone: '+2348023456789', industry: 'medical', star_rating: 3, status: 'prospect', password_hash: await bcryptjs_1.default.hash('password123', 10) },
@@ -40,7 +38,6 @@ async function seed() {
         const existing = await db_1.default.query('SELECT * FROM customers');
         customers.push(...existing.rows);
     }
-    // Create shipments
     const shipmentData = [
         { order_id: '#1895-67-fw', customer_id: customers[0]?.id, shipping_mode: 'air_freight', delivery_mode: 'door_to_door', nature_of_item: 'Building material', invoice_value: 34000000, invoice_currency: 'NGN', weight: 365000, origin_address: '45 Oxford Street, London, UK', destination_address: '12 Vaclavske namesti, Prague, Czech Republic', awb_number: '157-12345670', status: 'delivered', is_draft: false },
         { order_id: '#2695-77-gw', customer_id: customers[1]?.id, shipping_mode: 'groupage', delivery_mode: 'port_to_port', nature_of_item: 'Electronics', invoice_value: 12500000, invoice_currency: 'NGN', weight: 50000, origin_address: 'Berlin, Germany', destination_address: 'Lagos, Nigeria', bol_number: 'BOL-2024-002', status: 'in_transit', is_draft: false },
@@ -66,7 +63,6 @@ async function seed() {
         const existing = await db_1.default.query('SELECT * FROM shipments');
         shipments.push(...existing.rows);
     }
-    // Create invoices
     const invoiceData = [
         { invoice_number: 'INV-2024-001', shipment_id: shipments[0]?.id, customer_id: customers[0]?.id, amount: 34000000, currency: 'NGN', status: 'paid', due_date: '2024-03-30' },
         { invoice_number: 'INV-2024-002', shipment_id: shipments[1]?.id, customer_id: customers[1]?.id, amount: 12500000, currency: 'NGN', status: 'pending', due_date: '2024-04-20' },

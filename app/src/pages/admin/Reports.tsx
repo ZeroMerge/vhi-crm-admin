@@ -2,9 +2,13 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Users, Package, MessageSquare, TrendingUp, Download } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
+import { Badge } from '@/components/ui/Badge';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { reportService } from '@/services/report.service';
+import { customerService } from '@/services/customer.service';
+import { invoiceService } from '@/services/invoice.service';
 import type { ReportData } from '@/services/report.service';
+import type { Customer, Invoice } from '@/types';
 
 const tabs = [
   { label: 'Daily', value: 'daily' },
@@ -18,6 +22,31 @@ export default function Reports() {
 
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [revenueLoading, setRevenueLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const fetchRevenueData = async () => {
+      setRevenueLoading(true);
+      try {
+        const custRes = await customerService.list({ page: 1, pageSize: 100 });
+        const invRes = await invoiceService.list({ page: 1, pageSize: 100 });
+        if (active) {
+          setCustomers(custRes.data);
+          setInvoices(invRes.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch revenue data:', err);
+      } finally {
+        if (active) setRevenueLoading(false);
+      }
+    };
+    fetchRevenueData();
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -228,6 +257,76 @@ export default function Reports() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Revenue Breakdown */}
+          <div className="card" style={{ marginTop: 24 }}>
+            <h3 className="card-title" style={{ marginBottom: 20 }}>Revenue Breakdown</h3>
+            
+            {revenueLoading ? (
+               <div style={{ padding: 24, textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading revenue data...</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+                {/* Customers Table */}
+                <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-card)', overflow: 'hidden' }}>
+                  <div style={{ padding: '16px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
+                    <h4 style={{ fontWeight: 600, margin: 0 }}>Revenue by Customer</h4>
+                  </div>
+                  <div className="vhi-table-container" style={{ border: 'none', maxHeight: 400, overflowY: 'auto', borderRadius: 0 }}>
+                    <table className="vhi-table">
+                      <thead>
+                        <tr>
+                          <th>Customer</th>
+                          <th style={{ textAlign: 'right' }}>Total Invoiced</th>
+                          <th style={{ textAlign: 'right' }}>Total Paid</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {customers.map(c => (
+                          <tr key={c.id}>
+                            <td>{c.firstname} {c.lastname}</td>
+                            <td style={{ textAlign: 'right' }}>{formatCurrency(c.totalInvoiced || 0, 'NGN')}</td>
+                            <td style={{ textAlign: 'right', color: 'var(--color-primary)', fontWeight: 500 }}>{formatCurrency(c.totalPaid || 0, 'NGN')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Invoices Table */}
+                <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-card)', overflow: 'hidden' }}>
+                  <div style={{ padding: '16px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
+                    <h4 style={{ fontWeight: 600, margin: 0 }}>Revenue by Invoice</h4>
+                  </div>
+                  <div className="vhi-table-container" style={{ border: 'none', maxHeight: 400, overflowY: 'auto', borderRadius: 0 }}>
+                    <table className="vhi-table">
+                      <thead>
+                        <tr>
+                          <th>Invoice No</th>
+                          <th>Status</th>
+                          <th style={{ textAlign: 'right' }}>Amount</th>
+                          <th style={{ textAlign: 'right' }}>Paid</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {invoices.map(inv => {
+                          const paidAmount = inv.payments?.filter(p => p.paymentStatus === 'success').reduce((sum, p) => sum + p.amount, 0) || 0;
+                          return (
+                            <tr key={inv.id}>
+                              <td>{inv.invoiceNumber}</td>
+                              <td><Badge status={inv.status} type="invoice" size="sm" /></td>
+                              <td style={{ textAlign: 'right' }}>{formatCurrency(inv.amount, inv.currency)}</td>
+                              <td style={{ textAlign: 'right', color: 'var(--color-primary)', fontWeight: 500 }}>{formatCurrency(paidAmount, inv.currency)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             )}
           </div>
