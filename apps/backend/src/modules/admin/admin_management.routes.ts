@@ -55,6 +55,7 @@ router.post('/invite', async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'INVITE_ADMIN',
       'admin',
@@ -67,7 +68,7 @@ router.post('/invite', async (req, res, next) => {
       message: 'Admin invited successfully. An email invitation has been sent.',
       data: {
         admin: newAdmin,
-        inviteLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/setup-password?token=${newAdmin.id}`,
+        inviteLink: `${process.env.ADMIN_FRONTEND_URL || 'http://localhost:3000'}/admin/setup-password?token=${newAdmin.id}`,
         tempPassword 
       }
     });
@@ -102,6 +103,7 @@ router.put('/:id/roles', async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'UPDATE_ADMIN_ROLES',
       'admin',
@@ -146,6 +148,7 @@ router.put('/:id/status', async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'TOGGLE_ADMIN_STATUS',
       'admin',
@@ -184,6 +187,7 @@ router.delete('/:id', async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'DELETE_ADMIN',
       'admin',
@@ -219,6 +223,7 @@ router.post('/:id/reset-password', async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'RESET_ADMIN_PASSWORD',
       'admin',

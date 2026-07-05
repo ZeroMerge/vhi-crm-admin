@@ -141,6 +141,7 @@ router.post('/', adminMiddleware, async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'CREATE_INVOICE',
       'invoice',
@@ -162,6 +163,7 @@ router.put('/:id/status', adminMiddleware, async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'UPDATE_INVOICE_STATUS',
       'invoice',
@@ -182,6 +184,7 @@ router.put('/:id/reminder', adminMiddleware, async (req, res, next) => {
 
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'UPDATE_INVOICE_REMINDER',
       'invoice',
@@ -211,6 +214,7 @@ router.put('/:id/payment', adminMiddleware, async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'RECORD_INVOICE_PAYMENT',
       'invoice',
@@ -239,6 +243,7 @@ router.delete('/:id', adminMiddleware, async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'DELETE_INVOICE',
       'invoice',

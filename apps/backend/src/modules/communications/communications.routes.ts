@@ -80,6 +80,7 @@ router.post('/send', adminMiddleware, async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'SEND_COMMUNICATION',
       'communication',
@@ -99,6 +100,7 @@ router.delete('/:messageId', adminMiddleware, async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'DELETE_COMMUNICATION',
       'communication',
