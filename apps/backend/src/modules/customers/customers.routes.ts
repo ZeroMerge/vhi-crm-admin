@@ -141,7 +141,7 @@ router.put('/:id/star', adminMiddleware, async (req, res, next) => {
     const result = await pool.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);
     
     
-    await logAuditEvent(req.admin!.id, req.admin!.activeRole, 'UPDATE_CUSTOMER_STAR', 'customer', req.params.id, { starRating });
+    await logAuditEvent(req.admin!.id, 'admin', req.admin!.activeRole, 'UPDATE_CUSTOMER_STAR', 'customer', req.params.id, { starRating });
 
     res.json({ success: true, data: mapCustomer(result.rows[0]) });
   } catch (err) { next(err); }
@@ -155,7 +155,7 @@ router.put('/:id/status', adminMiddleware, async (req, res, next) => {
     const result = await pool.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);
 
     
-    await logAuditEvent(req.admin!.id, req.admin!.activeRole, 'UPDATE_CUSTOMER_STATUS', 'customer', req.params.id, { status });
+    await logAuditEvent(req.admin!.id, 'admin', req.admin!.activeRole, 'UPDATE_CUSTOMER_STATUS', 'customer', req.params.id, { status });
 
     res.json({ success: true, data: mapCustomer(result.rows[0]) });
   } catch (err) { next(err); }
@@ -169,7 +169,7 @@ router.put('/:id/segment', adminMiddleware, async (req, res, next) => {
     const result = await pool.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);
 
     
-    await logAuditEvent(req.admin!.id, req.admin!.activeRole, 'UPDATE_CUSTOMER_SEGMENT', 'customer', req.params.id, { industry });
+    await logAuditEvent(req.admin!.id, 'admin', req.admin!.activeRole, 'UPDATE_CUSTOMER_SEGMENT', 'customer', req.params.id, { industry });
 
     res.json({ success: true, data: mapCustomer(result.rows[0]) });
   } catch (err) { next(err); }
@@ -181,7 +181,7 @@ router.delete('/:id', adminMiddleware, async (req, res, next) => {
     await pool.query('DELETE FROM customers WHERE id = $1', [req.params.id]);
 
     
-    await logAuditEvent(req.admin!.id, req.admin!.activeRole, 'DELETE_CUSTOMER', 'customer', req.params.id);
+    await logAuditEvent(req.admin!.id, 'admin', req.admin!.activeRole, 'DELETE_CUSTOMER', 'customer', req.params.id);
 
     res.json({ success: true, message: 'Customer deleted' });
   } catch (err) { next(err); }

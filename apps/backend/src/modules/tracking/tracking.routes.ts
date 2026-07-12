@@ -81,6 +81,7 @@ router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'ADD_TRACKING_UPDATE',
       'shipment',

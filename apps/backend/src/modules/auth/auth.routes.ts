@@ -88,7 +88,7 @@ router.post('/admin/login', async (req, res, next) => {
     );
 
     
-    await logAuditEvent(admin.id, activeRole, 'LOGIN', 'admin', admin.id, { activeRole });
+    await logAuditEvent(admin.id, 'admin', activeRole, 'LOGIN', 'admin', admin.id, { activeRole });
 
     res.json({
       success: true,
@@ -150,7 +150,7 @@ router.post('/admin/switch-role', adminMiddleware, async (req, res, next) => {
     );
 
     
-    await logAuditEvent(adminId, role, 'SWITCH_ROLE', 'admin', adminId, { previousRole: req.admin!.activeRole, newRole: role });
+    await logAuditEvent(adminId, 'admin', role, 'SWITCH_ROLE', 'admin', adminId, { previousRole: req.admin!.activeRole, newRole: role });
 
     res.json({
       success: true,
@@ -200,7 +200,7 @@ router.get('/admin/me', adminMiddleware, async (req, res, next) => {
 router.post('/admin/logout', adminMiddleware, async (req, res, next) => {
   try {
     if (req.admin) {
-      await logAuditEvent(req.admin.id, req.admin.activeRole, 'LOGOUT', 'admin', req.admin.id);
+      await logAuditEvent(req.admin.id, 'admin', req.admin.activeRole, 'LOGOUT', 'admin', req.admin.id);
     }
     res.json({ success: true, message: 'Logged out' });
   } catch (err) {
@@ -229,7 +229,7 @@ router.put('/admin/change-password', adminMiddleware, async (req, res, next) => 
     await pool.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hash, adminId]);
 
     
-    await logAuditEvent(adminId, activeRole, 'CHANGE_PASSWORD', 'admin', adminId);
+    await logAuditEvent(adminId, 'admin', activeRole, 'CHANGE_PASSWORD', 'admin', adminId);
 
     res.json({ success: true, message: 'Password updated' });
   } catch (err) {
@@ -247,7 +247,7 @@ router.put('/admin/profile', adminMiddleware, async (req, res, next) => {
     await pool.query('UPDATE admins SET name = $1 WHERE id = $2', [name, adminId]);
     
     
-    await logAuditEvent(adminId, activeRole, 'UPDATE_PROFILE', 'admin', adminId, { name, phone });
+    await logAuditEvent(adminId, 'admin', activeRole, 'UPDATE_PROFILE', 'admin', adminId, { name, phone });
 
     res.json({ success: true, message: 'Profile updated successfully' });
   } catch (err) {

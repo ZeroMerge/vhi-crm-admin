@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { logAuditEvent } from '../../utils/audit';
+import { generateOrderId } from '../../utils/generateOrderId';
 
 const router = Router();
 
@@ -88,7 +89,7 @@ router.post('/', adminMiddleware, async (req, res, next) => {
       awbNumber, bolNumber, uniqueId, status = 'pending', isDraft = false,
     } = req.body;
 
-    const orderId = `#${Date.now().toString(36).toUpperCase().slice(-6)}`;
+    const orderId = generateOrderId('admin');
 
     const result = await pool.query(
       `INSERT INTO shipments (
@@ -107,7 +108,7 @@ router.post('/', adminMiddleware, async (req, res, next) => {
     );
 
     const shipment = result.rows[0];
-    await logAuditEvent(req.admin!.id, req.admin!.activeRole, 'CREATE_SHIPMENT', 'shipment', shipment.id, { orderId, customerId });
+    await logAuditEvent(req.admin!.id, 'admin', req.admin!.activeRole, 'CREATE_SHIPMENT', 'shipment', shipment.id, { orderId, customerId });
     res.status(201).json({ success: true, data: shipment });
   } catch (err) { next(err); }
 });
@@ -127,6 +128,7 @@ router.put('/:id/status', adminMiddleware, async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'UPDATE_SHIPMENT_STATUS',
       'shipment',
@@ -157,6 +159,7 @@ router.put('/:id/tracking', adminMiddleware, async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'UPDATE_SHIPMENT_TRACKING_FIELDS',
       'shipment',
@@ -181,6 +184,7 @@ router.post('/:id/documents', adminMiddleware, async (req, res, next) => {
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'UPLOAD_SHIPMENT_DOCUMENT',
       'shipment',
@@ -200,6 +204,7 @@ router.delete('/:id/documents/:docId', adminMiddleware, async (req, res, next) =
     
     await logAuditEvent(
       req.admin!.id,
+      'admin',
       req.admin!.activeRole,
       'DELETE_SHIPMENT_DOCUMENT',
       'shipment',

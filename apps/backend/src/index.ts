@@ -15,6 +15,9 @@ import reportsRoutes from './modules/reports/reports.routes';
 import feedbackRoutes from './modules/feedback/feedback.routes';
 import searchRoutes from './modules/search/search.routes';
 import adminManagementRoutes from './modules/admin/admin_management.routes';
+import clientAuthRoutes from './modules/client/client.auth.routes';
+import clientShipmentsRoutes from './modules/client/client.shipments.routes';
+import clientTrackingRoutes from './modules/client/client.tracking.routes';
 
 dotenv.config();
 
@@ -25,7 +28,8 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'https://vhi-crm-admin.vercel.app',
-  process.env.FRONTEND_URL,
+  process.env.ADMIN_FRONTEND_URL,
+  process.env.CLIENT_FRONTEND_URL,
   process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined
 ].filter((origin): origin is string => Boolean(origin));
 
@@ -73,6 +77,9 @@ app.use('/api/admin/communications', communicationsRoutes);
 app.use('/api/admin/newsletter', newsletterRoutes);
 app.use('/api/admin/reports', reportsRoutes);
 app.use('/api/admin/feedback', feedbackRoutes);
+app.use('/api/client/auth', clientAuthRoutes);
+app.use('/api/client/shipments', clientShipmentsRoutes);
+app.use('/api/client/tracking', clientTrackingRoutes);
 
 
 app.get('/api/health', (_req, res) => {
