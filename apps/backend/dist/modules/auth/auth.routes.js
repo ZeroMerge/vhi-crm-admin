@@ -68,7 +68,7 @@ router.post('/admin/login', async (req, res, next) => {
             activeRole,
             assignedRoles
         }, process.env.ADMIN_JWT_SECRET || 'fallback_secret', { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') });
-        await (0, audit_1.logAuditEvent)(admin.id, activeRole, 'LOGIN', 'admin', admin.id, { activeRole });
+        await (0, audit_1.logAuditEvent)(admin.id, 'admin', activeRole, 'LOGIN', 'admin', admin.id, { activeRole });
         res.json({
             success: true,
             data: {
@@ -113,7 +113,7 @@ router.post('/admin/switch-role', adminMiddleware_1.adminMiddleware, async (req,
             activeRole: role,
             assignedRoles
         }, process.env.ADMIN_JWT_SECRET || 'fallback_secret', { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') });
-        await (0, audit_1.logAuditEvent)(adminId, role, 'SWITCH_ROLE', 'admin', adminId, { previousRole: req.admin.activeRole, newRole: role });
+        await (0, audit_1.logAuditEvent)(adminId, 'admin', role, 'SWITCH_ROLE', 'admin', adminId, { previousRole: req.admin.activeRole, newRole: role });
         res.json({
             success: true,
             data: {
@@ -160,7 +160,7 @@ router.get('/admin/me', adminMiddleware_1.adminMiddleware, async (req, res, next
 router.post('/admin/logout', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         if (req.admin) {
-            await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'LOGOUT', 'admin', req.admin.id);
+            await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'LOGOUT', 'admin', req.admin.id);
         }
         res.json({ success: true, message: 'Logged out' });
     }
@@ -183,7 +183,7 @@ router.put('/admin/change-password', adminMiddleware_1.adminMiddleware, async (r
         }
         const hash = await bcryptjs_1.default.hash(newPassword, 10);
         await db_1.default.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hash, adminId]);
-        await (0, audit_1.logAuditEvent)(adminId, activeRole, 'CHANGE_PASSWORD', 'admin', adminId);
+        await (0, audit_1.logAuditEvent)(adminId, 'admin', activeRole, 'CHANGE_PASSWORD', 'admin', adminId);
         res.json({ success: true, message: 'Password updated' });
     }
     catch (err) {
@@ -196,7 +196,7 @@ router.put('/admin/profile', adminMiddleware_1.adminMiddleware, async (req, res,
         const adminId = req.admin.id;
         const activeRole = req.admin.activeRole;
         await db_1.default.query('UPDATE admins SET name = $1 WHERE id = $2', [name, adminId]);
-        await (0, audit_1.logAuditEvent)(adminId, activeRole, 'UPDATE_PROFILE', 'admin', adminId, { name, phone });
+        await (0, audit_1.logAuditEvent)(adminId, 'admin', activeRole, 'UPDATE_PROFILE', 'admin', adminId, { name, phone });
         res.json({ success: true, message: 'Profile updated successfully' });
     }
     catch (err) {

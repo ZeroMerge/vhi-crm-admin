@@ -84,7 +84,7 @@ router.post('/', adminMiddleware, async (req, res, next) => {
       [userId, firstname, lastname, email, phone, industry, status || 'lead']
     );
 
-    await logAuditEvent(req.admin!.id, req.admin!.activeRole, 'CREATE_CUSTOMER', 'customer', result.rows[0].id);
+    await logAuditEvent(req.admin!.id, 'admin', req.admin!.activeRole, 'CREATE_CUSTOMER', 'customer', result.rows[0].id);
 
     res.status(201).json({ success: true, data: mapCustomer(result.rows[0]) });
   } catch (err) { next(err); }
@@ -103,7 +103,7 @@ router.put('/:id', adminMiddleware, async (req, res, next) => {
 
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Customer not found' });
 
-    await logAuditEvent(req.admin!.id, req.admin!.activeRole, 'UPDATE_CUSTOMER', 'customer', req.params.id);
+    await logAuditEvent(req.admin!.id, 'admin', req.admin!.activeRole, 'UPDATE_CUSTOMER', 'customer', req.params.id);
 
     res.json({ success: true, data: mapCustomer(result.rows[0]) });
   } catch (err) { next(err); }

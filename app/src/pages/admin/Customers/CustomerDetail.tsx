@@ -249,7 +249,7 @@ export default function CustomerDetail() {
                   <td><Badge status={s.shippingMode} type="shipment" size="sm" /></td>
                   <td><Badge status={s.status} type="shipment" size="sm" /></td>
                   <td>{formatDate(s.createdAt)}</td>
-                  <td>{s.weight.toLocaleString()}{s.weightUnit}</td>
+                  <td>{(s.weight || 0).toLocaleString()} {s.weightUnit || ''}</td>
                   <td style={{ textAlign: 'right', fontWeight: 500 }}>{formatCurrency(s.invoiceValue, s.invoiceCurrency)}</td>
                 </tr>
               ))}

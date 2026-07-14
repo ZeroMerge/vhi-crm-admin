@@ -89,7 +89,7 @@ router.post('/', adminMiddleware, async (req, res, next) => {
       awbNumber, bolNumber, uniqueId, status = 'pending', isDraft = false,
     } = req.body;
 
-    const orderId = generateOrderId('admin');
+    const orderId = generateOrderId('admin', shippingMode);
 
     const result = await pool.query(
       `INSERT INTO shipments (

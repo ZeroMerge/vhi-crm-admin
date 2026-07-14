@@ -90,7 +90,7 @@ router.post('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         const userId = `CUST-${newCount.toString().padStart(4, '0')}`;
         const result = await db_1.default.query(`INSERT INTO customers (user_id, firstname, lastname, email, phone, industry, status) 
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`, [userId, firstname, lastname, email, phone, industry, status || 'lead']);
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'CREATE_CUSTOMER', 'customer', result.rows[0].id);
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'CREATE_CUSTOMER', 'customer', result.rows[0].id);
         res.status(201).json({ success: true, data: mapCustomer(result.rows[0]) });
     }
     catch (err) {
@@ -105,7 +105,7 @@ router.put('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => 
        WHERE id = $7 RETURNING *`, [firstname, lastname, email, phone, industry, status, req.params.id]);
         if (result.rows.length === 0)
             return res.status(404).json({ success: false, message: 'Customer not found' });
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_CUSTOMER', 'customer', req.params.id);
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'UPDATE_CUSTOMER', 'customer', req.params.id);
         res.json({ success: true, data: mapCustomer(result.rows[0]) });
     }
     catch (err) {
@@ -142,7 +142,7 @@ router.put('/:id/star', adminMiddleware_1.adminMiddleware, async (req, res, next
         const { starRating } = req.body;
         await db_1.default.query('UPDATE customers SET star_rating = $1 WHERE id = $2', [starRating, req.params.id]);
         const result = await db_1.default.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_CUSTOMER_STAR', 'customer', req.params.id, { starRating });
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'UPDATE_CUSTOMER_STAR', 'customer', req.params.id, { starRating });
         res.json({ success: true, data: mapCustomer(result.rows[0]) });
     }
     catch (err) {
@@ -154,7 +154,7 @@ router.put('/:id/status', adminMiddleware_1.adminMiddleware, async (req, res, ne
         const { status } = req.body;
         await db_1.default.query('UPDATE customers SET status = $1 WHERE id = $2', [status, req.params.id]);
         const result = await db_1.default.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_CUSTOMER_STATUS', 'customer', req.params.id, { status });
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'UPDATE_CUSTOMER_STATUS', 'customer', req.params.id, { status });
         res.json({ success: true, data: mapCustomer(result.rows[0]) });
     }
     catch (err) {
@@ -166,7 +166,7 @@ router.put('/:id/segment', adminMiddleware_1.adminMiddleware, async (req, res, n
         const { industry } = req.body;
         await db_1.default.query('UPDATE customers SET industry = $1 WHERE id = $2', [industry, req.params.id]);
         const result = await db_1.default.query('SELECT * FROM customers WHERE id = $1', [req.params.id]);
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_CUSTOMER_SEGMENT', 'customer', req.params.id, { industry });
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'UPDATE_CUSTOMER_SEGMENT', 'customer', req.params.id, { industry });
         res.json({ success: true, data: mapCustomer(result.rows[0]) });
     }
     catch (err) {
@@ -176,7 +176,7 @@ router.put('/:id/segment', adminMiddleware_1.adminMiddleware, async (req, res, n
 router.delete('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         await db_1.default.query('DELETE FROM customers WHERE id = $1', [req.params.id]);
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'DELETE_CUSTOMER', 'customer', req.params.id);
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'DELETE_CUSTOMER', 'customer', req.params.id);
         res.json({ success: true, message: 'Customer deleted' });
     }
     catch (err) {

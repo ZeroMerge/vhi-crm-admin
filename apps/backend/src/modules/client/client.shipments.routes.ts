@@ -126,7 +126,7 @@ router.post(
     const client = await pool.connect();
     try {
       const customerId = req.customer!.id;
-      const orderId = generateOrderId('client');
+      const orderId = generateOrderId('client', req.body.shippingMode);
 
       await client.query('BEGIN');
 

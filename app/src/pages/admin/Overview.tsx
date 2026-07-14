@@ -136,7 +136,7 @@ export default function Overview() {
   const exportRows = shipments.map((shipment) => ({
     orderId: shipment.orderId,
     category: shipment.natureOfItem,
-    weight: `${shipment.weight.toLocaleString()} ${shipment.weightUnit}`,
+    weight: `${(shipment.weight || 0).toLocaleString()} ${shipment.weightUnit || ''}`,
     company: `${shipment.customer?.firstname || 'Unknown'} ${shipment.customer?.lastname || ''}`.trim(),
     arrivalTime: formatDate(shipment.createdAt),
     route: `${shipment.originAddress?.split(',')[0] || 'Unknown'} - ${shipment.destinationAddress?.split(',')[0] || 'Unknown'}`,
@@ -362,7 +362,7 @@ export default function Overview() {
                   </td>
                   <td style={{ fontWeight: 500 }}>{shipment.orderId}</td>
                   <td>{shipment.natureOfItem}</td>
-                  <td>{shipment.weight.toLocaleString()}{shipment.weightUnit}</td>
+                  <td>{(shipment.weight || 0).toLocaleString()} {shipment.weightUnit || ''}</td>
                   <td>{shipment.customer?.firstname} {shipment.customer?.lastname}</td>
                   <td>{formatDate(shipment.createdAt)}</td>
                   <td>{shipment.originAddress?.split(',')[0] || 'Unknown'} - {shipment.destinationAddress?.split(',')[0] || 'Unknown'}</td>

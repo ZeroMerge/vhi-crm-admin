@@ -40,16 +40,28 @@ router.delete('/segments/remove', adminMiddleware_1.adminMiddleware, async (req,
 });
 router.post('/send', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
-        const { subject, body, segments } = req.body;
+        const { subject, body, segments, status } = req.body;
         let customerIds = [];
-        if (segments.includes('all')) {
-            const result = await db_1.default.query('SELECT id FROM customers');
-            customerIds = result.rows.map((r) => r.id);
+        let query = 'SELECT id FROM customers WHERE 1=1';
+        const params = [];
+        let paramIdx = 1;
+        if (!segments.includes('all')) {
+            query += ` AND industry = ANY($${paramIdx})`;
+            params.push(segments);
+            paramIdx++;
         }
-        else {
-            const result = await db_1.default.query('SELECT id FROM customers WHERE industry = ANY($1)', [segments]);
-            customerIds = result.rows.map((r) => r.id);
+        if (status && status !== 'all') {
+            if (status === 'NULL') {
+                query += ` AND status IS NULL`;
+            }
+            else {
+                query += ` AND status = $${paramIdx}`;
+                params.push(status);
+                paramIdx++;
+            }
         }
+        const result = await db_1.default.query(query, params);
+        customerIds = result.rows.map((r) => r.id);
         await db_1.default.query('INSERT INTO newsletter_sends (subject, body, segment, sent_by, recipient_count) VALUES ($1, $2, $3, $4, $5)', [subject, body, segments.join(','), req.admin.id, customerIds.length]);
         res.json({ success: true, message: `Newsletter sent to ${customerIds.length} recipients` });
     }

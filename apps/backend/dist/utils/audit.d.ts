@@ -1,2 +1,2 @@
-export declare function logAuditEvent(adminId: string, activeRole: string, action: string, resourceType: string, resourceId?: string | null, metadata?: any): Promise<void>;
+export declare function logAuditEvent(actorId: string, actorType: 'admin' | 'customer', activeRole: string | null, action: string, resourceType: string, resourceId?: string | null, metadata?: any): Promise<void>;
 //# sourceMappingURL=audit.d.ts.map

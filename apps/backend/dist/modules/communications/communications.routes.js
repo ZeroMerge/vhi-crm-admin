@@ -61,7 +61,7 @@ router.post('/send', adminMiddleware_1.adminMiddleware, async (req, res, next) =
         const { customerId, subject, body } = req.body;
         const result = await db_1.default.query('INSERT INTO communications (customer_id, sent_by, subject, body) VALUES ($1, $2, $3, $4) RETURNING *', [customerId, req.admin.id, subject, body]);
         const comm = result.rows[0];
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'SEND_COMMUNICATION', 'communication', comm.id, { customerId, subject });
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'SEND_COMMUNICATION', 'communication', comm.id, { customerId, subject });
         res.json({ success: true, data: comm });
     }
     catch (err) {
@@ -71,7 +71,7 @@ router.post('/send', adminMiddleware_1.adminMiddleware, async (req, res, next) =
 router.delete('/:messageId', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         await db_1.default.query('DELETE FROM communications WHERE id = $1', [req.params.messageId]);
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'DELETE_COMMUNICATION', 'communication', req.params.messageId);
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'DELETE_COMMUNICATION', 'communication', req.params.messageId);
         res.json({ success: true, message: 'Message deleted' });
     }
     catch (err) {

@@ -1,8 +1,14 @@
-export function generateOrderId(source: 'admin' | 'client'): string {
+export function generateOrderId(source: 'admin' | 'client', serviceType?: string): string {
   const digits  = Math.floor(1000 + Math.random() * 9000);
   const suffix  = Math.floor(10   + Math.random() * 90);
   const letters = String.fromCharCode(97 + Math.floor(Math.random() * 26))
                 + String.fromCharCode(97 + Math.floor(Math.random() * 26));
-  const prefix  = source === 'client' ? 'CL' : '#';
+                
+  let prefix = source === 'client' ? 'CL' : '#';
+  if (serviceType === 'consolidation') prefix = 'CON';
+  else if (serviceType === 'groupage') prefix = 'GRP';
+  else if (serviceType === 'china_groupage') prefix = 'CGR';
+  else if (serviceType === 'export') prefix = 'EXP';
+
   return `${prefix}${digits}-${suffix}-${letters}`;
 }

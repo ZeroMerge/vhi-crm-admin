@@ -2,6 +2,17 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Users } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
+import { newsletterService } from '@/services/communication.service';
+import { useNotificationStore } from '@/store/notificationStore';
+
+const customerStatuses = [
+  { value: 'all', label: 'All Customers' },
+  { value: 'lead', label: 'Lead' },
+  { value: 'prospect', label: 'Prospect' },
+  { value: 'returning', label: 'Returning' },
+  { value: 'loyal', label: 'Loyal' },
+  { value: 'NULL', label: 'No Status' },
+];
 
 const industries = [
   { value: 'oil_gas', label: 'Oil & Gas' },
@@ -15,9 +26,46 @@ const industries = [
 
 export default function ComposeNewsletter() {
   const navigate = useNavigate();
+  const { addNotification } = useNotificationStore();
   const [selectedSegments, setSelectedSegments] = useState<string[]>(['all']);
+  const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
+  const handleSend = async () => {
+    if (!subject || !body) return;
+    try {
+      setIsSending(true);
+      await newsletterService.send({
+        subject,
+        body,
+        segments: selectedSegments,
+        status: selectedStatus,
+      });
+      addNotification({
+        id: Date.now().toString(),
+        title: 'Newsletter',
+        message: 'Newsletter scheduled/sent successfully',
+        read: false,
+        createdAt: new Date().toISOString(),
+        type: 'system',
+      });
+      navigate('/admin/newsletter');
+    } catch (err) {
+      console.error('Failed to send newsletter:', err);
+      addNotification({
+        id: Date.now().toString(),
+        title: 'Newsletter Error',
+        message: 'Failed to send newsletter',
+        read: false,
+        createdAt: new Date().toISOString(),
+        type: 'system',
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const toggleSegment = (value: string) => {
     if (value === 'all') {
@@ -85,6 +133,32 @@ export default function ComposeNewsletter() {
             </div>
           </div>
 
+          {/* Customer Status */}
+          <div className="card">
+            <h3 className="card-title" style={{ marginBottom: 16 }}>Filter by Customer Status</h3>
+            <div className="segment-picker" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {customerStatuses.map((stat) => (
+                <button
+                  key={stat.value}
+                  onClick={() => setSelectedStatus(stat.value)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 'var(--radius-badge)',
+                    border: selectedStatus === stat.value ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
+                    background: selectedStatus === stat.value ? 'var(--color-primary-light)' : 'var(--color-page-bg)',
+                    color: selectedStatus === stat.value ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                    fontFamily: 'var(--font-family)',
+                    fontSize: 'var(--font-size-sm)',
+                    cursor: 'pointer',
+                    fontWeight: selectedStatus === stat.value ? 600 : 400,
+                  }}
+                >
+                  {stat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {}
           <div className="card">
             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -145,11 +219,11 @@ export default function ComposeNewsletter() {
             <button
               className="btn btn-primary"
               style={{ width: '100%', marginTop: 20 }}
-              disabled={!subject || !body}
-              onClick={() => navigate('/admin/newsletter')}
+              disabled={!subject || !body || isSending}
+              onClick={handleSend}
             >
               <Send size={16} />
-              Send Newsletter
+              {isSending ? 'Sending...' : 'Send Newsletter'}
             </button>
           </div>
         </div>

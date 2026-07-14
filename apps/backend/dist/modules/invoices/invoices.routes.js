@@ -140,7 +140,7 @@ router.post('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         const invoiceNumber = `INV-${Date.now()}`;
         const result = await db_1.default.query('INSERT INTO invoices (invoice_number, shipment_id, customer_id, amount, currency, due_date, notes) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *', [invoiceNumber, shipmentId, customerId, amount, currency || 'NGN', dueDate, notes]);
         const invoice = result.rows[0];
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'CREATE_INVOICE', 'invoice', invoice.id, { amount, currency, invoiceNumber });
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'CREATE_INVOICE', 'invoice', invoice.id, { amount, currency, invoiceNumber });
         res.json({ success: true, data: mapInvoice(invoice) });
     }
     catch (err) {
@@ -152,7 +152,7 @@ router.put('/:id/status', adminMiddleware_1.adminMiddleware, async (req, res, ne
         const { status } = req.body;
         await db_1.default.query('UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2', [status, req.params.id]);
         const result = await db_1.default.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_INVOICE_STATUS', 'invoice', req.params.id, { status });
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'UPDATE_INVOICE_STATUS', 'invoice', req.params.id, { status });
         res.json({ success: true, data: mapInvoice(result.rows[0]) });
     }
     catch (err) {
@@ -164,7 +164,7 @@ router.put('/:id/reminder', adminMiddleware_1.adminMiddleware, async (req, res, 
         const { followUpDate } = req.body;
         await db_1.default.query('UPDATE invoices SET follow_up_date = $1, updated_at = NOW() WHERE id = $2', [followUpDate || null, req.params.id]);
         const result = await db_1.default.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_INVOICE_REMINDER', 'invoice', req.params.id, { followUpDate });
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'UPDATE_INVOICE_REMINDER', 'invoice', req.params.id, { followUpDate });
         res.json({ success: true, data: mapInvoice(result.rows[0]) });
     }
     catch (err) {
@@ -180,7 +180,7 @@ router.put('/:id/payment', adminMiddleware_1.adminMiddleware, async (req, res, n
         const result = await db_1.default.query('INSERT INTO payments (invoice_id, customer_id, amount, currency, payment_method, payment_status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *', [req.params.id, invoice.rows[0].customer_id, amount, invoice.rows[0].currency, paymentMethod, 'success']);
         await db_1.default.query('UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2', ['paid', req.params.id]);
         const updatedInvoiceResult = await db_1.default.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'RECORD_INVOICE_PAYMENT', 'invoice', req.params.id, { amount, paymentMethod, notes });
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'RECORD_INVOICE_PAYMENT', 'invoice', req.params.id, { amount, paymentMethod, notes });
         res.json({ success: true, data: updatedInvoiceResult.rows[0] });
     }
     catch (err) {
@@ -200,7 +200,7 @@ router.get('/:id/pdf', adminMiddleware_1.adminMiddleware, async (req, res, next)
 router.delete('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         await db_1.default.query('DELETE FROM invoices WHERE id = $1', [req.params.id]);
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'DELETE_INVOICE', 'invoice', req.params.id);
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'DELETE_INVOICE', 'invoice', req.params.id);
         res.json({ success: true, message: 'Invoice deleted' });
     }
     catch (err) {

@@ -39,13 +39,13 @@ router.post('/invite', async (req, res, next) => {
        VALUES ($1, $2, $3, $4, true)
        RETURNING id, name, email, assigned_roles, is_active, created_at;`, [name, email, passwordHash, assignedRoles]);
         const newAdmin = result.rows[0];
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'INVITE_ADMIN', 'admin', newAdmin.id, { invitedEmail: email, assignedRoles });
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'INVITE_ADMIN', 'admin', newAdmin.id, { invitedEmail: email, assignedRoles });
         res.status(201).json({
             success: true,
             message: 'Admin invited successfully. An email invitation has been sent.',
             data: {
                 admin: newAdmin,
-                inviteLink: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/admin/setup-password?token=${newAdmin.id}`,
+                inviteLink: `${process.env.ADMIN_FRONTEND_URL || 'http://localhost:3000'}/admin/setup-password?token=${newAdmin.id}`,
                 tempPassword
             }
         });
@@ -69,7 +69,7 @@ router.put('/:id/roles', async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Admin not found' });
         }
         const updatedAdmin = result.rows[0];
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'UPDATE_ADMIN_ROLES', 'admin', id, { newRoles: assignedRoles });
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'UPDATE_ADMIN_ROLES', 'admin', id, { newRoles: assignedRoles });
         res.json({ success: true, data: updatedAdmin });
     }
     catch (err) {
@@ -94,7 +94,7 @@ router.put('/:id/status', async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Admin not found' });
         }
         const updatedAdmin = result.rows[0];
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'TOGGLE_ADMIN_STATUS', 'admin', id, { isActive });
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'TOGGLE_ADMIN_STATUS', 'admin', id, { isActive });
         res.json({ success: true, data: updatedAdmin });
     }
     catch (err) {
@@ -114,7 +114,7 @@ router.delete('/:id', async (req, res, next) => {
         if (result.rows.length === 0) {
             return res.status(404).json({ success: false, message: 'Admin not found' });
         }
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'DELETE_ADMIN', 'admin', id);
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'DELETE_ADMIN', 'admin', id);
         res.json({ success: true, message: 'Admin deleted successfully' });
     }
     catch (err) {
@@ -132,7 +132,7 @@ router.post('/:id/reset-password', async (req, res, next) => {
         const tempPassword = newPassword || (Math.random().toString(36).slice(-10) + 'A@1');
         const passwordHash = await bcryptjs_1.default.hash(tempPassword, 10);
         await db_1.default.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [passwordHash, id]);
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'RESET_ADMIN_PASSWORD', 'admin', id);
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'RESET_ADMIN_PASSWORD', 'admin', id);
         res.json({
             success: true,
             message: 'Password reset successfully.',

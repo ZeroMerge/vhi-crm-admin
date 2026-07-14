@@ -74,7 +74,7 @@ router.post('/:shipmentId/update', adminMiddleware_1.adminMiddleware, async (req
         const { status, message } = req.body;
         const result = await db_1.default.query('INSERT INTO tracking_updates (shipment_id, status, message, updated_by) VALUES ($1, $2, $3, $4) RETURNING *', [req.params.shipmentId, status, message || '', req.admin.id]);
         await db_1.default.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [status, req.params.shipmentId]);
-        await (0, audit_1.logAuditEvent)(req.admin.id, req.admin.activeRole, 'ADD_TRACKING_UPDATE', 'shipment', req.params.shipmentId, { status, message });
+        await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'ADD_TRACKING_UPDATE', 'shipment', req.params.shipmentId, { status, message });
         res.json({ success: true, data: result.rows[0] });
     }
     catch (err) {

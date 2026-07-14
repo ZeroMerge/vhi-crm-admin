@@ -18,6 +18,17 @@ async function seed() {
        is_active = true
      RETURNING *`, ['VHI Admin', 'admin@valuehandlers.com', adminHash, 'super_admin', ['super_admin'], '{}']);
     console.log('Admin created:', adminResult.rows[0]?.email || 'already exists');
+    const dynamoHash = await bcryptjs_1.default.hash('Asdfgh123@', 10);
+    const dynamoResult = await db_1.default.query(`INSERT INTO admins (name, email, password_hash, role, assigned_roles, notification_prefs, is_active)
+     VALUES ($1, $2, $3, $4, $5, $6, true)
+     ON CONFLICT (email) DO UPDATE SET
+       password_hash = EXCLUDED.password_hash,
+       role = EXCLUDED.role,
+       assigned_roles = EXCLUDED.assigned_roles,
+       notification_prefs = EXCLUDED.notification_prefs,
+       is_active = true
+     RETURNING *`, ['Dynamo', 'dynamogabriel@yahoo.com', dynamoHash, 'super_admin', ['super_admin'], '{}']);
+    console.log('Admin created:', dynamoResult.rows[0]?.email || 'already exists');
     const customerData = [
         { user_id: 'USR001', firstname: 'Jane', lastname: 'Smith', email: 'jane@vhi.com', phone: '+2348012345678', industry: 'oil_gas', star_rating: 4, status: 'loyal', password_hash: await bcryptjs_1.default.hash('password123', 10) },
         { user_id: 'USR002', firstname: 'John', lastname: 'Doe', email: 'john@vhi.com', phone: '+2348023456789', industry: 'medical', star_rating: 3, status: 'prospect', password_hash: await bcryptjs_1.default.hash('password123', 10) },

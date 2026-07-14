@@ -5,22 +5,20 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.logAuditEvent = logAuditEvent;
 const db_1 = __importDefault(require("../config/db"));
-async function logAuditEvent(adminId, activeRole, action, resourceType, resourceId, metadata) {
+async function logAuditEvent(actorId, actorType, activeRole, action, resourceType, resourceId, metadata) {
     try {
-        const queryText = `
-      INSERT INTO audit_logs (admin_id, active_role, action, resource_type, resource_id, metadata)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id;
-    `;
-        const params = [
-            adminId,
+        await db_1.default.query(`INSERT INTO audit_logs
+         (admin_id, customer_id, actor_type, active_role, action, resource_type, resource_id, metadata)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, [
+            actorType === 'admin' ? actorId : null,
+            actorType === 'customer' ? actorId : null,
+            actorType,
             activeRole,
             action,
             resourceType,
             resourceId || null,
-            metadata ? JSON.stringify(metadata) : '{}'
-        ];
-        await db_1.default.query(queryText, params);
+            metadata ? JSON.stringify(metadata) : '{}',
+        ]);
     }
     catch (err) {
         console.error('Failed to log audit event:', err);

@@ -36,6 +36,15 @@ const DELIVERY_MODES = [
   { value: 'airport_pickup',   label: 'Airport Pickup'   },
 ];
 
+const PORT_OPTIONS = [
+  { value: 'LAGOS AIRPORT (MMIA)', label: 'LAGOS AIRPORT (MMIA)' },
+  { value: 'Apapa Port',           label: 'Apapa Port'           },
+  { value: 'TinCan Island Port',   label: 'TinCan Island Port'   },
+  { value: 'Lekki Deep Seaport',   label: 'Lekki Deep Seaport'   },
+  { value: 'Portharcourt Airport', label: 'Portharcourt Airport' },
+  { value: 'Onne Port',            label: 'Onne Port'            },
+];
+
 const WEIGHT_UNITS = [
   { value: 'kg',  label: 'KG'  },
   { value: 'lbs', label: 'LBS' },
@@ -443,11 +452,11 @@ export default function ComposeShipment() {
             </Field>
 
             <Field label="Port of Discharge">
-              <input
-                className="input"
-                placeholder="e.g. Apapa Port, Tin Can Island"
+              <CustomSelect
+                options={PORT_OPTIONS}
                 value={form.portOfDischarge}
-                onChange={(e) => set('portOfDischarge', e.target.value)}
+                onChange={(val) => set('portOfDischarge', val)}
+                placeholder="Select port..."
               />
             </Field>
           </div>
