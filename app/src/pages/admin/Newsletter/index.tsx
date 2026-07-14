@@ -30,7 +30,6 @@ export default function Newsletter() {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [history, setHistory] = useState<{ id: string; subject: string; segment: string; recipientCount: number; sentAt: string }[]>([]);
 
   useEffect(() => {
     let active = true;
@@ -97,7 +96,6 @@ export default function Newsletter() {
           };
 
           setSegments([allSegment, ...mappedSegments.filter(s => s.count > 0)]);
-          setHistory(historyRes);
         }
       } catch (err) {
         if (active) setError('Failed to load audience segments');
