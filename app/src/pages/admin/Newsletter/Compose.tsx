@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Users } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
@@ -32,6 +32,28 @@ export default function ComposeNewsletter() {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [recipientCount, setRecipientCount] = useState(0);
+  const [isCounting, setIsCounting] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const fetchCount = async () => {
+      setIsCounting(true);
+      try {
+        const count = await newsletterService.previewCount({
+          segments: selectedSegments,
+          status: selectedStatus,
+        });
+        if (active) setRecipientCount(count);
+      } catch (err) {
+        console.error('Failed to preview count', err);
+      } finally {
+        if (active) setIsCounting(false);
+      }
+    };
+    fetchCount();
+    return () => { active = false; };
+  }, [selectedSegments, selectedStatus]);
 
   const handleSend = async () => {
     if (!subject || !body) return;
@@ -78,8 +100,6 @@ export default function ComposeNewsletter() {
       return [...filtered, value];
     });
   };
-
-  const recipientCount = selectedSegments.includes('all') ? 156 : selectedSegments.length * 20;
 
   return (
     <PageWrapper title="Compose Newsletter">
@@ -198,7 +218,9 @@ export default function ComposeNewsletter() {
               <Users size={20} color="var(--color-primary)" />
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Recipients</div>
-                <div style={{ fontWeight: 600, fontSize: 'var(--font-size-lg)' }}>{recipientCount.toLocaleString()}</div>
+                <div style={{ fontWeight: 600, fontSize: 'var(--font-size-lg)' }}>
+                  {isCounting ? 'Loading...' : recipientCount.toLocaleString()}
+                </div>
               </div>
             </div>
 

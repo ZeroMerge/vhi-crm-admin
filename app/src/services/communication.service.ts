@@ -39,6 +39,10 @@ export const newsletterService = {
   removeFromSegment: async (customerId: string): Promise<void> => {
     await api.delete('/api/admin/newsletter/segments/remove', { data: { customerId } });
   },
+  previewCount: async (data: { segments: string[]; status?: string }): Promise<number> => {
+    const res = await api.post<{ success: boolean; count: number }>('/api/admin/newsletter/preview-count', data);
+    return res.data.count;
+  },
   send: async (data: { subject: string; body: string; segments: string[]; status?: string }): Promise<void> => {
     await api.post('/api/admin/newsletter/send', data);
   },

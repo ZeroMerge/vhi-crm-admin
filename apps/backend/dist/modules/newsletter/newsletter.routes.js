@@ -38,6 +38,35 @@ router.delete('/segments/remove', adminMiddleware_1.adminMiddleware, async (req,
         next(err);
     }
 });
+router.post('/preview-count', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
+    try {
+        const { segments, status } = req.body;
+        let query = 'SELECT COUNT(*) as count FROM customers WHERE 1=1';
+        const params = [];
+        let paramIdx = 1;
+        if (!segments.includes('all')) {
+            query += ` AND industry = ANY($${paramIdx})`;
+            params.push(segments);
+            paramIdx++;
+        }
+        if (status && status !== 'all') {
+            if (status === 'NULL') {
+                query += ` AND status IS NULL`;
+            }
+            else {
+                query += ` AND status = $${paramIdx}`;
+                params.push(status);
+                paramIdx++;
+            }
+        }
+        const result = await db_1.default.query(query, params);
+        const count = parseInt(result.rows[0].count, 10);
+        res.json({ success: true, count });
+    }
+    catch (err) {
+        next(err);
+    }
+});
 router.post('/send', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { subject, body, segments, status } = req.body;
