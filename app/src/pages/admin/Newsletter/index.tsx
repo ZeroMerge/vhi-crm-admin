@@ -15,8 +15,7 @@ interface Segment {
 
 const INDUSTRY_CONFIG: Record<string, { label: string; color: string }> = {
   oil_gas: { label: 'Oil & Gas', color: '#1565C0' },
-  medical: { label: 'Medical', color: '#E91E63' },
-  pharma: { label: 'Pharmaceutical', color: '#9C27B0' },
+  medical_pharma: { label: 'Medical & Pharma', color: '#E91E63' },
   agricultural: { label: 'Agricultural', color: '#2E7D32' },
   manufacturing: { label: 'Manufacturing', color: '#E65100' },
   mining: { label: 'Mining & Construction', color: '#607D8B' },

@@ -16,18 +16,21 @@ const customerStatuses = [
 
 const industries = [
   { value: 'oil_gas', label: 'Oil & Gas' },
-  { value: 'medical', label: 'Medical' },
-  { value: 'pharma', label: 'Pharmaceutical' },
+  { value: 'medical_pharma', label: 'Medical & Pharma' },
   { value: 'agricultural', label: 'Agricultural' },
   { value: 'manufacturing', label: 'Manufacturing' },
   { value: 'mining', label: 'Mining & Construction' },
+  { value: 'fmcg', label: 'FMCG' },
+  { value: 'ecommerce', label: 'E-commerce' },
   { value: 'others', label: 'Others' },
 ];
 
 export default function ComposeNewsletter() {
   const navigate = useNavigate();
   const { addNotification } = useNotificationStore();
-  const [selectedSegments, setSelectedSegments] = useState<string[]>(['all']);
+  const queryParams = new URLSearchParams(window.location.search);
+  const initialSegment = queryParams.get('segment') || 'all';
+  const [selectedSegments, setSelectedSegments] = useState<string[]>([initialSegment]);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
