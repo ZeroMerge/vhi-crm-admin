@@ -1,3 +1,5 @@
+@tailwind utilities;
+@tailwind components;
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import './tokens.css';
 
@@ -1810,3 +1812,4 @@ input[type="checkbox"]:checked::after {
   outline: 2px solid var(--color-primary) !important;
   outline-offset: 2px;
 }
+
