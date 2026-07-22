@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Upload, Download, Trash2, Clock, Package, MapPin } from 'lucide-react';
+import { ArrowLeft, Upload, Download, Trash2, Clock, Package, MapPin, Plus, FileText } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
@@ -28,6 +28,10 @@ export default function ShipmentDetail() {
   const [bolNumber, setBolNumber] = useState('');
   const [uniqueId, setUniqueId] = useState('');
 
+  const isFinanceOrAdmin = admin?.activeRole === 'finance_officer' || admin?.activeRole === 'super_admin';
+  const [breakdownItems, setBreakdownItems] = useState<{ id: string; desc: string; amount: number }[]>([]);
+  const [newDesc, setNewDesc] = useState('');
+  const [newAmount, setNewAmount] = useState('');
   useEffect(() => {
     if (!id) return;
     let active = true;
@@ -72,6 +76,48 @@ export default function ShipmentDetail() {
     } catch (err) {
       console.error('Failed to update tracking', err);
     }
+  };
+
+  const breakdownTotal = breakdownItems.reduce((acc, item) => acc + item.amount, 0);
+
+  const handleAddBreakdownItem = () => {
+    const amt = parseFloat(newAmount);
+    if (!newDesc.trim() || isNaN(amt) || amt <= 0) return;
+    if (breakdownTotal + amt > (shipment?.invoiceValue || 0)) {
+      alert('Total breakdown cannot exceed the invoice value.');
+      return;
+    }
+    setBreakdownItems([...breakdownItems, { id: Date.now().toString(), desc: newDesc.trim(), amount: amt }]);
+    setNewDesc('');
+    setNewAmount('');
+  };
+
+  const handleRemoveBreakdownItem = (id: string) => {
+    setBreakdownItems(breakdownItems.filter(item => item.id !== id));
+  };
+
+  const handleDownloadBreakdown = () => {
+    if (!shipment) return;
+    const lines = [
+      'FINANCIAL BREAKDOWN',
+      `Order ID: ${shipment.orderId}`,
+      `Invoice Total: ${formatCurrency(shipment.invoiceValue, shipment.invoiceCurrency)}`,
+      '----------------------------------------'
+    ];
+    breakdownItems.forEach(item => {
+      lines.push(`${item.desc}: ${formatCurrency(item.amount, shipment.invoiceCurrency)}`);
+    });
+    lines.push('----------------------------------------');
+    lines.push(`Total Breakdown: ${formatCurrency(breakdownTotal, shipment.invoiceCurrency)}`);
+    lines.push(`Remaining Unallocated: ${formatCurrency((shipment.invoiceValue || 0) - breakdownTotal, shipment.invoiceCurrency)}`);
+    
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `breakdown-${shipment.orderId}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -243,6 +289,88 @@ export default function ShipmentDetail() {
               </div>
             )}
           </div>
+
+          {isFinanceOrAdmin && (
+            <div className="card">
+              <div className="card-header">
+                <h3 className="card-title">Financial Breakdown</h3>
+                {(shipment.invoiceValue || 0) > 0 && breakdownItems.length > 0 && (
+                  <button className="btn btn-outline btn-sm" onClick={handleDownloadBreakdown}>
+                    <FileText size={14} />
+                    Download
+                  </button>
+                )}
+              </div>
+              
+              {!shipment.invoiceValue || shipment.invoiceValue <= 0 ? (
+                <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+                  No invoice value is set for this shipment. A breakdown cannot be performed.
+                </div>
+              ) : (
+                <>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 'var(--font-size-sm)' }}>
+                      <span style={{ color: 'var(--color-text-muted)' }}>Invoice Total:</span>
+                      <span style={{ fontWeight: 600 }}>{formatCurrency(shipment.invoiceValue, shipment.invoiceCurrency)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 'var(--font-size-sm)' }}>
+                      <span style={{ color: 'var(--color-text-muted)' }}>Breakdown Total:</span>
+                      <span style={{ fontWeight: 600, color: breakdownTotal > shipment.invoiceValue ? 'var(--color-status-failed-text)' : 'var(--color-text)' }}>
+                        {formatCurrency(breakdownTotal, shipment.invoiceCurrency)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)' }}>
+                      <span style={{ color: 'var(--color-text-muted)' }}>Unallocated:</span>
+                      <span style={{ fontWeight: 600, color: 'var(--color-status-success-text)' }}>
+                        {formatCurrency(shipment.invoiceValue - breakdownTotal, shipment.invoiceCurrency)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                    {breakdownItems.map(item => (
+                      <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--color-surface)', borderRadius: 'var(--border-radius-sm)', border: '1px solid var(--color-border)' }}>
+                        <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{item.desc}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span style={{ fontSize: 'var(--font-size-sm)' }}>{formatCurrency(item.amount, shipment.invoiceCurrency)}</span>
+                          <button className="btn btn-icon btn-ghost" onClick={() => handleRemoveBreakdownItem(item.id)} style={{ color: 'var(--color-status-failed-text)' }}>
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {breakdownItems.length === 0 && (
+                      <div style={{ textAlign: 'center', padding: '16px', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)', fontStyle: 'italic' }}>
+                        No breakdown items added yet.
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <input 
+                      className="input" 
+                      placeholder="Description (e.g. Doorstep Delivery)" 
+                      value={newDesc}
+                      onChange={(e) => setNewDesc(e.target.value)}
+                      style={{ flex: 2 }}
+                    />
+                    <input 
+                      type="number"
+                      className="input" 
+                      placeholder="Amount" 
+                      value={newAmount}
+                      onChange={(e) => setNewAmount(e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    <button className="btn btn-primary" onClick={handleAddBreakdownItem} disabled={!newDesc.trim() || !newAmount}>
+                      <Plus size={16} />
+                      Add
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Column */}

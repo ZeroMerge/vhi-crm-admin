@@ -20,6 +20,7 @@ export const rolePermissions: Record<AdminRole, string[]> = {
   ],
   finance_officer: [
     'customers',
+    'shipments',
     'invoices',
     'payments',
     'reports',
