@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Send, Plus, MessageSquare, Trash2 } from "lucide-react";
+import './ChatInterface.css';
 
 export interface Message {
   id: string;
@@ -71,65 +71,60 @@ export function ChatInterface(props: ChatInterfaceProps) {
   };
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] overflow-hidden rounded-lg border bg-white">
+    <div className="chat-container">
       {/* Left Panel — Conversation History */}
-      <div className="flex w-72 shrink-0 flex-col border-r bg-gray-50">
-        <div className="border-b bg-white p-3">
+      <div className="chat-sidebar">
+        <div className="chat-sidebar-header">
           <Button
             variant="default"
-            className="w-full justify-start gap-2 bg-primary"
+            style={{ width: '100%', justifyContent: 'flex-start', gap: '0.5rem' }}
             onClick={onNewConversation}
           >
-            <Plus className="h-4 w-4" />
+            <Plus style={{ height: '1rem', width: '1rem' }} />
             New conversation
           </Button>
         </div>
 
-        <div className="border-b bg-white px-3 pb-3 pt-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <div className="chat-sidebar-search">
+          <div className="chat-search-input-wrapper">
+            <Search className="chat-search-icon" />
             <Input
               placeholder="Search conversations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9 text-sm"
+              style={{ paddingLeft: '2.25rem', height: '2.25rem', fontSize: 'var(--font-size-sm)' }}
             />
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="chat-sidebar-list">
           {filteredConversations.length === 0 ? (
-            <div className="flex items-center justify-center h-24 text-xs text-gray-400 px-3 text-center">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '6rem', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', padding: '0 0.75rem', textAlign: 'center' }}>
               No conversations found
             </div>
           ) : (
             filteredConversations.map((conv) => (
               <div
                 key={conv.id}
-                className={cn(
-                  "group flex cursor-pointer items-start gap-2 border-b px-3 py-3 transition-colors hover:bg-white",
-                  selectedConversationId === conv.id
-                    ? "bg-white border-l-2 border-l-primary"
-                    : "border-l-2 border-l-transparent",
-                )}
+                className={`chat-sidebar-item ${selectedConversationId === conv.id ? 'chat-sidebar-item-active' : ''}`}
                 onClick={() => onSelectConversation(conv.id)}
               >
-                <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className={cn("truncate text-sm", conv.unread ? "font-semibold" : "font-medium")}>
+                <MessageSquare style={{ marginTop: '0.125rem', height: '1rem', width: '1rem', flexShrink: 0, color: 'var(--color-text-muted)' }} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'var(--font-size-sm)', fontWeight: conv.unread ? 600 : 500 }}>
                       {conv.title}
                     </span>
-                    <span className="shrink-0 text-xs text-gray-400">{conv.timestamp}</span>
+                    <span style={{ flexShrink: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{conv.timestamp}</span>
                   </div>
-                  <p className="mt-0.5 truncate text-xs text-gray-400">{conv.lastMessage}</p>
+                  <p style={{ marginTop: '0.125rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{conv.lastMessage}</p>
                 </div>
                 {onDeleteConversation && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onDeleteConversation(conv.id); }}
-                    className="shrink-0 rounded p-1 text-gray-300 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
+                    className="chat-sidebar-item-delete"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 style={{ height: '0.875rem', width: '0.875rem' }} />
                   </button>
                 )}
               </div>
@@ -139,22 +134,22 @@ export function ChatInterface(props: ChatInterfaceProps) {
       </div>
 
       {/* Right Panel — Chat */}
-      <div className="flex flex-1 flex-col">
+      <div className="chat-main">
         {selectedConv ? (
           <>
             {/* Header */}
-            <div className="flex items-center border-b px-4 py-3">
-              <h2 className="text-sm font-semibold">{selectedConv.title}</h2>
+            <div className="chat-main-header">
+              <h2 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>{selectedConv.title}</h2>
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+            <div className="chat-main-messages">
               {loading ? (
-                <div className="flex items-center justify-center h-full text-sm text-gray-400">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
                   Loading messages...
                 </div>
               ) : messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-sm text-gray-400">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
                   Start a conversation
                 </div>
               ) : (
@@ -163,25 +158,11 @@ export function ChatInterface(props: ChatInterfaceProps) {
                   return (
                     <div
                       key={msg.id}
-                      className={cn("flex", isUser ? "justify-end" : "justify-start")}
+                      className={`chat-message-row ${isUser ? 'user' : 'assistant'}`}
                     >
-                      <div
-                        className={cn(
-                          "max-w-[75%] rounded-2xl px-4 py-2.5 text-sm",
-                          isUser
-                            ? "bg-primary text-primary-foreground rounded-br-md"
-                            : msg.role === "system"
-                              ? "bg-yellow-50 text-yellow-800 border border-yellow-200"
-                              : "bg-gray-100 text-gray-900 rounded-bl-md",
-                        )}
-                      >
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
-                        <p
-                          className={cn(
-                            "mt-1 text-right text-xs",
-                            isUser ? "text-primary-foreground/60" : "text-gray-400",
-                          )}
-                        >
+                      <div className={`chat-message-bubble ${msg.role}`}>
+                        <p style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
+                        <p className={`chat-message-time ${msg.role}`}>
                           {msg.timestamp}
                         </p>
                       </div>
@@ -193,31 +174,30 @@ export function ChatInterface(props: ChatInterfaceProps) {
             </div>
 
             {/* Input */}
-            <div className="border-t px-4 py-3">
-              <div className="flex items-center gap-2">
+            <div className="chat-main-input-area">
+              <div className="chat-main-input-wrapper">
                 <Input
                   placeholder="Type a message..."
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  className="h-10 flex-1"
+                  style={{ height: '2.5rem', flex: 1 }}
                 />
                 <Button
-                  size="icon"
-                  className="h-10 w-10 shrink-0 bg-primary"
+                  style={{ height: '2.5rem', width: '2.5rem', flexShrink: 0 }}
                   onClick={handleSend}
                   disabled={!input.trim()}
                 >
-                  <Send className="h-4 w-4" />
+                  <Send style={{ height: '1rem', width: '1rem' }} />
                 </Button>
               </div>
             </div>
           </>
         ) : (
-          <div className="flex flex-1 items-center justify-center">
-            <div className="text-center">
-              <MessageSquare className="mx-auto h-12 w-12 text-gray-300" />
-              <p className="mt-2 text-sm text-gray-400">Select a conversation or start a new one</p>
+          <div className="chat-empty-state">
+            <div>
+              <MessageSquare style={{ margin: '0 auto', height: '3rem', width: '3rem', color: 'var(--color-text-muted)', opacity: 0.5 }} />
+              <p style={{ marginTop: '0.5rem', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>Select a conversation or start a new one</p>
             </div>
           </div>
         )}
