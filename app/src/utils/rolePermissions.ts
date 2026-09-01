@@ -40,15 +40,15 @@ export const rolePermissions: Record<AdminRole, string[]> = {
   ],
 };
 
-export function hasModuleAccess(role: AdminRole | undefined | null, moduleName: string): boolean {
+export function hasModuleAccess(role: AdminRole | string | undefined | null, moduleName: string): boolean {
   if (!role) return false;
-  const allowed = rolePermissions[role];
+  const allowed = rolePermissions[role as AdminRole];
   if (!allowed) return false;
   if (allowed.includes('*')) return true;
   return allowed.includes(moduleName);
 }
 
-export function getDefaultRouteForRole(role: AdminRole | undefined | null): string {
+export function getDefaultRouteForRole(role: AdminRole | string | undefined | null): string {
   if (!role) return '/admin/login';
   switch (role) {
     case 'super_admin':
@@ -59,10 +59,9 @@ export function getDefaultRouteForRole(role: AdminRole | undefined | null): stri
     case 'finance_officer':
       return '/admin/invoices';
     case 'crm_officer':
-      return '/admin/customers';
     case 'support_staff':
       return '/admin/customers';
     default:
-      return '/admin';
+      return '/admin/customers';
   }
 }

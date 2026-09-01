@@ -27,7 +27,7 @@ async function seedDatabase() {
     await client.query('DELETE FROM shipments');
     await client.query('DELETE FROM email_verification_tokens');
     await client.query('DELETE FROM customers');
-    await client.query(`DELETE FROM admins WHERE email NOT IN ('admin@valuehandlers.com', 'dynamogabriel@yahoo.com')`);
+    await client.query(`DELETE FROM admins`);
 
     // ----------------------------------------------------
     // 2. SEED ADMINS & OPERATIONAL TEAM
@@ -37,14 +37,12 @@ async function seedDatabase() {
     const dynamoPasswordHash = await bcrypt.hash('Asdfgh123@', 10);
 
     const adminStaff = [
-      { name: 'Super Admin', email: 'admin@valuehandlers.com', role: 'super_admin', assignedRoles: ['super_admin'], hash: defaultPasswordHash },
+      { name: 'Super Admin', email: 'admin@valuehandlers.com', role: 'super_admin', assignedRoles: ['super_admin', 'manager'], hash: defaultPasswordHash },
       { name: 'Dynamo Gabriel', email: 'dynamogabriel@yahoo.com', role: 'super_admin', assignedRoles: ['super_admin'], hash: dynamoPasswordHash },
-      { name: 'Tunde Bakare', email: 'ops.lead@valuehandlers.com', role: 'manager', assignedRoles: ['manager', 'operations_manager'], hash: defaultPasswordHash },
-      { name: 'Chukwuma Eze', email: 'logistics.hub@valuehandlers.com', role: 'staff', assignedRoles: ['logistics_officer', 'operations_manager'], hash: defaultPasswordHash },
-      { name: 'Amina Yusuf', email: 'finance.desk@valuehandlers.com', role: 'staff', assignedRoles: ['finance_officer', 'account_officer'], hash: defaultPasswordHash },
-      { name: 'Femi Oladipo', email: 'accounts@valuehandlers.com', role: 'staff', assignedRoles: ['account_officer'], hash: defaultPasswordHash },
-      { name: 'Blessing Okon', email: 'crm.team@valuehandlers.com', role: 'staff', assignedRoles: ['crm_officer', 'sales_officer'], hash: defaultPasswordHash },
-      { name: 'Ngozi Adebayo', email: 'sales.lead@valuehandlers.com', role: 'staff', assignedRoles: ['sales_officer'], hash: defaultPasswordHash },
+      { name: 'Tunde Bakare', email: 'ops.lead@valuehandlers.com', role: 'manager', assignedRoles: ['manager', 'logistics_officer'], hash: defaultPasswordHash },
+      { name: 'Chukwuma Eze', email: 'logistics.hub@valuehandlers.com', role: 'staff', assignedRoles: ['logistics_officer'], hash: defaultPasswordHash },
+      { name: 'Amina Yusuf', email: 'finance.desk@valuehandlers.com', role: 'staff', assignedRoles: ['finance_officer'], hash: defaultPasswordHash },
+      { name: 'Blessing Okon', email: 'crm.team@valuehandlers.com', role: 'staff', assignedRoles: ['crm_officer'], hash: defaultPasswordHash },
       { name: 'Ibrahim Musa', email: 'support.agent1@valuehandlers.com', role: 'staff', assignedRoles: ['support_staff'], hash: defaultPasswordHash },
       { name: 'Kelechi Nwosu', email: 'support.agent2@valuehandlers.com', role: 'staff', assignedRoles: ['support_staff'], hash: defaultPasswordHash }
     ];
