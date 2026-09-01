@@ -6,6 +6,7 @@ import { customerMiddleware } from '../../middleware/customerMiddleware';
 import { logAuditEvent } from '../../utils/audit';
 import { generateOrderId } from '../../utils/generateOrderId';
 import { uploadToCloudinary } from '../../utils/uploadToCloudinary';
+import { mapShipment } from '../shipments/shipments.routes';
 
 const router = Router();
 
@@ -58,7 +59,7 @@ router.get('/', customerMiddleware, async (req, res, next) => {
 
     res.json({
       success: true,
-      data: result.rows,
+      data: result.rows.map(mapShipment),
       pagination: {
         total,
         page: pageNum,
@@ -194,7 +195,7 @@ router.post(
       await logAuditEvent(customerId, 'customer', null, 'CREATE_SHIPMENT', 'shipment', shipment.id, { orderId });
 
       // Step 10: Return 201
-      res.status(201).json({ success: true, data: shipment });
+      res.status(201).json({ success: true, data: mapShipment(shipment) });
     } catch (err) {
       await client.query('ROLLBACK');
       next(err);
