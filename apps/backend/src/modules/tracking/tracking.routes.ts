@@ -2,6 +2,7 @@ import { Router } from 'express';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { logAuditEvent } from '../../utils/audit';
+import { mapShipment } from '../shipments/shipments.routes';
 
 const router = Router();
 
@@ -10,7 +11,7 @@ router.get('/', adminMiddleware, async (req, res, next) => {
   try {
     const { search, filter, mode } = req.query;
     let sql = `
-      SELECT s.*, c.firstname, c.lastname 
+      SELECT s.*, c.firstname, c.lastname, c.email, c.phone, c.industry 
       FROM shipments s 
       LEFT JOIN customers c ON s.customer_id = c.id 
       WHERE s.status NOT IN ('draft', 'cancelled')
@@ -50,7 +51,7 @@ router.get('/', adminMiddleware, async (req, res, next) => {
     sql += ' ORDER BY s.created_at DESC';
 
     const result = await pool.query(sql, params);
-    res.json({ success: true, data: result.rows });
+    res.json({ success: true, data: result.rows.map(mapShipment) });
   } catch (err) { next(err); }
 });
 
@@ -58,13 +59,13 @@ router.get('/', adminMiddleware, async (req, res, next) => {
 router.get('/pending', adminMiddleware, async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT s.*, c.firstname, c.lastname FROM shipments s 
+      `SELECT s.*, c.firstname, c.lastname, c.email, c.phone, c.industry FROM shipments s 
        LEFT JOIN customers c ON s.customer_id = c.id 
        WHERE s.awb_number IS NULL AND s.bol_number IS NULL AND s.unique_id IS NULL 
        AND s.status NOT IN ('draft', 'cancelled') 
        ORDER BY s.created_at DESC`
     );
-    res.json({ success: true, data: result.rows });
+    res.json({ success: true, data: result.rows.map(mapShipment) });
   } catch (err) { next(err); }
 });
 
