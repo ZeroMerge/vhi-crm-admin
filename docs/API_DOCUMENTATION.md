@@ -4,9 +4,11 @@
 > **Protocol:** REST over HTTPS  
 > **Data Format:** JSON (`application/json`)  
 > **Base URLs:**
-> - Admin API: `http://localhost:5000/api/admin`
-> - Client API: `http://localhost:5000/api/client`
-> - Public API: `http://localhost:5000/api`
+> - Admin API: `http://localhost:5001/api/admin`
+> - Client API: `http://localhost:5001/api/client`
+> - Public API: `http://localhost:5001/api`
+> 
+> 💡 **Client Frontend Developers:** See [CLIENT_API_DOCUMENTATION.md](./CLIENT_API_DOCUMENTATION.md) for the simplified, copy-paste ready client portal guide.
 
 ---
 
