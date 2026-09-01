@@ -11,10 +11,10 @@ import type { AdminUser } from '@/services/admin-management.service';
 
 const ALL_ROLES = [
   { value: 'super_admin', label: 'Super Admin', color: '#7B2D8B' },
-  { value: 'executive', label: 'Executive', color: '#1565C0' },
-  { value: 'operations_manager', label: 'Operations Manager', color: '#2E7D32' },
-  { value: 'account_officer', label: 'Account Officer', color: '#00838F' },
-  { value: 'sales_officer', label: 'Sales Officer', color: '#E65100' },
+  { value: 'manager', label: 'Manager', color: '#1565C0' },
+  { value: 'logistics_officer', label: 'Logistics Officer', color: '#2E7D32' },
+  { value: 'finance_officer', label: 'Finance Officer', color: '#00838F' },
+  { value: 'crm_officer', label: 'CRM Officer', color: '#E65100' },
   { value: 'support_staff', label: 'Support Staff', color: '#C62828' }
 ];
 

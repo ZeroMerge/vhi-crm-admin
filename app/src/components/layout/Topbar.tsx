@@ -9,7 +9,7 @@ import { formatShortDate } from '@/utils/formatDate';
 import type { AdminRole } from '@/types';
 import api from '@/services/api';
 import { useUIStore } from '@/store/uiStore';
-import { getDefaultRouteForRole } from '@/utils/rolePermissions';
+import { getDefaultRouteForRole, hasModuleAccess } from '@/utils/rolePermissions';
 
 
 const roleLabels: Record<AdminRole, string> = {
@@ -488,55 +488,57 @@ export function Topbar() {
                 </div>
               </div>
 
-              <div style={{ padding: '8px' }}>
-                <button
-                  onClick={() => handleDropdownNavigate('/admin/settings?tab=profile')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '8px 12px',
-                    width: '100%',
-                    border: 'none',
-                    background: 'none',
-                    cursor: 'pointer',
-                    fontSize: 'var(--font-size-sm)',
-                    color: 'var(--color-text-secondary)',
-                    textAlign: 'left',
-                    borderRadius: '6px',
-                    transition: 'background 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-hover, #f3f4f6)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <User size={16} />
-                  My Profile
-                </button>
-                <button
-                  onClick={() => handleDropdownNavigate('/admin/settings?tab=account')}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '8px 12px',
-                    width: '100%',
-                    border: 'none',
-                    background: 'none',
-                    cursor: 'pointer',
-                    fontSize: 'var(--font-size-sm)',
-                    color: 'var(--color-text-secondary)',
-                    textAlign: 'left',
-                    borderRadius: '6px',
-                    transition: 'background 0.15s ease',
-                    marginTop: '2px',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-hover, #f3f4f6)'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <Settings size={16} />
-                  Account Settings
-                </button>
-              </div>
+              {hasModuleAccess(admin?.activeRole, 'settings') && (
+                <div style={{ padding: '8px' }}>
+                  <button
+                    onClick={() => handleDropdownNavigate('/admin/settings?tab=profile')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 12px',
+                      width: '100%',
+                      border: 'none',
+                      background: 'none',
+                      cursor: 'pointer',
+                      fontSize: 'var(--font-size-sm)',
+                      color: 'var(--color-text-secondary)',
+                      textAlign: 'left',
+                      borderRadius: '6px',
+                      transition: 'background 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-hover, #f3f4f6)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <User size={16} />
+                    My Profile
+                  </button>
+                  <button
+                    onClick={() => handleDropdownNavigate('/admin/settings?tab=account')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '8px 12px',
+                      width: '100%',
+                      border: 'none',
+                      background: 'none',
+                      cursor: 'pointer',
+                      fontSize: 'var(--font-size-sm)',
+                      color: 'var(--color-text-secondary)',
+                      textAlign: 'left',
+                      borderRadius: '6px',
+                      transition: 'background 0.15s ease',
+                      marginTop: '2px',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface-hover, #f3f4f6)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <Settings size={16} />
+                    Account Settings
+                  </button>
+                </div>
+              )}
               
               {/* Role Switcher - Only shown when user has multiple valid assigned roles */}
               {(() => {
