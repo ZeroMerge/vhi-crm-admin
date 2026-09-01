@@ -537,49 +537,59 @@ export function Topbar() {
                 </button>
               </div>
               
-              <div style={{ height: 1, background: 'var(--color-border)', margin: '0' }} />
-              
-              {/* Role Switcher for Testing */}
-              <div style={{ padding: '12px 16px 4px', fontSize: '10px', textTransform: 'uppercase', color: 'var(--color-text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>Switch Role (Test)</div>
-              <div style={{ padding: '4px 8px' }}>
-                {Object.keys(roleLabels).map((role) => (
-                  <button
-                    key={role}
-                    onClick={() => {
-                      const state = useAuthStore.getState();
-                      if (state.admin) {
-                        state.setAdmin({ ...state.admin, activeRole: role as AdminRole });
-                      }
-                      setShowProfile(false);
-                      // Reload to reset state depending on role
-                      window.location.href = '/admin';
-                    }}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '8px 12px',
-                      width: '100%',
-                      border: 'none',
-                      background: admin?.activeRole === role ? 'var(--color-primary-light)' : 'none',
-                      cursor: 'pointer',
-                      fontSize: 'var(--font-size-sm)',
-                      color: admin?.activeRole === role ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                      fontWeight: admin?.activeRole === role ? 600 : 400,
-                      textAlign: 'left',
-                      borderRadius: '6px',
-                      transition: 'background 0.15s ease',
-                      marginTop: '2px',
-                    }}
-                    onMouseEnter={(e) => { if (admin?.activeRole !== role) e.currentTarget.style.backgroundColor = 'var(--color-surface-hover, #f3f4f6)'; }}
-                    onMouseLeave={(e) => { if (admin?.activeRole !== role) e.currentTarget.style.backgroundColor = 'transparent'; }}
-                  >
-                    {roleLabels[role as AdminRole]}
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ height: 1, background: 'var(--color-border)', margin: '0' }} />
+              {/* Role Switcher - Only shown when user has multiple assigned roles */}
+              {admin?.assignedRoles && admin.assignedRoles.length > 1 && (
+                <>
+                  <div style={{ height: 1, background: 'var(--color-border)', margin: '0' }} />
+                  <div style={{ padding: '12px 16px 4px', fontSize: '10px', textTransform: 'uppercase', color: 'var(--color-text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>
+                    Switch Role
+                  </div>
+                  <div style={{ padding: '4px 8px' }}>
+                    {admin.assignedRoles.map((role) => (
+                      <button
+                        key={role}
+                        onClick={async () => {
+                          if (admin.activeRole === role) {
+                            setShowProfile(false);
+                            return;
+                          }
+                          try {
+                            const res = await authService.switchRole(role);
+                            const state = useAuthStore.getState();
+                            if (res.token) state.setToken(res.token);
+                            if (res.admin) state.setAdmin(res.admin);
+                            setShowProfile(false);
+                            window.location.href = '/admin';
+                          } catch (err) {
+                            console.error('Failed to switch role:', err);
+                          }
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: '8px 12px',
+                          width: '100%',
+                          border: 'none',
+                          background: admin?.activeRole === role ? 'var(--color-primary-light)' : 'none',
+                          cursor: 'pointer',
+                          fontSize: 'var(--font-size-sm)',
+                          color: admin?.activeRole === role ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                          fontWeight: admin?.activeRole === role ? 600 : 400,
+                          textAlign: 'left',
+                          borderRadius: '6px',
+                          transition: 'background 0.15s ease',
+                          marginTop: '2px',
+                        }}
+                        onMouseEnter={(e) => { if (admin?.activeRole !== role) e.currentTarget.style.backgroundColor = 'var(--color-surface-hover, #f3f4f6)'; }}
+                        onMouseLeave={(e) => { if (admin?.activeRole !== role) e.currentTarget.style.backgroundColor = 'transparent'; }}
+                      >
+                        {roleLabels[role as AdminRole] || role}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
               
               <div style={{ padding: '8px' }}>
                 <button

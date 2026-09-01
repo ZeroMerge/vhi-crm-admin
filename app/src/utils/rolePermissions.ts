@@ -10,6 +10,7 @@ export const rolePermissions: Record<AdminRole, string[]> = {
     'invoices',
     'communications',
     'newsletter',
+    'audience_segmentation',
     'reports',
     'settings',
   ],
@@ -45,4 +46,23 @@ export function hasModuleAccess(role: AdminRole | undefined | null, moduleName: 
   if (!allowed) return false;
   if (allowed.includes('*')) return true;
   return allowed.includes(moduleName);
+}
+
+export function getDefaultRouteForRole(role: AdminRole | undefined | null): string {
+  if (!role) return '/admin/login';
+  switch (role) {
+    case 'super_admin':
+    case 'manager':
+      return '/admin';
+    case 'logistics_officer':
+      return '/admin/shipments';
+    case 'finance_officer':
+      return '/admin/invoices';
+    case 'crm_officer':
+      return '/admin/customers';
+    case 'support_staff':
+      return '/admin/customers';
+    default:
+      return '/admin';
+  }
 }

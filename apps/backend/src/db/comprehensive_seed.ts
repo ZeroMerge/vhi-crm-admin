@@ -146,7 +146,28 @@ async function seedDatabase() {
     // ----------------------------------------------------
     console.log('📦 Seeding 65 Realistic Shipments with Full Items...');
 
-    const shipmentBlueprints = [
+    interface ShipmentDef {
+      mode: string;
+      delivery: string;
+      status: string;
+      nature: string;
+      hsCode: string;
+      originAddr: string;
+      destAddr: string;
+      val: number;
+      curr: string;
+      wt: number;
+      awb: string | null;
+      bol: string | null;
+      uid: string | null;
+      originEmail: string;
+      destEmail: string;
+      originPhone: string;
+      destPhone: string;
+      items: Array<{ desc: string; cat: string; qty: number; wt: number; l: number; w: number; h: number }>;
+    }
+
+    const shipmentBlueprints: ShipmentDef[] = [
       // 1. High-value Air Freight China -> Lagos
       {
         mode: 'air_freight', delivery: 'door_to_door', status: 'delivered',

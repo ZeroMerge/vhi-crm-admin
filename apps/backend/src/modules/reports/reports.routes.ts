@@ -9,7 +9,9 @@ const getPeriodFilter = (period: string): string => {
     case 'daily': return "created_at >= CURRENT_DATE";
     case 'weekly': return "created_at >= CURRENT_DATE - INTERVAL '7 days'";
     case 'monthly': return "created_at >= CURRENT_DATE - INTERVAL '30 days'";
-    default: return "created_at >= CURRENT_DATE";
+    case 'yearly': return "created_at >= CURRENT_DATE - INTERVAL '365 days'";
+    case 'all': return "1=1";
+    default: return "1=1";
   }
 };
 
