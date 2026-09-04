@@ -23,32 +23,36 @@ router.post('/register', async (req, res, next) => {
     const passwordHash = await bcrypt.hash(password, 10);
     const userId = 'VHI-' + crypto.randomBytes(4).toString('hex').toUpperCase();
 
+    const isDev = process.env.NODE_ENV !== 'production';
+
     const insertResult = await pool.query(
       `INSERT INTO customers (user_id, firstname, lastname, email, phone, industry, password_hash, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, false)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING id, user_id, firstname, lastname, email`,
-      [userId, firstname, lastname, email, phone || null, industry || null, passwordHash]
+      [userId, firstname, lastname, email, phone || null, industry || null, passwordHash, isDev]
     );
 
     const customer = insertResult.rows[0];
 
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    if (!isDev) {
+      const rawToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    await pool.query(
-      'INSERT INTO email_verification_tokens (customer_id, token, expires_at) VALUES ($1, $2, $3)',
-      [customer.id, rawToken, expiresAt]
-    );
+      await pool.query(
+        'INSERT INTO email_verification_tokens (customer_id, token, expires_at) VALUES ($1, $2, $3)',
+        [customer.id, rawToken, expiresAt]
+      );
 
-    const verifyUrl = `${process.env.CLIENT_FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${rawToken}`;
+      const verifyUrl = `${process.env.CLIENT_FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${rawToken}`;
 
-    await sendEmail(
-      email,
-      'Verify your VHI account',
-      `<p>Hi ${firstname},</p>
-       <p>Click the link below to verify your email address. This link expires in 24 hours.</p>
-       <p><a href="${verifyUrl}">${verifyUrl}</a></p>`
-    );
+      await sendEmail(
+        email,
+        'Verify your VHI account',
+        `<p>Hi ${firstname},</p>
+         <p>Click the link below to verify your email address. This link expires in 24 hours.</p>
+         <p><a href="${verifyUrl}">${verifyUrl}</a></p>`
+      );
+    }
 
     res.status(201).json({
       success: true,
@@ -59,7 +63,7 @@ router.post('/register', async (req, res, next) => {
         lastname: customer.lastname,
         email: customer.email,
       },
-      message: 'Registration successful. Please check your email to verify your account.',
+      message: isDev ? 'Registration successful. You can now log in.' : 'Registration successful. Please check your email to verify your account.',
     });
   } catch (err) {
     next(err);
