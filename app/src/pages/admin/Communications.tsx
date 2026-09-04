@@ -6,6 +6,7 @@ import { communicationService } from '@/services/communication.service';
 import { useAuthStore } from '@/store/authStore';
 import type { Communication } from '@/types';
 import { ChatInterface, type Conversation, type Message } from '@/components/ui/ChatInterface';
+import { supabase } from '@/lib/supabase';
 
 export default function Communications() {
   const admin = useAuthStore((s) => s.admin);
@@ -73,6 +74,61 @@ export default function Communications() {
     };
   }, [selectedCustomerId]);
 
+  // Subscribe to database inserts so messages appear without a refresh.
+  useEffect(() => {
+    if (!admin?.id || !supabase) return;
+    const realtimeClient = supabase;
+    let cancelled = false;
+    let channel: ReturnType<typeof realtimeClient.channel> | undefined;
+
+    const subscribe = async () => {
+      try {
+        const realtimeToken = await communicationService.getRealtimeToken();
+        if (cancelled) return;
+        realtimeClient.realtime.setAuth(realtimeToken);
+        channel = realtimeClient
+          .channel('admin-communications')
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'communications' },
+            (payload) => {
+              const row = payload.new as Record<string, any>;
+              const message: Communication = {
+                id: row.id,
+                customerId: row.customer_id,
+                sentBy: row.sent_by,
+                subject: row.subject,
+                body: row.body,
+                isRead: row.is_read,
+                createdAt: row.created_at,
+                senderType: row.sender_type,
+                sentByCustomer: row.sender_type === 'customer',
+              };
+
+              if (message.customerId === selectedCustomerId) {
+                setMessages((previous) => previous.some((item) => item.id === message.id)
+                  ? previous
+                  : [...previous, message]);
+              }
+
+              void communicationService.getAll({ search, filter, sortBy, industry })
+                .then((data) => setThreads(data as any[]))
+                .catch((err) => console.error('Failed to refresh realtime threads:', err));
+            }
+          )
+          .subscribe();
+      } catch (err) {
+        console.error('Failed to connect to realtime communications:', err);
+      }
+    };
+
+    void subscribe();
+    return () => {
+      cancelled = true;
+      if (channel) void realtimeClient.removeChannel(channel);
+    };
+  }, [admin?.id, selectedCustomerId, search, filter, sortBy, industry]);
+
   const handleSelectConversation = (customerId: string) => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('selected', customerId);
@@ -116,7 +172,7 @@ export default function Communications() {
   }));
 
   const chatMessages: Message[] = messages.map((m) => {
-    const isFromAdmin = m.sentBy && m.sentBy.startsWith('admin');
+    const isFromAdmin = m.senderType === 'admin' || (!m.senderType && Boolean(m.sentBy));
     return {
       id: m.id,
       role: isFromAdmin ? 'assistant' : 'user',

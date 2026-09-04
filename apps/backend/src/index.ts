@@ -18,6 +18,8 @@ import adminManagementRoutes from './modules/admin/admin_management.routes';
 import clientAuthRoutes from './modules/client/client.auth.routes';
 import clientShipmentsRoutes from './modules/client/client.shipments.routes';
 import clientTrackingRoutes from './modules/client/client.tracking.routes';
+import clientCommunicationsRoutes from './modules/client/client.communications.routes';
+import realtimeRoutes from './modules/realtime/realtime.routes';
 
 dotenv.config();
 
@@ -80,6 +82,8 @@ app.use('/api/admin/feedback', feedbackRoutes);
 app.use('/api/client/auth', clientAuthRoutes);
 app.use('/api/client/shipments', clientShipmentsRoutes);
 app.use('/api/client/tracking', clientTrackingRoutes);
+app.use('/api/client/communications', clientCommunicationsRoutes);
+app.use('/api/realtime', realtimeRoutes);
 
 
 app.get('/api/health', (_req, res) => {

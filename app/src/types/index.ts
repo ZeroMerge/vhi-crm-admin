@@ -178,6 +178,8 @@ export interface Communication {
   body: string;
   isRead: boolean;
   createdAt: string;
+  senderType?: 'admin' | 'customer';
+  sentByCustomer?: boolean;
 }
 
 export interface NewsletterSend {

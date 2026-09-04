@@ -25,6 +25,10 @@ export const communicationService = {
   delete: async (messageId: string): Promise<void> => {
     await api.delete(`/api/admin/communications/${messageId}`);
   },
+  getRealtimeToken: async (): Promise<string> => {
+    const res = await api.get<ApiResponse<{ token: string }>>('/api/realtime/admin-token');
+    return res.data.data.token;
+  },
 };
 
 
