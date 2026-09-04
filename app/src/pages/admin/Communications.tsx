@@ -87,7 +87,7 @@ export default function Communications() {
         if (cancelled) return;
         realtimeClient.realtime.setAuth(realtimeToken);
         channel = realtimeClient
-          .channel('admin-communications')
+          .channel('admin-communications', { config: { private: true } })
           .on(
             'postgres_changes',
             { event: 'INSERT', schema: 'public', table: 'communications' },
