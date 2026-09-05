@@ -18,6 +18,8 @@ import adminManagementRoutes from './modules/admin/admin_management.routes';
 import clientAuthRoutes from './modules/client/client.auth.routes';
 import clientShipmentsRoutes from './modules/client/client.shipments.routes';
 import clientTrackingRoutes from './modules/client/client.tracking.routes';
+import clientCargoRoutes from './modules/client/client.cargo.routes';
+import { customerMiddleware } from './middleware/customerMiddleware';
 
 dotenv.config();
 
@@ -80,6 +82,7 @@ app.use('/api/admin/feedback', feedbackRoutes);
 app.use('/api/client/auth', clientAuthRoutes);
 app.use('/api/client/shipments', clientShipmentsRoutes);
 app.use('/api/client/tracking', clientTrackingRoutes);
+app.use('/api/client/cargo-clearings', customerMiddleware, clientCargoRoutes);
 
 
 app.get('/api/health', (_req, res) => {
