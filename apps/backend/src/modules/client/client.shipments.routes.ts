@@ -39,6 +39,40 @@ const itemSchema = z.object({
   dimensionUnit: z.enum(['mm', 'cm', 'inches']).default('cm'),
 });
 
+// Client-owned fields only, all optional — admin-owned fields (status, awbNumber,
+// bolNumber, portOfDischarge) are not part of this schema so they're silently ignored.
+const shipmentUpdateSchema = z.object({
+  shippingMode:       z.enum(['air_freight', 'sea_freight', 'groupage', 'consolidation', 'china_groupage', 'cargo_clearing', 'export']).optional(),
+  deliveryMode:       z.string().min(1, 'deliveryMode is required').optional(),
+  natureOfItem:       z.string().min(1, 'natureOfItem is required').optional(),
+  originAddress:      z.string().min(1, 'originAddress is required').optional(),
+  destinationAddress: z.string().min(1, 'destinationAddress is required').optional(),
+  originEmail:        z.string().email().optional().nullable(),
+  originPhone:        z.string().optional().nullable(),
+  destinationEmail:   z.string().email().optional().nullable(),
+  destinationPhone:   z.string().optional().nullable(),
+  countryOfOrigin:    z.string().optional().nullable(),
+  exWorkType:         z.string().optional().nullable(),
+  invoiceValue:       z.coerce.number().nonnegative().optional(),
+  invoiceCurrency:    z.string().optional(),
+});
+
+const shipmentUpdateColumnMap: Record<string, string> = {
+  shippingMode:       'shipping_mode',
+  deliveryMode:       'delivery_mode',
+  natureOfItem:       'nature_of_item',
+  originAddress:      'origin_address',
+  destinationAddress: 'destination_address',
+  originEmail:        'origin_email',
+  originPhone:        'origin_phone',
+  destinationEmail:   'destination_email',
+  destinationPhone:   'destination_phone',
+  countryOfOrigin:    'country_of_origin',
+  exWorkType:         'ex_work_type',
+  invoiceValue:       'invoice_value',
+  invoiceCurrency:    'invoice_currency',
+};
+
 router.get('/', customerMiddleware, async (req, res, next) => {
   try {
     const { page = '1', pageSize = '10' } = req.query;
@@ -204,5 +238,114 @@ router.post(
     }
   }
 );
+
+router.get('/:orderId', customerMiddleware, async (req, res, next) => {
+  try {
+    const customerId = req.customer!.id;
+    const shipmentResult = await pool.query(
+      'SELECT * FROM shipments WHERE order_id = $1 AND customer_id = $2',
+      [req.params.orderId, customerId]
+    );
+    if (shipmentResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Shipment not found' });
+    }
+    const shipment = shipmentResult.rows[0];
+
+    const items = await pool.query('SELECT * FROM shipment_items WHERE shipment_id = $1', [shipment.id]);
+    const tracking = await pool.query(
+      'SELECT * FROM tracking_updates WHERE shipment_id = $1 ORDER BY created_at ASC',
+      [shipment.id]
+    );
+
+    res.json({
+      success: true,
+      data: mapShipment({
+        ...shipment,
+        items: items.rows,
+        trackingUpdates: tracking.rows,
+      }),
+    });
+  } catch (err) { next(err); }
+});
+
+router.put('/:orderId', customerMiddleware, async (req, res, next) => {
+  try {
+    const customerId = req.customer!.id;
+    const existing = await pool.query(
+      'SELECT * FROM shipments WHERE order_id = $1 AND customer_id = $2',
+      [req.params.orderId, customerId]
+    );
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Shipment not found' });
+    }
+    const shipment = existing.rows[0];
+    if (shipment.status !== 'pending') {
+      return res.status(403).json({ success: false, message: 'Shipment cannot be modified after processing has begun' });
+    }
+
+    const fieldsParsed = shipmentUpdateSchema.safeParse(req.body);
+    if (!fieldsParsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: fieldsParsed.error.flatten().fieldErrors,
+      });
+    }
+    const fields = fieldsParsed.data;
+
+    const setClauses: string[] = [];
+    const params: any[] = [];
+    let paramIdx = 1;
+
+    for (const [key, column] of Object.entries(shipmentUpdateColumnMap)) {
+      const value = (fields as Record<string, unknown>)[key];
+      if (value !== undefined) {
+        setClauses.push(`${column} = $${paramIdx}`);
+        params.push(value);
+        paramIdx++;
+      }
+    }
+
+    if (setClauses.length === 0) {
+      return res.json({ success: true, data: mapShipment(shipment) });
+    }
+
+    setClauses.push('updated_at = NOW()');
+    params.push(shipment.id);
+
+    const result = await pool.query(
+      `UPDATE shipments SET ${setClauses.join(', ')} WHERE id = $${paramIdx} RETURNING *`,
+      params
+    );
+    const updated = result.rows[0];
+
+    await logAuditEvent(customerId, 'customer', null, 'UPDATE_SHIPMENT', 'shipment', updated.id, { orderId: updated.order_id });
+
+    res.json({ success: true, data: mapShipment(updated) });
+  } catch (err) { next(err); }
+});
+
+router.delete('/:orderId', customerMiddleware, async (req, res, next) => {
+  try {
+    const customerId = req.customer!.id;
+    const existing = await pool.query(
+      'SELECT * FROM shipments WHERE order_id = $1 AND customer_id = $2',
+      [req.params.orderId, customerId]
+    );
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Shipment not found' });
+    }
+    const shipment = existing.rows[0];
+    if (shipment.status !== 'pending') {
+      return res.status(403).json({ success: false, message: 'Shipment cannot be modified after processing has begun' });
+    }
+
+    await pool.query(`UPDATE shipments SET status = 'cancelled', updated_at = NOW() WHERE id = $1`, [shipment.id]);
+
+    await logAuditEvent(customerId, 'customer', null, 'CANCEL_SHIPMENT', 'shipment', shipment.id, { orderId: shipment.order_id });
+
+    res.json({ success: true, message: 'Shipment cancelled successfully' });
+  } catch (err) { next(err); }
+});
 
 export default router;
