@@ -41,6 +41,7 @@ router.delete('/segments/remove', adminMiddleware_1.adminMiddleware, async (req,
 router.post('/preview-count', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { segments, status } = req.body;
+        console.log('[DEBUG] preview-count input:', { segments, status });
         let query = 'SELECT COUNT(*) as count FROM customers WHERE 1=1';
         const params = [];
         let paramIdx = 1;
@@ -59,11 +60,14 @@ router.post('/preview-count', adminMiddleware_1.adminMiddleware, async (req, res
                 paramIdx++;
             }
         }
+        console.log('[DEBUG] preview-count query:', query, params);
         const result = await db_1.default.query(query, params);
+        console.log('[DEBUG] preview-count query result:', result.rows);
         const count = parseInt(result.rows[0].count, 10);
         res.json({ success: true, count });
     }
     catch (err) {
+        console.error('[DEBUG] preview-count error:', err);
         next(err);
     }
 });

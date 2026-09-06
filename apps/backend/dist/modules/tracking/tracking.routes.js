@@ -8,13 +8,14 @@ const express_1 = require("express");
 const db_1 = __importDefault(require("../../config/db"));
 const adminMiddleware_1 = require("../../middleware/adminMiddleware");
 const audit_1 = require("../../utils/audit");
+const shipments_routes_1 = require("../shipments/shipments.routes");
 const router = (0, express_1.Router)();
 exports.adminTrackingRoutes = router;
 router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { search, filter, mode } = req.query;
         let sql = `
-      SELECT s.*, c.firstname, c.lastname 
+      SELECT s.*, c.firstname, c.lastname, c.email, c.phone, c.industry 
       FROM shipments s 
       LEFT JOIN customers c ON s.customer_id = c.id 
       WHERE s.status NOT IN ('draft', 'cancelled')
@@ -50,7 +51,7 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         }
         sql += ' ORDER BY s.created_at DESC';
         const result = await db_1.default.query(sql, params);
-        res.json({ success: true, data: result.rows });
+        res.json({ success: true, data: result.rows.map(shipments_routes_1.mapShipment) });
     }
     catch (err) {
         next(err);
@@ -58,12 +59,12 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
 });
 router.get('/pending', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
-        const result = await db_1.default.query(`SELECT s.*, c.firstname, c.lastname FROM shipments s 
+        const result = await db_1.default.query(`SELECT s.*, c.firstname, c.lastname, c.email, c.phone, c.industry FROM shipments s 
        LEFT JOIN customers c ON s.customer_id = c.id 
        WHERE s.awb_number IS NULL AND s.bol_number IS NULL AND s.unique_id IS NULL 
        AND s.status NOT IN ('draft', 'cancelled') 
        ORDER BY s.created_at DESC`);
-        res.json({ success: true, data: result.rows });
+        res.json({ success: true, data: result.rows.map(shipments_routes_1.mapShipment) });
     }
     catch (err) {
         next(err);
