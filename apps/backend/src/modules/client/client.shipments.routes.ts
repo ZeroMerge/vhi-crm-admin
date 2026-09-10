@@ -159,6 +159,7 @@ router.post(
       try {
         uploadedDocs = await Promise.all(files.map(uploadToCloudinary));
       } catch (err) {
+        console.error('Shipment document upload failed:', err);
         return res.status(400).json({ success: false, message: 'File upload failed. No shipment was created.' });
       }
     }
