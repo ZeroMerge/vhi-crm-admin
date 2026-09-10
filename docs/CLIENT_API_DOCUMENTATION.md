@@ -396,8 +396,172 @@ Allows customers to leave star ratings and comments.
 \`\`\`
 
 ---
-
-## 7. Frontend TypeScript Types (Copy & Paste)
+ 
+## 7. Communications API (`/api/client/communications`)
+ 
+### 7.1 List My Messages
+Gets all communications between the customer and admin.
+ 
+- **Method:** `GET`
+- **URL:** `/api/client/communications`
+- **Auth:** Customer Token Required
+ 
+#### Success Response (`200 OK`)
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "msg-123",
+      "customer_id": "9f8e7d6c-5b4a-3f2e-1d0c-9b8a7f6e5d4c",
+      "sent_by_customer": "9f8e7d6c-5b4a-3f2e-1d0c-9b8a7f6e5d4c",
+      "sender_type": "customer",
+      "subject": "Question about shipment",
+      "body": "Can you provide an update?",
+      "is_read": true,
+      "created_at": "2026-09-01T10:00:00.000Z",
+      "read_by_admin": false,
+      "read_by_customer": true,
+      "senderType": "customer",
+      "sentByCustomer": true
+    },
+    {
+      "id": "msg-124",
+      "customer_id": "9f8e7d6c-5b4a-3f2e-1d0c-9b8a7f6e5d4c",
+      "sent_by": "admin@vhi.com",
+      "sender_type": "admin",
+      "subject": "Re: Your question",
+      "body": "Your shipment is in transit.",
+      "is_read": false,
+      "created_at": "2026-09-01T11:00:00.000Z",
+      "read_by_admin": true,
+      "read_by_customer": false,
+      "senderType": "admin",
+      "sentByCustomer": false
+    }
+  ]
+}
+```
+ 
+**Side Effect:** All unread admin messages (`sender_type='admin'`) are automatically marked as `read_by_customer = true` when this endpoint is called.
+ 
+---
+ 
+### 7.2 Get Unread Count
+Returns the number of unread messages from admin.
+ 
+- **Method:** `GET`
+- **URL:** `/api/client/communications/unread-count`
+- **Auth:** Customer Token Required
+ 
+#### Success Response (`200 OK`)
+```json
+{
+  "success": true,
+  "data": { "count": 3 },
+  "count": 3
+}
+```
+ 
+---
+ 
+### 7.3 Send Message to Admin
+Allows the customer to send a message to the admin team.
+ 
+- **Method:** `POST`
+- **URL:** `/api/client/communications/send`
+- **Auth:** Customer Token Required
+- **Content-Type:** `application/json`
+ 
+#### Request Body
+```json
+{
+  "subject": "Question about my shipment",
+  "body": "Can you provide an update on VHI-AIR-10000?"
+}
+```
+ 
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `subject` | string | Yes | 1-255 characters |
+| `body` | string | Yes | 1-10000 characters |
+ 
+#### Success Response (`201 Created`)
+```json
+{
+  "success": true,
+  "data": {
+    "id": "msg-125",
+    "customer_id": "9f8e7d6c-5b4a-3f2e-1d0c-9b8a7f6e5d4c",
+    "sent_by_customer": "9f8e7d6c-5b4a-3f2e-1d0c-9b8a7f6e5d4c",
+    "sender_type": "customer",
+    "subject": "Question about my shipment",
+    "body": "Can you provide an update on VHI-AIR-10000?",
+    "is_read": true,
+    "created_at": "2026-09-01T12:00:00.000Z",
+    "read_by_admin": false,
+    "read_by_customer": true,
+    "senderType": "customer",
+    "sentByCustomer": true
+  }
+}
+```
+ 
+**Note:** Sent messages have `sender_type='customer'`, `read_by_admin=false` (admin hasn't read yet), `read_by_customer=true` (customer knows they sent it).
+ 
+---
+ 
+### 7.4 Realtime Communications (Supabase Realtime)
+Instant message delivery without polling using Supabase Realtime.
+ 
+**Setup:**
+```typescript
+import { createClient } from '@supabase/supabase-js';
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false } }
+);
+```
+ 
+**Get Realtime Token:**
+```typescript
+const token = await fetch('/api/realtime/client-token', {
+  headers: { Authorization: `Bearer ${customerToken}` }
+}).then(r => r.json()).then(d => d.data.token);
+```
+ 
+**Subscribe to New Messages from Admin:**
+```typescript
+supabase.realtime.setAuth(token);
+const channel = supabase
+  .channel(`communications:${customerId}`, { config: { private: true } })
+  .on('postgres_changes', {
+    event: 'INSERT',
+    schema: 'public',
+    table: 'communications'
+  }, (payload) => {
+    const message = payload.new; // New admin message appears instantly
+    // Update UI: add to message list, show notification, etc.
+  })
+  .subscribe();
+```
+ 
+**Channel Naming:** Private channel `communications:<customer_id>` — only the authenticated customer can subscribe.
+ 
+**Token Claims:**
+```json
+{
+  "sub": "<customer_id>",
+  "role": "authenticated",
+  "app_role": "customer",
+  "email": "customer@example.com"
+}
+```
+ 
+---
+ 
+## 8. Frontend TypeScript Types (Copy & Paste)
 
 \`\`\`typescript
 export type ShippingMode =
@@ -454,4 +618,20 @@ export interface ClientShipment {
   createdAt: string;
   trackingUpdates?: TrackingStep[];
 }
-\`\`\`
+
+export interface Communication {
+  id: string;
+  customer_id: string;
+  sent_by?: string;
+  sent_by_customer?: string;
+  sender_type: 'admin' | 'customer';
+  subject: string;
+  body: string;
+  is_read: boolean;
+  created_at: string;
+  read_by_admin: boolean;
+  read_by_customer: boolean;
+  senderType?: 'admin' | 'customer';
+  sentByCustomer?: boolean;
+}
+```
