@@ -1053,8 +1053,12 @@ Base Path: `/api/admin/communications`
 ### 12.2 Get Customer Thread Messages
 - **Method:** `GET`
 - **Path:** `/api/admin/communications/:customerId`
-- **Side Effect:** Automatically marks retrieved unread messages as read (`is_read = true`).
-- **Response `200 OK`:** Chronological message list for the customer.
+- **Side Effect:** Automatically marks retrieved unread messages as read (`read_by_admin = true`).
+- **Response `200 OK`:** Chronological message list for the customer. Each message includes:
+  - `senderType`: `'admin' | 'customer'` — who sent the message
+  - `sentByCustomer`: `boolean` — true if message was sent by the customer
+  - `readByAdmin`: `boolean` — whether admin has read the message
+  - `readByCustomer`: `boolean` — whether customer has read the message
 
 ---
 
@@ -1070,12 +1074,123 @@ Base Path: `/api/admin/communications`
 }
 ```
 - **Response `200 OK`:** `{ "success": true, "data": { ...communicationRecord } }`
+- **Note:** Sent messages have `senderType: 'admin'`, `readByAdmin: true`, `readByCustomer: false`
 
 ---
 
 ### 12.4 Delete Message
 - **Method:** `DELETE`
 - **Path:** `/api/admin/communications/:messageId`
+
+---
+
+### 12.5 Realtime Communications (Supabase Realtime)
+Supabase Realtime is enabled on the `communications` table for instant message delivery without polling.
+
+**Frontend Setup:**
+```typescript
+import { createClient } from '@supabase/supabase-js';
+const supabase = createClient(url, publishableKey, { auth: { persistSession: false, autoRefreshToken: false } });
+```
+
+**Subscribe to new messages (Admin):**
+```typescript
+const realtimeToken = await communicationService.getRealtimeToken(); // GET /api/realtime/admin-token
+supabase.realtime.setAuth(realtimeToken);
+const channel = supabase
+  .channel('admin-communications', { config: { private: true } })
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'communications' }, (payload) => {
+    const message = payload.new as Communication;
+    // Update UI immediately
+  })
+  .subscribe();
+```
+
+**Database Schema Changes (Migration 018):**
+| Column | Type | Description |
+|---|---|---|
+| `sender_type` | `VARCHAR(20)` | `'admin'` or `'customer'` (NOT NULL, DEFAULT `'admin'`) |
+| `sent_by_customer` | `UUID` | FK to `customers.id`, nullable |
+| `read_by_admin` | `BOOLEAN` | Admin has read this message (DEFAULT `true`) |
+| `read_by_customer` | `BOOLEAN` | Customer has read this message (DEFAULT `false`) |
+
+**Indexes:**
+- `communications_admin_unread_idx` — partial index for admin unread count (`sender_type='customer' AND read_by_admin=false`)
+- `communications_customer_unread_idx` — partial index for customer unread count (`sender_type='admin' AND read_by_customer=false`)
+
+---
+
+### 12.6 Realtime Token Endpoint
+- **Method:** `GET`
+- **Path:** `/api/realtime/admin-token`
+- **Auth:** Required Admin JWT
+- **Response `200 OK`:** `{ "success": true, "data": { "token": "<signed_jwt>" } }`
+- **Response `503`:** Supabase Realtime not configured (missing `SUPABASE_JWT_SECRET`)
+
+**Token Claims:**
+```json
+{
+  "sub": "<admin_id>",
+  "role": "authenticated",
+  "app_role": "admin",
+  "email": "admin@vhi.com"
+}
+```
+- Expires in 1 hour
+- Signed with `SUPABASE_JWT_SECRET` (must match Supabase project JWT secret)
+- Issuer set to `SUPABASE_URL/auth/v1`
+
+---
+
+### 12.7 Client Communications API (`/api/client/communications`)
+**Base Path:** `/api/client/communications`  
+**Auth:** Required Customer JWT
+
+#### 12.7.1 List My Messages
+- **Method:** `GET`
+- **Path:** `/api/client/communications`
+- **Response `200 OK`:** `{ "success": true, "data": Communication[] }`
+- **Side Effect:** Marks all unread admin messages as `read_by_customer = true`
+
+#### 12.7.2 Get Unread Count
+- **Method:** `GET`
+- **Path:** `/api/client/communications/unread-count`
+- **Response `200 OK`:** `{ "success": true, "data": { "count": 3 }, "count": 3 }`
+
+#### 12.7.3 Send Message to Admin
+- **Method:** `POST`
+- **Path:** `/api/client/communications/send`
+- **Request Body:**
+```json
+{
+  "subject": "Question about my shipment",
+  "body": "Can you provide an update on VHI-AIR-10000?"
+}
+```
+- **Response `201 Created`:** `{ "success": true, "data": Communication }`
+- **Note:** Sets `sender_type='customer'`, `read_by_admin=false`, `read_by_customer=true`
+
+#### 12.7.4 Client Realtime Token
+- **Method:** `GET`
+- **Path:** `/api/realtime/client-token`
+- **Auth:** Required Customer JWT
+- **Response:** Same format as admin token, with `app_role: 'customer'`
+
+**Client Realtime Subscription:**
+```typescript
+const token = await fetch('/api/realtime/client-token').then(r => r.json()).then(d => d.data.token);
+supabase.realtime.setAuth(token);
+const channel = supabase
+  .channel(`communications:${customerId}`, { config: { private: true } })
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'communications' }, (payload) => {
+    // New message from admin appears instantly
+  })
+  .subscribe();
+```
+
+**RLS Policies:**
+- Admin channel: `realtime.topic() = 'admin-communications'` AND `app_role = 'admin'`
+- Customer channel: `realtime.topic() = 'communications:' || auth.uid()` AND `app_role = 'customer'`
 
 ---
 
