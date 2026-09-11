@@ -26,6 +26,8 @@ const shipmentSchema = z.object({
   exWorkType:         z.string().optional().nullable(),
   invoiceValue:       z.coerce.number().nonnegative().default(0),
   invoiceCurrency:    z.string().default('NGN'),
+  weight:             z.coerce.number().nonnegative().optional().nullable(),
+  weightUnit:         z.string().optional().nullable(),
 });
 
 const itemSchema = z.object({
@@ -55,6 +57,8 @@ const shipmentUpdateSchema = z.object({
   exWorkType:         z.string().optional().nullable(),
   invoiceValue:       z.coerce.number().nonnegative().optional(),
   invoiceCurrency:    z.string().optional(),
+  weight:             z.coerce.number().nonnegative().optional().nullable(),
+  weightUnit:         z.string().optional().nullable(),
 });
 
 const shipmentUpdateColumnMap: Record<string, string> = {
@@ -71,6 +75,8 @@ const shipmentUpdateColumnMap: Record<string, string> = {
   exWorkType:         'ex_work_type',
   invoiceValue:       'invoice_value',
   invoiceCurrency:    'invoice_currency',
+  weight:             'weight',
+  weightUnit:         'weight_unit',
 };
 
 router.get('/', customerMiddleware, async (req, res, next) => {
@@ -153,6 +159,7 @@ router.post(
       try {
         uploadedDocs = await Promise.all(files.map(uploadToCloudinary));
       } catch (err) {
+        console.error('Shipment document upload failed:', err);
         return res.status(400).json({ success: false, message: 'File upload failed. No shipment was created.' });
       }
     }
@@ -165,22 +172,27 @@ router.post(
 
       await client.query('BEGIN');
 
+      const itemWeightTotal = items.reduce((sum, it) => sum + (it.weight || 0), 0);
+      const weightForShipment = fields.weight ?? (itemWeightTotal > 0 ? itemWeightTotal : null);
+      const weightUnit = fields.weightUnit ?? 'kg';
+
       // Step 5: INSERT shipment
       const shipmentResult = await client.query(
         `INSERT INTO shipments (
           order_id, customer_id, shipping_mode, delivery_mode, nature_of_item,
-          invoice_value, invoice_currency,
+          invoice_value, invoice_currency, weight, weight_unit,
           origin_address, destination_address,
           origin_email, origin_phone,
           destination_email, destination_phone,
           country_of_origin, ex_work_type,
           status, is_draft
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
         RETURNING *`,
         [
           orderId, customerId,
           fields.shippingMode, fields.deliveryMode, fields.natureOfItem,
           fields.invoiceValue, fields.invoiceCurrency,
+          weightForShipment, weightUnit,
           fields.originAddress, fields.destinationAddress,
           fields.originEmail ?? null, fields.originPhone ?? null,
           fields.destinationEmail ?? null, fields.destinationPhone ?? null,

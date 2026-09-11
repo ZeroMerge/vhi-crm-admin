@@ -3,12 +3,112 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.mapShipment = mapShipment;
 const express_1 = require("express");
 const db_1 = __importDefault(require("../../config/db"));
 const adminMiddleware_1 = require("../../middleware/adminMiddleware");
 const audit_1 = require("../../utils/audit");
 const generateOrderId_1 = require("../../utils/generateOrderId");
 const router = (0, express_1.Router)();
+function mapShipmentItem(row) {
+    if (!row)
+        return null;
+    return {
+        id: row.id,
+        shipmentId: row.shipment_id,
+        description: row.description,
+        category: row.category,
+        quantity: parseInt(row.quantity || 0),
+        weight: parseFloat(row.weight || 0),
+        dimensionL: parseFloat(row.dimension_l || 0),
+        dimensionW: parseFloat(row.dimension_w || 0),
+        dimensionH: parseFloat(row.dimension_h || 0),
+        dimensionUnit: row.dimension_unit || 'cm',
+    };
+}
+function mapShipmentDocument(row) {
+    if (!row)
+        return null;
+    return {
+        id: row.id,
+        shipmentId: row.shipment_id,
+        documentType: row.document_type,
+        fileUrl: row.file_url,
+        uploadedBy: row.uploaded_by,
+        createdAt: row.created_at,
+    };
+}
+function mapTrackingUpdate(row) {
+    if (!row)
+        return null;
+    return {
+        id: row.id,
+        shipmentId: row.shipment_id,
+        status: row.status,
+        message: row.message,
+        updatedBy: row.updated_by,
+        createdAt: row.created_at,
+    };
+}
+function mapShipment(row) {
+    if (!row)
+        return null;
+    return {
+        id: row.id,
+        orderId: row.order_id,
+        customerId: row.customer_id,
+        shippingMode: row.shipping_mode,
+        deliveryMode: row.delivery_mode,
+        natureOfItem: row.nature_of_item,
+        hsCode: row.hs_code,
+        invoiceValue: parseFloat(row.invoice_value || 0),
+        invoiceCurrency: row.invoice_currency || 'NGN',
+        weight: parseFloat(row.weight || 0),
+        weightUnit: row.weight_unit || 'kg',
+        originAddress: row.origin_address,
+        destinationAddress: row.destination_address,
+        originPickupOption: row.origin_pickup_option,
+        portOfDischarge: row.port_of_discharge,
+        awbNumber: row.awb_number,
+        bolNumber: row.bol_number,
+        uniqueId: row.unique_id,
+        status: row.status,
+        isDraft: row.is_draft,
+        originEmail: row.origin_email,
+        originPhone: row.origin_phone,
+        destinationEmail: row.destination_email,
+        destinationPhone: row.destination_phone,
+        countryOfOrigin: row.country_of_origin,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        customer: (row.firstname || row.customer_firstname) ? {
+            id: row.customer_id,
+            firstname: row.firstname || row.customer_firstname,
+            lastname: row.lastname || row.customer_lastname,
+            email: row.email || row.customer_email,
+            phone: row.phone || row.customer_phone,
+            industry: row.industry || row.customer_industry,
+        } : (row.customer || undefined),
+        items: row.items ? row.items.map(mapShipmentItem) : undefined,
+        documents: row.documents ? row.documents.map(mapShipmentDocument) : undefined,
+        trackingUpdates: row.trackingUpdates ? row.trackingUpdates.map(mapTrackingUpdate) : undefined,
+        // snake_case aliases for legacy compatibility
+        order_id: row.order_id,
+        customer_id: row.customer_id,
+        shipping_mode: row.shipping_mode,
+        delivery_mode: row.delivery_mode,
+        nature_of_item: row.nature_of_item,
+        origin_address: row.origin_address,
+        destination_address: row.destination_address,
+        invoice_value: row.invoice_value,
+        invoice_currency: row.invoice_currency,
+        awb_number: row.awb_number,
+        bol_number: row.bol_number,
+        unique_id: row.unique_id,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+    };
+}
 router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { status, mode, customerId, search, dateFrom, dateTo, sortBy, page = '1', pageSize = '10' } = req.query;
@@ -63,7 +163,7 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         const result = await db_1.default.query(sql, params);
         res.json({
             success: true,
-            data: result.rows,
+            data: result.rows.map(mapShipment),
             pagination: { total, page: parseInt(page), pageSize: parseInt(pageSize), totalPages: Math.ceil(total / parseInt(pageSize)) },
         });
     }
@@ -73,7 +173,10 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
 });
 router.get('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
-        const shipmentResult = await db_1.default.query('SELECT * FROM shipments WHERE id = $1', [req.params.id]);
+        const shipmentResult = await db_1.default.query(`SELECT s.*, c.firstname, c.lastname, c.email, c.phone, c.industry 
+       FROM shipments s 
+       LEFT JOIN customers c ON s.customer_id = c.id 
+       WHERE s.id = $1`, [req.params.id]);
         if (shipmentResult.rows.length === 0)
             return res.status(404).json({ success: false, message: 'Shipment not found' });
         const shipment = shipmentResult.rows[0];
@@ -82,7 +185,12 @@ router.get('/:id', adminMiddleware_1.adminMiddleware, async (req, res, next) => 
         const tracking = await db_1.default.query('SELECT * FROM tracking_updates WHERE shipment_id = $1 ORDER BY created_at ASC', [req.params.id]);
         res.json({
             success: true,
-            data: { ...shipment, items: items.rows, documents: documents.rows, trackingUpdates: tracking.rows },
+            data: mapShipment({
+                ...shipment,
+                items: items.rows,
+                documents: documents.rows,
+                trackingUpdates: tracking.rows
+            }),
         });
     }
     catch (err) {
@@ -107,7 +215,7 @@ router.post('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         ]);
         const shipment = result.rows[0];
         await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'CREATE_SHIPMENT', 'shipment', shipment.id, { orderId, customerId });
-        res.status(201).json({ success: true, data: shipment });
+        res.status(201).json({ success: true, data: mapShipment(shipment) });
     }
     catch (err) {
         next(err);
@@ -120,9 +228,12 @@ router.put('/:id/status', adminMiddleware_1.adminMiddleware, async (req, res, ne
         if (message) {
             await db_1.default.query('INSERT INTO tracking_updates (shipment_id, status, message, updated_by) VALUES ($1, $2, $3, $4)', [req.params.id, status, message, req.admin.id]);
         }
-        const result = await db_1.default.query('SELECT * FROM shipments WHERE id = $1', [req.params.id]);
+        const result = await db_1.default.query(`SELECT s.*, c.firstname, c.lastname, c.email, c.phone, c.industry 
+       FROM shipments s 
+       LEFT JOIN customers c ON s.customer_id = c.id 
+       WHERE s.id = $1`, [req.params.id]);
         await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'UPDATE_SHIPMENT_STATUS', 'shipment', req.params.id, { status, message });
-        res.json({ success: true, data: result.rows[0] });
+        res.json({ success: true, data: mapShipment(result.rows[0]) });
     }
     catch (err) {
         next(err);
@@ -148,9 +259,12 @@ router.put('/:id/tracking', adminMiddleware_1.adminMiddleware, async (req, res, 
         }
         params.push(req.params.id);
         await db_1.default.query(`UPDATE shipments SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, params);
-        const result = await db_1.default.query('SELECT * FROM shipments WHERE id = $1', [req.params.id]);
+        const result = await db_1.default.query(`SELECT s.*, c.firstname, c.lastname, c.email, c.phone, c.industry 
+       FROM shipments s 
+       LEFT JOIN customers c ON s.customer_id = c.id 
+       WHERE s.id = $1`, [req.params.id]);
         await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'UPDATE_SHIPMENT_TRACKING_FIELDS', 'shipment', req.params.id, { awbNumber, bolNumber, uniqueId });
-        res.json({ success: true, data: result.rows[0] });
+        res.json({ success: true, data: mapShipment(result.rows[0]) });
     }
     catch (err) {
         next(err);

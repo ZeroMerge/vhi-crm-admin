@@ -11,6 +11,7 @@ import {
   Settings,
   LogOut,
   BarChart2,
+  Shield,
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { hasModuleAccess } from '@/utils/rolePermissions';
@@ -32,6 +33,7 @@ const primaryNav = [
 const secondaryNav = [
   { label: 'Reports', icon: BarChart2, path: '/admin/reports', module: 'reports' },
   { label: 'Feedback', icon: MessageSquare, path: '/admin/feedback', module: 'reports' },
+  { label: 'Team', icon: Shield, path: '/admin/team', module: 'team' },
   { label: 'Settings', icon: Settings, path: '/admin/settings', module: 'settings' },
 ];
 

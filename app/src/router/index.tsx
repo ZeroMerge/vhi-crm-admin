@@ -17,6 +17,7 @@ import ComposeNewsletter from '@/pages/admin/Newsletter/Compose';
 import AudienceSegmentation from '@/pages/admin/AudienceSegmentation';
 import Reports from '@/pages/admin/Reports';
 import Settings from '@/pages/admin/Settings';
+import Team from '@/pages/admin/Team';
 import Feedback from '@/pages/admin/Feedback';
 
 function AdminRoute({ children, module }: { children: React.ReactNode, module: string }) {
@@ -53,6 +54,7 @@ export function AppRouter() {
       <Route path="/admin/reports" element={<AdminRoute module="reports"><Reports /></AdminRoute>} />
       <Route path="/admin/feedback" element={<AdminRoute module="reports"><Feedback /></AdminRoute>} />
       <Route path="/admin/settings" element={<AdminRoute module="settings"><Settings /></AdminRoute>} />
+      <Route path="/admin/team" element={<AdminRoute module="team"><Team /></AdminRoute>} />
       <Route path="*" element={<Navigate to="/admin" replace />} />
     </Routes>
   );

@@ -116,6 +116,7 @@ router.post(
         finalInvoiceUrl = (await uploadToCloudinary(finalInvoiceFile)).url;
       }
     } catch (err) {
+      console.error('Cargo clearing document upload failed:', err);
       return res.status(400).json({ success: false, message: 'File upload failed. No cargo clearing was created.' });
     }
 
