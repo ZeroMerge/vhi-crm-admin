@@ -3,6 +3,7 @@ import { z } from 'zod';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { logAuditEvent } from '../../utils/audit';
+import { sendEmail } from '../../utils/sendEmail';
 
 const router = Router();
 const uuidSchema = z.string().uuid();
@@ -75,9 +76,12 @@ router.post('/send', adminMiddleware, async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Validation failed', errors: parsed.error.flatten().fieldErrors });
     }
     const { customerId, subject, body } = parsed.data;
-    if (!(await customerExists(customerId))) {
+    const custResult = await pool.query('SELECT firstname, email FROM customers WHERE id = $1', [customerId]);
+    if (custResult.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
+    const customer = custResult.rows[0];
+
     const result = await pool.query(
       `INSERT INTO communications (customer_id, sent_by, sender_type, subject, body, read_by_admin, read_by_customer)
        VALUES ($1, $2, 'admin', $3, $4, true, false)
@@ -85,6 +89,21 @@ router.post('/send', adminMiddleware, async (req, res, next) => {
       [customerId, req.admin!.id, subject, body]
     );
     const comm = result.rows[0];
+
+    // Trigger email notification asynchronously
+    const emailHtml = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <h2>New Message from VHI</h2>
+        <p>Hello ${customer.firstname},</p>
+        <p>You have received a new message from our support team.</p>
+        <blockquote style="border-left: 4px solid #eee; padding-left: 10px; margin-left: 0;">
+          ${body.replace(/\n/g, '<br>')}
+        </blockquote>
+        <p><a href="${process.env.CLIENT_FRONTEND_URL}/messages" style="display: inline-block; padding: 10px 20px; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px;">View and Reply in Portal</a></p>
+      </div>
+    `;
+    sendEmail(customer.email, subject || 'New Message from VHI Support', emailHtml).catch(console.error);
+
     await logAuditEvent(req.admin!.id, 'admin', req.admin!.activeRole, 'SEND_COMMUNICATION', 'communication', comm.id, { customerId, subject });
     res.status(201).json({ success: true, data: comm });
   } catch (err) { next(err); }

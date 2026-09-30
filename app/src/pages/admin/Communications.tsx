@@ -137,14 +137,31 @@ export default function Communications() {
 
   const handleSendMessage = async (content: string) => {
     if (isSupportStaff || !selectedCustomerId || !content.trim()) return;
+    
+    // Optimistic UI update
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: Communication = {
+      id: tempId,
+      customerId: selectedCustomerId,
+      subject: 'New Message',
+      body: content,
+      isRead: true,
+      createdAt: new Date().toISOString(),
+      senderType: 'admin',
+      sentByCustomer: false,
+    };
+    
+    setMessages((prev) => [...prev, optimisticMsg]);
     setSending(true);
+    
     try {
       const sentMsg = await communicationService.send({
         customerId: selectedCustomerId,
-        subject: 'New Message', // Adriel's ChatInterface doesn't have a separate subject field
+        subject: 'New Message',
         body: content,
       });
-      setMessages((prev) => [...prev, sentMsg]);
+      // Replace optimistic message with actual server message
+      setMessages((prev) => prev.map((m) => m.id === tempId ? sentMsg : m));
       
       // Refresh threads to update last message
       const data = await communicationService.getAll({
@@ -156,6 +173,8 @@ export default function Communications() {
       setThreads(data);
     } catch (err) {
       console.error('Failed to send message:', err);
+      // Revert optimistic update on failure
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       alert('Error sending message. Please try again.');
     } finally {
       setSending(false);
@@ -167,7 +186,7 @@ export default function Communications() {
     id: t.id,
     title: `${t.firstname} ${t.lastname}`,
     lastMessage: t.last_message || '(No messages)',
-    timestamp: '', // Thread list doesn't return timestamp directly right now
+    timestamp: t.last_message_at ? formatDate(t.last_message_at) : '',
     unread: parseInt(t.unread_count || '0') > 0,
   }));
 
@@ -178,6 +197,7 @@ export default function Communications() {
       role: isFromAdmin ? 'assistant' : 'user',
       content: m.subject && m.subject !== 'New Message' ? `**${m.subject}**\n\n${m.body}` : m.body,
       timestamp: formatDate(m.createdAt),
+      status: m.id.startsWith('temp-') ? 'sending' : 'sent',
     };
   });
 
@@ -190,7 +210,7 @@ export default function Communications() {
           selectedConversationId={selectedCustomerId}
           onSelectConversation={handleSelectConversation}
           onSendMessage={handleSendMessage}
-          loading={loadingMessages || sending}
+          loading={loadingMessages}
         />
       </div>
     </PageWrapper>

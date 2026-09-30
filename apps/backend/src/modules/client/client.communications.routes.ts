@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import pool from '../../config/db';
 import { customerMiddleware } from '../../middleware/customerMiddleware';
+import { sendEmail } from '../../utils/sendEmail';
 
 const router = Router();
 const messageSchema = z.object({
@@ -44,8 +45,10 @@ router.post('/send', customerMiddleware, async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Validation failed', errors: parsed.error.flatten().fieldErrors });
     }
     const customerId = req.customer!.id;
-    const customer = await pool.query('SELECT id FROM customers WHERE id = $1', [customerId]);
-    if (customer.rows.length === 0) return res.status(404).json({ success: false, message: 'Customer not found' });
+    const customerResult = await pool.query('SELECT id, firstname, lastname, email FROM customers WHERE id = $1', [customerId]);
+    if (customerResult.rows.length === 0) return res.status(404).json({ success: false, message: 'Customer not found' });
+    const customer = customerResult.rows[0];
+    
     const { subject, body } = parsed.data;
     const result = await pool.query(
       `INSERT INTO communications (customer_id, sent_by_customer, sender_type, subject, body, read_by_admin, read_by_customer)
@@ -53,6 +56,24 @@ router.post('/send', customerMiddleware, async (req, res, next) => {
        RETURNING *, sender_type AS "senderType", true AS "sentByCustomer"`,
       [customerId, subject, body]
     );
+    
+    // Trigger internal email to admin/support team
+    const supportEmail = process.env.SUPPORT_EMAIL || process.env.SMTP_USER;
+    if (supportEmail) {
+      const emailHtml = `
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+          <h2>New Message from Customer</h2>
+          <p><strong>Customer:</strong> ${customer.firstname} ${customer.lastname} (${customer.email})</p>
+          <p>You have received a new message in the CRM communications channel.</p>
+          <blockquote style="border-left: 4px solid #eee; padding-left: 10px; margin-left: 0;">
+            ${body.replace(/\n/g, '<br>')}
+          </blockquote>
+          <p><a href="${process.env.ADMIN_FRONTEND_URL}/admin/communications?selected=${customerId}" style="display: inline-block; padding: 10px 20px; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px;">View and Reply in Admin Portal</a></p>
+        </div>
+      `;
+      sendEmail(supportEmail, `New Message from ${customer.firstname} ${customer.lastname}`, emailHtml).catch(console.error);
+    }
+    
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) { next(err); }
 });

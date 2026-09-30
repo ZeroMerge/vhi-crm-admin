@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Send, Plus, MessageSquare, Trash2 } from "lucide-react";
+import { Search, Send, Plus, MessageSquare, Trash2, Check, CheckCheck, Clock, ChevronLeft } from "lucide-react";
 import './ChatInterface.css';
 
 export interface Message {
@@ -9,6 +9,7 @@ export interface Message {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: string;
+  status?: "sending" | "sent";
 }
 
 export interface Conversation {
@@ -44,7 +45,9 @@ export function ChatInterface(props: ChatInterfaceProps) {
   } = props;
   const [input, setInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isMobileViewOpen, setIsMobileViewOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevMessagesCount = useRef(messages.length);
 
   const filteredConversations = conversations.filter((c) =>
     c.title.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -52,9 +55,31 @@ export function ChatInterface(props: ChatInterfaceProps) {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    
+    // Play sound notification if new incoming message
+    if (messages.length > prevMessagesCount.current) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.role === 'user') {
+        const audio = new Audio('/notification.mp3');
+        audio.volume = 0.5;
+        audio.play().catch(e => console.log('Audio play failed:', e));
+      }
+    }
+    prevMessagesCount.current = messages.length;
   }, [messages]);
 
+  useEffect(() => {
+    if (selectedConversationId) {
+      setIsMobileViewOpen(true);
+    }
+  }, [selectedConversationId]);
+
   const selectedConv = conversations.find((c) => c.id === selectedConversationId);
+
+  const handleSelectConversationMobile = (id: string) => {
+    onSelectConversation(id);
+    setIsMobileViewOpen(true);
+  };
 
   const handleSend = () => {
     const trimmed = input.trim();
@@ -71,7 +96,7 @@ export function ChatInterface(props: ChatInterfaceProps) {
   };
 
   return (
-    <div className="chat-container">
+    <div className={`chat-container ${isMobileViewOpen ? 'mobile-view-open' : ''}`}>
       {/* Left Panel — Conversation History */}
       <div className="chat-sidebar">
         <div className="chat-sidebar-header">
@@ -107,7 +132,7 @@ export function ChatInterface(props: ChatInterfaceProps) {
               <div
                 key={conv.id}
                 className={`chat-sidebar-item ${selectedConversationId === conv.id ? 'chat-sidebar-item-active' : ''}`}
-                onClick={() => onSelectConversation(conv.id)}
+                onClick={() => handleSelectConversationMobile(conv.id)}
               >
                 <MessageSquare style={{ marginTop: '0.125rem', height: '1rem', width: '1rem', flexShrink: 0, color: 'var(--color-text-muted)' }} />
                 <div style={{ minWidth: 0, flex: 1 }}>
@@ -139,7 +164,15 @@ export function ChatInterface(props: ChatInterfaceProps) {
           <>
             {/* Header */}
             <div className="chat-main-header">
-              <h2 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>{selectedConv.title}</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <button 
+                  className="chat-mobile-back" 
+                  onClick={() => setIsMobileViewOpen(false)}
+                >
+                  <ChevronLeft style={{ height: '1.25rem', width: '1.25rem' }} />
+                </button>
+                <h2 style={{ fontSize: 'var(--font-size-md)', fontWeight: 600 }}>{selectedConv.title}</h2>
+              </div>
             </div>
 
             {/* Messages */}
@@ -162,9 +195,15 @@ export function ChatInterface(props: ChatInterfaceProps) {
                     >
                       <div className={`chat-message-bubble ${msg.role}`}>
                         <p style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
-                        <p className={`chat-message-time ${msg.role}`}>
+                        <div className={`chat-message-time ${msg.role}`}>
                           {msg.timestamp}
-                        </p>
+                          {!isUser && msg.status === 'sending' && (
+                            <Clock style={{ height: '0.75rem', width: '0.75rem', marginLeft: '0.25rem', opacity: 0.7 }} />
+                          )}
+                          {!isUser && msg.status === 'sent' && (
+                            <CheckCheck style={{ height: '0.875rem', width: '0.875rem', marginLeft: '0.25rem', color: '#60a5fa' }} />
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

@@ -178,3 +178,39 @@
   justify-content: center;
   text-align: center;
 }
+.chat-mobile-back {
+  display: none;
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: var(--color-text-muted);
+}
+.chat-mobile-back:hover {
+  color: var(--color-text);
+}
+
+.chat-message-time {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .chat-sidebar {
+    width: 100%;
+  }
+  .chat-main {
+    display: none;
+    width: 100%;
+  }
+  .chat-mobile-back {
+    display: block;
+  }
+  .mobile-view-open .chat-sidebar {
+    display: none;
+  }
+  .mobile-view-open .chat-main {
+    display: flex;
+  }
+}
