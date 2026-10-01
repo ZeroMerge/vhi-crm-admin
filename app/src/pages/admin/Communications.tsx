@@ -192,7 +192,8 @@ export default function Communications() {
     return {
       id: m.id,
       role: isFromAdmin ? 'user' : 'assistant',
-      content: m.subject && m.subject !== 'New Message' ? `**${m.subject}**\n\n${m.body}` : m.body,
+      subject: m.subject && m.subject !== 'New Message' ? m.subject : undefined,
+      content: m.body,
       timestamp: formatChatTime(m.createdAt),
       status: m.id.startsWith('temp-') ? 'sending' : 'sent',
     };

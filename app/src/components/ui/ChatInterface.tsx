@@ -10,6 +10,7 @@ export interface Message {
   content: string;
   timestamp: string;
   status?: "sending" | "sent";
+  subject?: string;
 }
 
 export interface Conversation {
@@ -194,6 +195,7 @@ export function ChatInterface(props: ChatInterfaceProps) {
                       className={`chat-message-row ${isUser ? 'user' : 'assistant'}`}
                     >
                       <div className={`chat-message-bubble ${msg.role}`}>
+                        {msg.subject && <p style={{ fontWeight: 'bold', marginBottom: '0.25rem' }}>{msg.subject}</p>}
                         <p style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</p>
                         <div className={`chat-message-time ${msg.role}`}>
                           {msg.timestamp}
