@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PageWrapper } from '@/components/layout/PageWrapper';
-import { formatDate } from '@/utils/formatDate';
+import { formatChatTime } from '@/utils/formatChatTime';
 import { communicationService } from '@/services/communication.service';
 import { useAuthStore } from '@/store/authStore';
 import type { Communication } from '@/types';
@@ -22,7 +22,6 @@ export default function Communications() {
   const [threads, setThreads] = useState<any[]>([]);
   const [messages, setMessages] = useState<Communication[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [sending, setSending] = useState(false);
 
   // Fetch threads
   useEffect(() => {
@@ -149,10 +148,10 @@ export default function Communications() {
       createdAt: new Date().toISOString(),
       senderType: 'admin',
       sentByCustomer: false,
+      sentBy: admin?.id || '',
     };
     
     setMessages((prev) => [...prev, optimisticMsg]);
-    setSending(true);
     
     try {
       const sentMsg = await communicationService.send({
@@ -176,8 +175,6 @@ export default function Communications() {
       // Revert optimistic update on failure
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       alert('Error sending message. Please try again.');
-    } finally {
-      setSending(false);
     }
   };
 
@@ -186,7 +183,7 @@ export default function Communications() {
     id: t.id,
     title: `${t.firstname} ${t.lastname}`,
     lastMessage: t.last_message || '(No messages)',
-    timestamp: t.last_message_at ? formatDate(t.last_message_at) : '',
+    timestamp: t.last_message_at ? formatChatTime(t.last_message_at) : '',
     unread: parseInt(t.unread_count || '0') > 0,
   }));
 
@@ -194,9 +191,9 @@ export default function Communications() {
     const isFromAdmin = m.senderType === 'admin' || (!m.senderType && Boolean(m.sentBy));
     return {
       id: m.id,
-      role: isFromAdmin ? 'assistant' : 'user',
+      role: isFromAdmin ? 'user' : 'assistant',
       content: m.subject && m.subject !== 'New Message' ? `**${m.subject}**\n\n${m.body}` : m.body,
-      timestamp: formatDate(m.createdAt),
+      timestamp: formatChatTime(m.createdAt),
       status: m.id.startsWith('temp-') ? 'sending' : 'sent',
     };
   });

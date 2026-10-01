@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Send, Plus, MessageSquare, Trash2, Check, CheckCheck, Clock, ChevronLeft } from "lucide-react";
+import { Search, Send, Plus, MessageSquare, Trash2, CheckCheck, Clock, ChevronLeft } from "lucide-react";
 import './ChatInterface.css';
 
 export interface Message {
@@ -223,11 +223,11 @@ export function ChatInterface(props: ChatInterfaceProps) {
                   style={{ height: '2.5rem', flex: 1 }}
                 />
                 <Button
-                  style={{ height: '2.5rem', width: '2.5rem', flexShrink: 0 }}
+                  style={{ height: '2.5rem', width: '2.5rem', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', padding: 0 }}
                   onClick={handleSend}
                   disabled={!input.trim()}
                 >
-                  <Send style={{ height: '1rem', width: '1rem' }} />
+                  <Send style={{ height: '1.25rem', width: '1.25rem' }} />
                 </Button>
               </div>
             </div>

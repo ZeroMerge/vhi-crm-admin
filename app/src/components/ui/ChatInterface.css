@@ -1,6 +1,6 @@
 .chat-container {
   display: flex;
-  height: calc(100vh - 8rem);
+  height: 100%;
   overflow: hidden;
   border-radius: var(--border-radius-lg);
   border: 1px solid var(--color-border);
@@ -9,7 +9,7 @@
 
 .chat-sidebar {
   display: flex;
-  width: 18rem;
+  width: 24rem;
   flex-shrink: 0;
   flex-direction: column;
   border-right: 1px solid var(--color-border);
