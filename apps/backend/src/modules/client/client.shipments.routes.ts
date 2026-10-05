@@ -240,8 +240,15 @@ router.post(
       // Step 9: Audit
       await logAuditEvent(customerId, 'customer', null, 'CREATE_SHIPMENT', 'shipment', shipment.id, { orderId });
 
-      // Step 10: Return 201
-      res.status(201).json({ success: true, data: mapShipment(shipment) });
+      // Step 10: Attach items + documents so the response matches the detail shape
+      const [itemRows, docRows] = await Promise.all([
+        client.query('SELECT * FROM shipment_items WHERE shipment_id = $1', [shipment.id]).then(r => r.rows),
+        uploadedDocs.length > 0
+          ? client.query('SELECT * FROM shipment_documents WHERE shipment_id = $1', [shipment.id]).then(r => r.rows)
+          : Promise.resolve([]),
+      ]);
+
+      res.status(201).json({ success: true, data: mapShipment({ ...shipment, items: itemRows, documents: docRows }) });
     } catch (err) {
       await client.query('ROLLBACK');
       next(err);
@@ -264,6 +271,7 @@ router.get('/:orderId', customerMiddleware, async (req, res, next) => {
     const shipment = shipmentResult.rows[0];
 
     const items = await pool.query('SELECT * FROM shipment_items WHERE shipment_id = $1', [shipment.id]);
+    const documents = await pool.query('SELECT * FROM shipment_documents WHERE shipment_id = $1', [shipment.id]);
     const tracking = await pool.query(
       'SELECT * FROM tracking_updates WHERE shipment_id = $1 ORDER BY created_at ASC',
       [shipment.id]
@@ -274,6 +282,7 @@ router.get('/:orderId', customerMiddleware, async (req, res, next) => {
       data: mapShipment({
         ...shipment,
         items: items.rows,
+        documents: documents.rows,
         trackingUpdates: tracking.rows,
       }),
     });
