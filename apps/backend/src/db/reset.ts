@@ -1,8 +1,11 @@
 import bcrypt from 'bcryptjs';
 import pool from '../config/db';
+import { assertLocalDatabase } from './assertLocalDatabase';
 
 async function run() {
-  console.log('Resetting all admin passwords to "password123"...');
+  await assertLocalDatabase('reset.ts');
+
+  console.log('Resetting all admin passwords to the default reset password...');
   const passwordHash = await bcrypt.hash('password123', 10);
 
   
@@ -27,7 +30,7 @@ async function run() {
   `;
 
   await pool.query(queryText, [passwordHash]);
-  console.log('Successfully set all admin passwords to "password123".');
+  console.log('Successfully reset all admin passwords.');
 
   const res = await pool.query('SELECT name, email, role, assigned_roles FROM admins');
   console.log('Current admins in DB:', res.rows);

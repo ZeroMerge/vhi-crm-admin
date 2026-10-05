@@ -1,7 +1,10 @@
 import bcrypt from 'bcryptjs';
 import pool from '../config/db';
+import { assertLocalDatabase } from './assertLocalDatabase';
 
 async function seedDatabase() {
+  await assertLocalDatabase('db:seed-realistic');
+
   console.log('====================================================');
   console.log('🚀 STARTING COMPREHENSIVE REALISTIC DATABASE SEED');
   console.log('====================================================');

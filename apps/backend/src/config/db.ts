@@ -3,8 +3,11 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+export const getDatabaseUrl = () =>
+  process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/vhi_crm';
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/vhi_crm',
+  connectionString: getDatabaseUrl(),
 });
 
 export const query = async (text: string, params?: any[]) => {
