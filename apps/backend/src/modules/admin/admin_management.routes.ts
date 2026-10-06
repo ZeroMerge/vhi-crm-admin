@@ -2,12 +2,13 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import pool from '../../config/db';
 import { adminMiddleware, requireActiveRole } from '../../middleware/adminMiddleware';
+import { requireActiveAdmin } from '../../middleware/permissions';
 import { logAuditEvent } from '../../utils/audit';
 
 const router = Router();
 
 
-router.use(adminMiddleware);
+router.use(adminMiddleware, requireActiveAdmin);
 router.use(requireActiveRole('super_admin'));
 
 
