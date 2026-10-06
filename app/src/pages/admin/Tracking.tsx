@@ -209,6 +209,24 @@ export default function Tracking() {
 
   const selectedTransition = statusInfo ? transitionsFor(statusInfo, 'update').find((t) => t.to === newEventStatus) : undefined;
 
+  // No status selected + a message = tracking note; the API keeps the current status.
+  const handleAddNote = async () => {
+    if (!selectedShipment || !statusInfo || isSupportStaff || !newEventMessage.trim()) return;
+    setAddingEvent(true);
+    try {
+      await trackingService.addNote(selectedShipment.id, newEventMessage.trim(), statusInfo.status);
+      setNewEventMessage('');
+      const updatedEvents = await trackingService.getEvents(selectedShipment.id);
+      setEvents(updatedEvents);
+      alert('Tracking note added.');
+    } catch (err) {
+      console.error('Failed to add tracking note:', err);
+      if (reportStatusChangeError(err)) setStatusReloadKey((k) => k + 1);
+    } finally {
+      setAddingEvent(false);
+    }
+  };
+
   const handleUpdateStatus = async () => {
     if (!selectedShipment || !statusInfo || isSupportStaff) return;
     if (!selectedTransition) {
@@ -444,6 +462,14 @@ export default function Tracking() {
                     disabled={addingEvent || !selectedTransition || (selectedTransition.requiresReason && !newEventReason.trim())}
                   >
                     {addingEvent ? 'Updating...' : 'Update Status'}
+                  </button>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={handleAddNote}
+                    disabled={addingEvent || !statusInfo || !!newEventStatus || !newEventMessage.trim()}
+                    title="Add the message as a tracking note without changing the status"
+                  >
+                    Add note
                   </button>
                   {statusInfo && transitionsFor(statusInfo, 'correct').length > 0 && (
                     <button className="btn btn-outline btn-sm" onClick={() => setShowCorrectModal(true)}>

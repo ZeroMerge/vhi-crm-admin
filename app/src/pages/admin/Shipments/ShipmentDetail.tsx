@@ -3,7 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Upload, Download, Trash2, Clock, Package, MapPin, Plus, FileText } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
-import { ShipmentStatusModal, transitionsFor } from '@/components/shared/ShipmentStatusModal';
+import { Modal } from '@/components/ui/Modal';
+import { ShipmentStatusModal, reportStatusChangeError, transitionsFor } from '@/components/shared/ShipmentStatusModal';
+import { trackingService } from '@/services/tracking.service';
 import { formatDate, formatDateTime } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { shipmentService } from '@/services/shipment.service';
@@ -20,6 +22,9 @@ export default function ShipmentDetail() {
   const [loading, setLoading] = useState(true);
   const [statusModal, setStatusModal] = useState<'update' | 'correct' | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
   const [awbNumber, setAwbNumber] = useState('');
   const [bolNumber, setBolNumber] = useState('');
   const [uniqueId, setUniqueId] = useState('');
@@ -50,6 +55,25 @@ export default function ShipmentDetail() {
     fetchShipment();
     return () => { active = false; };
   }, [id, reloadKey]);
+
+  const handleAddNote = async () => {
+    if (!shipment || !noteText.trim()) return;
+    setSavingNote(true);
+    try {
+      await trackingService.addNote(shipment.id, noteText.trim(), shipment.status);
+      setShowNoteModal(false);
+      setNoteText('');
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      console.error('Failed to add tracking note', err);
+      if (reportStatusChangeError(err)) {
+        setShowNoteModal(false);
+        setReloadKey((k) => k + 1);
+      }
+    } finally {
+      setSavingNote(false);
+    }
+  };
 
   const handleSaveTracking = async () => {
     if (!shipment) return;
@@ -388,6 +412,9 @@ export default function ShipmentDetail() {
               <h3 className="card-title">Status Timeline</h3>
               {!isSupportStaff && (
                 <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-outline btn-sm" onClick={() => setShowNoteModal(true)}>
+                    Add note
+                  </button>
                   {transitionsFor(shipment, 'correct').length > 0 && (
                     <button className="btn btn-outline btn-sm" onClick={() => setStatusModal('correct')}>
                       Correct status
@@ -449,6 +476,32 @@ export default function ShipmentDetail() {
           </div>
         </div>
       </div>
+
+      <Modal
+        isOpen={showNoteModal}
+        onClose={() => setShowNoteModal(false)}
+        title="Add Tracking Note"
+        footer={
+          <>
+            <button className="btn btn-outline" onClick={() => setShowNoteModal(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleAddNote} disabled={savingNote || !noteText.trim()}>
+              {savingNote ? 'Saving...' : 'Add Note'}
+            </button>
+          </>
+        }
+      >
+        <div className="form-group">
+          <label className="form-label">Note (status stays {shipment.status.replace(/_/g, ' ')})</label>
+          <textarea
+            className="input"
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            placeholder="e.g. Arrived at transit hub, Paris..."
+            rows={3}
+            style={{ resize: 'vertical', width: '100%' }}
+          />
+        </div>
+      </Modal>
 
       {statusModal && (
         <ShipmentStatusModal
