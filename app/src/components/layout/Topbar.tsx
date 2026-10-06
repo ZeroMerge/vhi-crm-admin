@@ -85,7 +85,9 @@ export function Topbar() {
       setSearchLoading(true);
       try {
         const res = await api.get(`/api/admin/search?q=${searchQuery}`);
-        setSearchResults(res.data.data);
+        // The API omits result groups the active role cannot read.
+        const data = res.data.data || {};
+        setSearchResults({ customers: data.customers ?? [], shipments: data.shipments ?? [], invoices: data.invoices ?? [] });
       } catch (err) {
         console.error('Search failed:', err);
       } finally {
@@ -232,8 +234,8 @@ export function Topbar() {
                       {searchResults.customers.map((c) => (
                         <div
                           key={c.id}
-                          onClick={() => { navigate(`/admin/customers/${c.id}`); setSearchExpanded(false); }}
-                          style={{ padding: '8px 16px', cursor: 'pointer', fontSize: 'var(--font-size-sm)', transition: 'background 0.1s ease' }}
+                          onClick={() => { if (!hasModuleAccess(admin?.activeRole, 'customers')) return; navigate(`/admin/customers/${c.id}`); setSearchExpanded(false); }}
+                          style={{ padding: '8px 16px', cursor: hasModuleAccess(admin?.activeRole, 'customers') ? 'pointer' : 'default', fontSize: 'var(--font-size-sm)', transition: 'background 0.1s ease' }}
                           className="dropdown-item"
                         >
                           <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{c.firstname} {c.lastname}</div>
@@ -252,8 +254,8 @@ export function Topbar() {
                       {searchResults.shipments.map((s) => (
                         <div
                           key={s.id}
-                          onClick={() => { navigate(`/admin/shipments/${s.id}`); setSearchExpanded(false); }}
-                          style={{ padding: '8px 16px', cursor: 'pointer', fontSize: 'var(--font-size-sm)', transition: 'background 0.1s ease' }}
+                          onClick={() => { if (!hasModuleAccess(admin?.activeRole, 'shipments')) return; navigate(`/admin/shipments/${s.id}`); setSearchExpanded(false); }}
+                          style={{ padding: '8px 16px', cursor: hasModuleAccess(admin?.activeRole, 'shipments') ? 'pointer' : 'default', fontSize: 'var(--font-size-sm)', transition: 'background 0.1s ease' }}
                           className="dropdown-item"
                         >
                           <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{s.order_id}</div>
@@ -272,8 +274,8 @@ export function Topbar() {
                       {searchResults.invoices.map((i) => (
                         <div
                           key={i.id}
-                          onClick={() => { navigate(`/admin/invoices/${i.id}`); setSearchExpanded(false); }}
-                          style={{ padding: '8px 16px', cursor: 'pointer', fontSize: 'var(--font-size-sm)', transition: 'background 0.1s ease' }}
+                          onClick={() => { if (!hasModuleAccess(admin?.activeRole, 'invoices')) return; navigate(`/admin/invoices/${i.id}`); setSearchExpanded(false); }}
+                          style={{ padding: '8px 16px', cursor: hasModuleAccess(admin?.activeRole, 'invoices') ? 'pointer' : 'default', fontSize: 'var(--font-size-sm)', transition: 'background 0.1s ease' }}
                           className="dropdown-item"
                         >
                           <div style={{ fontWeight: 500, color: 'var(--color-text-primary)' }}>{i.invoice_number}</div>
