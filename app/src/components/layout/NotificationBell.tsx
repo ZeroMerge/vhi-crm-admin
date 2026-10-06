@@ -41,7 +41,7 @@ export function NotificationBell() {
   const containerRef = useRef<HTMLDivElement>(null);
   const bellRef = useRef<HTMLButtonElement>(null);
 
-  const { data: loadedCount } = useUnreadNotificationCount();
+  const loadedCount = useUnreadNotificationCount().data?.count;
   const unreadCount = loadedCount ?? 0;
   const list = useNotificationList(open);
   const markRead = useMarkNotificationRead();

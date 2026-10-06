@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { createContext, useCallback, useContext } from 'react';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationService } from '@/services/notification.service';
 
@@ -9,12 +9,17 @@ export const notificationKeys = {
   unreadCount: ['notifications', 'unread-count'] as const,
 };
 
-// Polls every 60s; React Query pauses interval refetching while the tab is hidden (refetchIntervalInBackground: false).
+// True while a realtime notification stream is open (in this tab or, via the leader tab, in another one).
+// Provided by components/layout/NotificationStreamProvider.tsx.
+export const NotificationStreamContext = createContext(false);
+
+// Polls every 60s only while the realtime stream is down; React Query also pauses polling in hidden tabs.
 export function useUnreadNotificationCount() {
+  const streaming = useContext(NotificationStreamContext);
   return useQuery({
     queryKey: notificationKeys.unreadCount,
     queryFn: notificationService.unreadCount,
-    refetchInterval: 60_000,
+    refetchInterval: streaming ? false : 60_000,
   });
 }
 

@@ -14,6 +14,11 @@ export interface AppNotification {
   createdAt: string;
 }
 
+export interface UnreadCount {
+  count: number;
+  latestId: string | null;
+}
+
 export interface NotificationPage {
   data: AppNotification[];
   nextCursor: string | null;
@@ -26,9 +31,10 @@ export const notificationService = {
     });
     return { data: res.data.data, nextCursor: res.data.nextCursor };
   },
-  unreadCount: async (): Promise<number> => {
-    const res = await api.get<ApiResponse<{ count: number }>>('/api/admin/notifications/unread-count');
-    return res.data.data.count;
+  // latestId: the highest id this count could see; the realtime stream uses it to avoid double-counting.
+  unreadCount: async (): Promise<UnreadCount> => {
+    const res = await api.get<ApiResponse<{ count: number; latestId?: string | null }>>('/api/admin/notifications/unread-count');
+    return { count: res.data.data.count, latestId: res.data.data.latestId ?? null };
   },
   markRead: async (id: string): Promise<AppNotification> => {
     const res = await api.post<ApiResponse<AppNotification>>(`/api/admin/notifications/${id}/read`);
