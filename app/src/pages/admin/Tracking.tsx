@@ -10,6 +10,7 @@ import { trackingService } from '@/services/tracking.service';
 import { shipmentService } from '@/services/shipment.service';
 import { useAuthStore } from '@/store/authStore';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { ShipmentStatusModal, formatShipmentStatus, reportStatusChangeError, transitionsFor } from '@/components/shared/ShipmentStatusModal';
 import type { Shipment, TrackingUpdate } from '@/types';
 
 const TIMELINE_STEPS = [
@@ -20,13 +21,6 @@ const TIMELINE_STEPS = [
   { value: 'delivered', label: 'Delivered', description: 'Package delivered' },
 ];
 
-const statusOptions = [
-  { value: 'pending', label: 'Pending' },
-  { value: 'processing', label: 'Processing' },
-  { value: 'in_transit', label: 'In Transit' },
-  { value: 'clearance', label: 'Customs Clearance' },
-  { value: 'delivered', label: 'Delivered' },
-];
 
 const safeFormatDate = (dateStr: any) => {
   if (!dateStr) return '';
@@ -76,7 +70,12 @@ export default function Tracking() {
   const [_events, setEvents] = useState<TrackingUpdate[]>([]);
   const [newEventStatus, setNewEventStatus] = useState('');
   const [newEventMessage, setNewEventMessage] = useState('');
+  const [newEventReason, setNewEventReason] = useState('');
   const [addingEvent, setAddingEvent] = useState(false);
+  // Status + allowedTransitions for the selected shipment, from the detail endpoint (the list does not include them).
+  const [statusInfo, setStatusInfo] = useState<Pick<Shipment, 'id' | 'status' | 'allowedTransitions'> | null>(null);
+  const [statusReloadKey, setStatusReloadKey] = useState(0);
+  const [showCorrectModal, setShowCorrectModal] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -125,6 +124,27 @@ export default function Tracking() {
     }
     return () => { active = false; };
   }, [selectedShipment]);
+
+  useEffect(() => {
+    let active = true;
+    setStatusInfo(null);
+    setNewEventStatus('');
+    setNewEventReason('');
+    if (selectedShipment) {
+      shipmentService.getById(selectedShipment.id).then((data) => {
+        if (!active) return;
+        setStatusInfo({ id: data.id, status: data.status, allowedTransitions: data.allowedTransitions });
+        // Keep the list and selection in step with the authoritative status.
+        if (data.status !== selectedShipment.status) {
+          setSelectedShipment((prev) => (prev && prev.id === data.id ? { ...prev, status: data.status } : prev));
+          setShipments((prev) => prev.map((s) => (s.id === data.id ? { ...s, status: data.status } : s)));
+        }
+      }).catch((err) => {
+        console.error('Failed to load allowed status changes', err);
+      });
+    }
+    return () => { active = false; };
+  }, [selectedShipment?.id, statusReloadKey]);
 
   const getTrackingType = (shipment: any): 'awb' | 'bol' | 'uniqueId' => {
     if (shipment.shipping_mode === 'air_freight') return 'awb';
@@ -187,10 +207,16 @@ export default function Tracking() {
     }
   };
 
+  const selectedTransition = statusInfo ? transitionsFor(statusInfo, 'update').find((t) => t.to === newEventStatus) : undefined;
+
   const handleUpdateStatus = async () => {
-    if (!selectedShipment || isSupportStaff) return;
-    if (!newEventStatus) {
+    if (!selectedShipment || !statusInfo || isSupportStaff) return;
+    if (!selectedTransition) {
       alert('Please select a status.');
+      return;
+    }
+    if (selectedTransition.requiresReason && !newEventReason.trim()) {
+      alert('Please enter a reason.');
       return;
     }
     setAddingEvent(true);
@@ -198,7 +224,8 @@ export default function Tracking() {
       const updatedShipment = await shipmentService.updateStatus(
         selectedShipment.id,
         newEventStatus,
-        newEventMessage
+        newEventMessage,
+        { reason: newEventReason.trim() || undefined, expectedStatus: statusInfo.status }
       );
 
       setSelectedShipment(updatedShipment);
@@ -206,6 +233,7 @@ export default function Tracking() {
       
       setNewEventStatus('');
       setNewEventMessage('');
+      setNewEventReason('');
 
       const updatedEvents = await trackingService.getEvents(selectedShipment.id);
       setEvents(updatedEvents);
@@ -213,7 +241,7 @@ export default function Tracking() {
       alert('Package status updated successfully!');
     } catch (err) {
       console.error('Failed to update package status:', err);
-      alert('Failed to update status.');
+      if (reportStatusChangeError(err)) setStatusReloadKey((k) => k + 1);
     } finally {
       setAddingEvent(false);
     }
@@ -380,11 +408,24 @@ export default function Tracking() {
                   <CustomSelect
                     value={newEventStatus}
                     onChange={(val) => setNewEventStatus(val)}
-                    options={statusOptions}
-                    placeholder="Select status..."
+                    options={statusInfo ? transitionsFor(statusInfo, 'update').map((t) => ({ value: t.to, label: formatShipmentStatus(t.to) })) : []}
+                    placeholder={statusInfo ? (transitionsFor(statusInfo, 'update').length ? 'Select status...' : 'No status changes available') : 'Loading...'}
                     width="100%"
                   />
                 </div>
+                {selectedTransition?.requiresReason && (
+                  <div>
+                    <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>
+                      Reason (Required)
+                    </label>
+                    <input
+                      className="input"
+                      placeholder={newEventStatus === 'cancelled' ? 'Why is this shipment being cancelled? The customer will see this.' : 'Why is this change needed?'}
+                      value={newEventReason}
+                      onChange={(e) => setNewEventReason(e.target.value)}
+                    />
+                  </div>
+                )}
                 <div>
                   <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>
                     Status Update Message (Optional)
@@ -396,14 +437,32 @@ export default function Tracking() {
                     onChange={(e) => setNewEventMessage(e.target.value)}
                   />
                 </div>
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={handleUpdateStatus}
-                  disabled={addingEvent || !newEventStatus}
-                  style={{ alignSelf: 'flex-start' }}
-                >
-                  {addingEvent ? 'Updating...' : 'Update Status'}
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={handleUpdateStatus}
+                    disabled={addingEvent || !selectedTransition || (selectedTransition.requiresReason && !newEventReason.trim())}
+                  >
+                    {addingEvent ? 'Updating...' : 'Update Status'}
+                  </button>
+                  {statusInfo && transitionsFor(statusInfo, 'correct').length > 0 && (
+                    <button className="btn btn-outline btn-sm" onClick={() => setShowCorrectModal(true)}>
+                      Correct status
+                    </button>
+                  )}
+                </div>
+                {showCorrectModal && statusInfo && (
+                  <ShipmentStatusModal
+                    isOpen
+                    mode="correct"
+                    shipment={statusInfo}
+                    onClose={() => setShowCorrectModal(false)}
+                    onChanged={() => {
+                      setStatusReloadKey((k) => k + 1);
+                      trackingService.getEvents(statusInfo.id).then(setEvents).catch((err) => console.error('Failed to get events', err));
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>

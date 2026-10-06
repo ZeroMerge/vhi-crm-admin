@@ -107,7 +107,17 @@ export interface ShipmentDocument {
   createdAt: string;
 }
 
+// Computed by the API for the caller's active role (apps/backend/src/modules/shipments/shipmentStatus.ts).
+export interface AllowedTransition {
+  to: ShipmentStatus;
+  kind: 'forward' | 'cancel' | 'correction' | 'reopen';
+  isCorrection: boolean;
+  isReopen: boolean;
+  requiresReason: boolean;
+}
+
 export interface Shipment {
+  allowedTransitions?: AllowedTransition[];
   id: string;
   orderId: string;
   customerId: string;
