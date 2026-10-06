@@ -26,6 +26,8 @@ export function useNotificationList(enabled: boolean) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled,
+    // One retry, so the error state shows quickly instead of after the default three.
+    retry: 1,
   });
 }
 

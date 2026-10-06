@@ -83,7 +83,13 @@ export function NotificationBell() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         // Until the count has loaded, do not announce a possibly wrong "0 unread".
-        aria-label={loadedCount === undefined ? 'Notifications' : `${unreadCount} unread notifications`}
+        aria-label={
+          loadedCount === undefined
+            ? 'Notifications'
+            : unreadCount === 1
+              ? '1 unread notification'
+              : `${unreadCount} unread notifications`
+        }
         aria-haspopup="true"
         aria-expanded={open}
         aria-controls={panelId}
