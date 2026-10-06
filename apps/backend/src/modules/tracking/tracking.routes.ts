@@ -2,7 +2,8 @@ import { Router } from 'express';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { logAuditEvent } from '../../utils/audit';
-import { mapShipment } from '../shipments/shipments.routes';
+import { UUID_RE, lockShipmentForUpdate, mapShipment } from '../shipments/shipments.routes';
+import { assertTransition, assertValidStatus, conflictError } from '../shipments/shipmentStatus';
 
 const router = Router();
 
@@ -70,16 +71,80 @@ router.get('/pending', adminMiddleware, async (req, res, next) => {
 });
 
 
+// Body: { status?, message?, reason?, expectedStatus? }.
+// - status omitted/empty or equal to the current status → note-only: one tracking row, shipment untouched (message required).
+// - otherwise the change goes through the shipment state machine (../shipments/shipmentStatus.ts).
+// Everything is one transaction: on any failure nothing is written.
 router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
+  const { status, message, reason, expectedStatus } = req.body;
+  const statusGiven = status !== undefined && status !== null && status !== '';
+  const text = typeof message === 'string' ? message.trim() : '';
   try {
-    const { status, message } = req.body;
-    const result = await pool.query(
-      'INSERT INTO tracking_updates (shipment_id, status, message, updated_by) VALUES ($1, $2, $3, $4) RETURNING *',
-      [req.params.shipmentId, status, message || '', req.admin!.id]
-    );
-    await pool.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [status, req.params.shipmentId]);
+    if (statusGiven) assertValidStatus(status);
+    if (message !== undefined && message !== null && typeof message !== 'string') {
+      return res.status(400).json({ success: false, message: 'message must be a string' });
+    }
+  } catch (err) { return next(err); }
+  if (!UUID_RE.test(req.params.shipmentId)) return res.status(404).json({ success: false, message: 'Shipment not found' });
 
-    
+  let client;
+  try {
+    client = await pool.connect();
+  } catch (err) { return next(err); }
+  let trackingRow;
+  let auditMetadata;
+  try {
+    await client.query('BEGIN');
+
+    const current = await lockShipmentForUpdate(client, 'id = $1', [req.params.shipmentId]);
+    if (!current) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Shipment not found' });
+    }
+    if (expectedStatus !== undefined && expectedStatus !== current.status) throw conflictError();
+
+    const noteOnly = !statusGiven || status === current.status;
+    if (noteOnly) {
+      if (!text) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, message: 'A message is required for a tracking note without a status change' });
+      }
+      auditMetadata = { noteOnly: true, status: current.status, message: text };
+    } else {
+      const transition = assertTransition({
+        from: current.status,
+        to: status,
+        actorType: 'admin',
+        actorRole: req.admin!.activeRole,
+        reason,
+      });
+      await client.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [transition.to, current.id]);
+      auditMetadata = {
+        noteOnly: false,
+        from: transition.from,
+        to: transition.to,
+        reason: reason ?? null,
+        isCorrection: transition.isCorrection,
+        isReopen: transition.isReopen,
+        message: text || null,
+      };
+    }
+
+    const result = await client.query(
+      'INSERT INTO tracking_updates (shipment_id, status, message, updated_by) VALUES ($1, $2, $3, $4) RETURNING *',
+      [current.id, noteOnly ? current.status : status, text, req.admin!.id]
+    );
+    trackingRow = result.rows[0];
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
+  }
+
+  try {
     await logAuditEvent(
       req.admin!.id,
       'admin',
@@ -87,10 +152,10 @@ router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
       'ADD_TRACKING_UPDATE',
       'shipment',
       req.params.shipmentId,
-      { status, message }
+      auditMetadata
     );
 
-    res.json({ success: true, data: result.rows[0] });
+    res.json({ success: true, data: trackingRow });
   } catch (err) { next(err); }
 });
 

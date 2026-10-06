@@ -8,7 +8,7 @@ import { assertInitialStatus, assertTransition, assertValidStatus, conflictError
 
 const router = Router();
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Locks one shipment row for the rest of the transaction. Another transaction already holding
 // the lock means a concurrent change: answer 409 instead of waiting and overwriting it.
