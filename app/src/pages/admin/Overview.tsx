@@ -166,7 +166,7 @@ export default function Overview() {
           <div key={stat.label} style={{ 
             background: 'var(--color-surface)', 
             borderRadius: '12px', 
-            border: '1px solid rgba(0,0,0,0.04)',
+            border: '1.5px solid rgba(0,0,0,0.04)',
             boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
           }}>
             <div style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -181,7 +181,7 @@ export default function Overview() {
               <div style={{ 
                 width: 32, height: 32, borderRadius: '8px', 
                 background: 'var(--color-surface)', 
-                border: '1px solid rgba(0,0,0,0.04)', 
+                border: '1.5px solid rgba(0,0,0,0.04)', 
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--color-text-secondary)'
               }}>
@@ -190,7 +190,7 @@ export default function Overview() {
             </div>
             <div style={{ 
               padding: '16px 24px', 
-              borderTop: '1px solid rgba(0,0,0,0.03)', 
+              borderTop: '1.5px solid rgba(0,0,0,0.03)', 
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center' 
@@ -243,7 +243,7 @@ export default function Overview() {
       <div style={{ 
         background: 'var(--color-surface)', 
         borderRadius: '12px', 
-        border: '1px solid rgba(0,0,0,0.04)',
+        border: '1.5px solid rgba(0,0,0,0.04)',
         boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
         overflow: 'hidden'
       }}>
@@ -253,7 +253,7 @@ export default function Overview() {
           justifyContent: 'space-between', 
           alignItems: 'center', 
           padding: '20px 24px', 
-          borderBottom: '1px solid rgba(0,0,0,0.04)',
+          borderBottom: '1.5px solid rgba(0,0,0,0.04)',
           flexWrap: 'wrap',
           gap: 16
         }}>

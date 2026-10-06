@@ -135,7 +135,7 @@ export default function Shipments() {
       <div style={{ 
         background: 'var(--color-surface)', 
         borderRadius: '12px', 
-        border: '1px solid rgba(0,0,0,0.04)',
+        border: '1.5px solid rgba(0,0,0,0.04)',
         boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
         overflow: 'hidden',
         marginBottom: 24
@@ -146,7 +146,7 @@ export default function Shipments() {
           justifyContent: 'space-between', 
           alignItems: 'center', 
           padding: '20px 24px', 
-          borderBottom: '1px solid rgba(0,0,0,0.04)',
+          borderBottom: '1.5px solid rgba(0,0,0,0.04)',
           flexWrap: 'wrap',
           gap: 16
         }}>
@@ -284,7 +284,7 @@ export default function Shipments() {
         </div>
 
         {isSupportStaff && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '10px 16px', fontSize: 'var(--font-size-xs)', fontWeight: 500, borderBottom: '1px solid var(--color-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '10px 16px', fontSize: 'var(--font-size-xs)', fontWeight: 500, borderBottom: '1.5px solid var(--color-border)' }}>
             <AlertTriangle size={14} />
             <span>You are logged in with the read-only Support Staff role. Action buttons are disabled.</span>
           </div>
@@ -384,7 +384,7 @@ export default function Shipments() {
         </div>
 
         {!loading && shipments.length === 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', background: 'var(--color-surface)', borderRadius: '0 0 var(--border-radius-card) var(--border-radius-card)', border: '1px solid var(--color-border)', borderTop: 'none' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', background: 'var(--color-surface)', borderRadius: '0 0 var(--border-radius-card) var(--border-radius-card)', border: '1.5px solid var(--color-border)', borderTop: 'none' }}>
             <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--color-page-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
               <SearchX size={32} color="var(--color-text-muted)" />
             </div>

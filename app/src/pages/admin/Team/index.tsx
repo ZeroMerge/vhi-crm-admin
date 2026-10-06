@@ -182,12 +182,12 @@ export default function Team() {
         <div style={{ 
           background: 'var(--color-surface)', 
           borderRadius: '12px', 
-          border: '1px solid var(--color-border)',
+          border: '1.5px solid var(--color-border)',
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ padding: '20px 24px', borderBottom: '1.5px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 className="card-title" style={{ marginBottom: 0 }}>System Administrators</h3>
             {isSuperAdmin && (
               <button className="btn btn-primary btn-sm" onClick={() => setInviteModalOpen(true)}>
@@ -207,7 +207,7 @@ export default function Team() {
                 No administrators found.
               </div>
             ) : (
-              <table className="vhi-table" style={{ whiteSpace: 'nowrap' }}>
+              <div className="vhi-table-container"><table className="vhi-table" style={{ whiteSpace: 'nowrap' }}>
                 <thead>
                   <tr>
                     <th>Name</th>
@@ -324,7 +324,7 @@ export default function Team() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </div>
         </div>
@@ -417,7 +417,7 @@ export default function Team() {
 
                 <div className="form-group">
                   <label className="form-label">Assign Account Roles</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--color-page-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-input)', padding: 12, maxHeight: 180, overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--color-page-bg)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--border-radius-input)', padding: 12, maxHeight: 180, overflowY: 'auto' }}>
                     {ALL_ROLES.map((role) => (
                       <label key={role.value} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 'var(--font-size-sm)' }}>
                         <input
@@ -462,7 +462,7 @@ export default function Team() {
             <form onSubmit={handleEditRolesSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div className="form-group">
                 <label className="form-label">Assign Account Roles</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--color-page-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-input)', padding: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'var(--color-page-bg)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--border-radius-input)', padding: 12 }}>
                   {ALL_ROLES.map((role) => (
                     <label key={role.value} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 'var(--font-size-sm)' }}>
                       <input

@@ -175,7 +175,7 @@ export function Topbar() {
               width: 40,
               height: 40,
               borderRadius: '50%',
-              border: '1px solid var(--color-border)',
+              border: '1.5px solid var(--color-border)',
               background: 'transparent',
               display: 'flex',
               alignItems: 'center',
@@ -199,7 +199,7 @@ export function Topbar() {
                 background: 'var(--color-page-bg)',
                 borderRadius: 'var(--border-radius-card)',
                 boxShadow: 'var(--shadow-lg)',
-                border: '1px solid var(--color-border)',
+                border: '1.5px solid var(--color-border)',
                 zIndex: 1000,
                 maxHeight: '480px',
                 overflowY: 'auto',
@@ -296,7 +296,7 @@ export function Topbar() {
               width: 40,
               height: 40,
               borderRadius: '50%',
-              border: '1px solid var(--color-border)',
+              border: '1.5px solid var(--color-border)',
               background: 'transparent',
               display: 'flex',
               alignItems: 'center',
@@ -340,7 +340,7 @@ export function Topbar() {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '12px 16px',
-                  borderBottom: '1px solid var(--color-border)',
+                  borderBottom: '1.5px solid var(--color-border)',
                 }}
               >
                 <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Notifications</span>
@@ -371,7 +371,7 @@ export function Topbar() {
                       onClick={() => markAsRead(n.id)}
                       style={{
                         padding: '12px 16px',
-                        borderBottom: '1px solid var(--color-border)',
+                        borderBottom: '1.5px solid var(--color-border)',
                         cursor: 'pointer',
                         background: n.read ? 'var(--color-page-bg)' : 'var(--color-primary-light)',
                         borderLeft: n.read ? 'none' : '3px solid var(--color-primary)',
@@ -451,13 +451,13 @@ export function Topbar() {
                 background: 'var(--color-page-bg)',
                 borderRadius: 'var(--border-radius-card)',
                 boxShadow: 'var(--shadow-lg)',
-                border: '1px solid var(--color-border)',
+                border: '1.5px solid var(--color-border)',
                 zIndex: 1000,
                 overflow: 'hidden',
               }}
             >
               {/* Dropdown Header with Name and Role */}
-              <div style={{ padding: '16px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ padding: '16px', borderBottom: '1.5px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <Avatar name={admin?.name || 'VHI Admin'} size="lg" />
                 <div>
                   <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)' }}>

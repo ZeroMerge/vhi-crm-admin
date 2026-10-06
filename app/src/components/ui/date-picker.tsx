@@ -29,7 +29,7 @@ export function DatePicker({ value, onChange, className, placeholder = "Pick a d
             height: '36px',
             padding: '0 12px',
             background: 'var(--color-surface, #fff)',
-            border: '1px solid var(--color-border, #e5e7eb)',
+            border: '1.5px solid var(--color-border, #e5e7eb)',
             borderRadius: 'var(--radius-input, 4px)',
             color: dateValue ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
             cursor: 'pointer',
@@ -47,7 +47,7 @@ export function DatePicker({ value, onChange, className, placeholder = "Pick a d
         align="start"
         style={{
           background: 'var(--color-surface, #fff)',
-          border: '1px solid var(--color-border, #e5e7eb)',
+          border: '1.5px solid var(--color-border, #e5e7eb)',
           borderRadius: 'var(--radius-card, 4px)',
           boxShadow: 'var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1))',
           padding: '16px',

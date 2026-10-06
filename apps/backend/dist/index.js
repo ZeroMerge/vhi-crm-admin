@@ -22,6 +22,10 @@ const admin_management_routes_1 = __importDefault(require("./modules/admin/admin
 const client_auth_routes_1 = __importDefault(require("./modules/client/client.auth.routes"));
 const client_shipments_routes_1 = __importDefault(require("./modules/client/client.shipments.routes"));
 const client_tracking_routes_1 = __importDefault(require("./modules/client/client.tracking.routes"));
+const client_cargo_routes_1 = __importDefault(require("./modules/client/client.cargo.routes"));
+const customerMiddleware_1 = require("./middleware/customerMiddleware");
+const client_communications_routes_1 = __importDefault(require("./modules/client/client.communications.routes"));
+const realtime_routes_1 = __importDefault(require("./modules/realtime/realtime.routes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const PORT = process.env.PORT || 5000;
@@ -29,6 +33,7 @@ const allowedOrigins = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'https://vhi-crm-admin.vercel.app',
+    'https://vhi-crm.netlify.app',
     process.env.ADMIN_FRONTEND_URL,
     process.env.CLIENT_FRONTEND_URL,
     process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined
@@ -77,6 +82,9 @@ app.use('/api/admin/feedback', feedback_routes_1.default);
 app.use('/api/client/auth', client_auth_routes_1.default);
 app.use('/api/client/shipments', client_shipments_routes_1.default);
 app.use('/api/client/tracking', client_tracking_routes_1.default);
+app.use('/api/client/cargo-clearings', customerMiddleware_1.customerMiddleware, client_cargo_routes_1.default);
+app.use('/api/client/communications', client_communications_routes_1.default);
+app.use('/api/realtime', realtime_routes_1.default);
 app.get('/api/health', (_req, res) => {
     res.json({ success: true, message: 'VHI CRM API is running' });
 });

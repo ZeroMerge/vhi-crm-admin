@@ -246,7 +246,7 @@ export default function Tracking() {
 
         <div style={{ 
           background: 'var(--color-surface)', 
-          border: '1px solid var(--color-border)', 
+          border: '1.5px solid var(--color-border)', 
           borderRadius: 'var(--border-radius-card)', 
           padding: '16px 20px', 
           marginBottom: 24 
@@ -425,7 +425,7 @@ export default function Tracking() {
           background: 'var(--color-surface)',
           padding: '16px',
           borderRadius: 'var(--border-radius-card)',
-          border: '1px solid var(--color-border)',
+          border: '1.5px solid var(--color-border)',
         }}
       >
         <div className="search-input-wrapper" style={{ maxWidth: 240 }}>
@@ -554,7 +554,7 @@ export default function Tracking() {
                         padding: '14px 16px',
                         background: selectedShipment?.id === sh.id ? 'var(--color-primary-light)' : 'var(--color-surface)',
                         border: 'none',
-                        borderBottom: '1px solid var(--color-border)',
+                        borderBottom: '1.5px solid var(--color-border)',
                         borderLeft: selectedShipment?.id === sh.id ? '4px solid var(--color-primary)' : '4px solid transparent',
                         cursor: 'pointer',
                         textAlign: 'left',
@@ -595,7 +595,7 @@ export default function Tracking() {
         ) : (
           <div className="col-right">
             {selectedShipment ? renderDetails() : (
-              <div style={{ padding: '80px', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1px solid var(--color-border)' }}>
+              <div style={{ padding: '80px', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1.5px solid var(--color-border)' }}>
                 No shipment selected. Choose a shipment from the left list.
               </div>
             )}

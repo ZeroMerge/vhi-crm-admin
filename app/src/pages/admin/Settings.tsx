@@ -133,7 +133,7 @@ export default function Settings() {
     <PageWrapper title="Settings">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         {}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', gap: 32, overflowX: 'auto', paddingBottom: 1 }}>
+        <div style={{ display: 'flex', borderBottom: '1.5px solid var(--color-border)', gap: 32, overflowX: 'auto', paddingBottom: 1 }}>
           {tabsConfig.map((t) => {
               const isActive = activeTab === t.id;
               return (
@@ -168,7 +168,7 @@ export default function Settings() {
         {}
         {activeTab === 'profile' && (
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)', paddingBottom: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1.5px solid var(--color-border)', paddingBottom: 16 }}>
               <User size={20} color="var(--color-primary)" />
               <h3 className="card-title" style={{ marginBottom: 0 }}>Admin Profile</h3>
             </div>
@@ -211,7 +211,7 @@ export default function Settings() {
 
               <div className="form-group">
                 <label className="form-label">Email Address (Read-only)</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--color-page-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-input)', color: 'var(--color-text-muted)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--color-page-bg)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--border-radius-input)', color: 'var(--color-text-muted)' }}>
                   <Mail size={16} />
                   <span>{admin?.email}</span>
                 </div>
@@ -276,7 +276,7 @@ export default function Settings() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
             {}
             <div className="card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)', paddingBottom: 16, marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1.5px solid var(--color-border)', paddingBottom: 16, marginBottom: 20 }}>
                 <Lock size={20} color="var(--color-primary)" />
                 <h3 className="card-title" style={{ marginBottom: 0 }}>Change Password</h3>
               </div>
@@ -349,7 +349,7 @@ export default function Settings() {
 
             {/* 2FA Card */}
             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)', paddingBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1.5px solid var(--color-border)', paddingBottom: 16 }}>
                 <Shield size={20} color="var(--color-primary)" />
                 <div>
                   <h3 className="card-title" style={{ marginBottom: 0 }}>Two-Factor Authentication (2FA)</h3>
@@ -371,7 +371,7 @@ export default function Settings() {
 
             {/* Active Sessions */}
             <div className="card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)', paddingBottom: 16, marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1.5px solid var(--color-border)', paddingBottom: 16, marginBottom: 20 }}>
                 <Key size={20} color="var(--color-primary)" />
                 <h3 className="card-title" style={{ marginBottom: 0 }}>Active Connected Devices</h3>
               </div>
@@ -381,7 +381,7 @@ export default function Settings() {
                   { device: 'Windows 11 PC • Lagos, Nigeria', browser: 'Chrome Browser', current: true, ip: '102.89.34.12' },
                   { device: 'Apple iPhone 15 Pro • Lagos, Nigeria', browser: 'Safari Mobile', current: false, ip: '102.89.44.82' }
                 ].map((s, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: 'var(--color-page-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-input)' }}>
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: 'var(--color-page-bg)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--border-radius-input)' }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
                         {s.device} {s.current && <span style={{ marginLeft: 6, fontSize: 10, background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '1px 6px', borderRadius: 'var(--border-radius-pill)', fontWeight: 600 }}>Active Session</span>}
@@ -403,7 +403,7 @@ export default function Settings() {
         {/* Tab 3: Notifications */}
         {activeTab === 'notifications' && (
           <div className="card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)', paddingBottom: 16, marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1.5px solid var(--color-border)', paddingBottom: 16, marginBottom: 24 }}>
               <Bell size={20} color="var(--color-primary)" />
               <div>
                 <h3 className="card-title" style={{ marginBottom: 0 }}>Notification Preferences</h3>
@@ -421,7 +421,7 @@ export default function Settings() {
                 { key: 'overdue_alert', label: 'Overdue Invoices', desc: 'Receive immediate alerts when invoice due dates pass without settlement.' },
                 { key: 'newsletter_sent', label: 'Newsletter Broadcasts', desc: 'Receive internal confirmations when marketing campaigns are broadcast.' }
               ].map((pref) => (
-                <label key={pref.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: 16, borderBottom: '1px solid var(--color-border)' }}>
+                <label key={pref.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: 16, borderBottom: '1.5px solid var(--color-border)' }}>
                   <div style={{ paddingRight: 16 }}>
                     <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{pref.label}</div>
                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>{pref.desc}</div>

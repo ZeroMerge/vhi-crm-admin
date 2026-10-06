@@ -8,31 +8,29 @@ const db_1 = __importDefault(require("../config/db"));
 async function seed() {
     console.log('Seeding database...');
     const adminHash = await bcryptjs_1.default.hash('Admin@123', 10);
-    const adminResult = await db_1.default.query(`INSERT INTO admins (name, email, password_hash, role, assigned_roles, notification_prefs, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, true)
+    const adminResult = await db_1.default.query(`INSERT INTO admins (name, email, password_hash, role, assigned_roles, notification_prefs)
+     VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (email) DO UPDATE SET
        password_hash = EXCLUDED.password_hash,
        role = EXCLUDED.role,
        assigned_roles = EXCLUDED.assigned_roles,
-       notification_prefs = EXCLUDED.notification_prefs,
-       is_active = true
+       notification_prefs = EXCLUDED.notification_prefs
      RETURNING *`, ['VHI Admin', 'admin@valuehandlers.com', adminHash, 'super_admin', ['super_admin'], '{}']);
     console.log('Admin created:', adminResult.rows[0]?.email || 'already exists');
     const dynamoHash = await bcryptjs_1.default.hash('Asdfgh123@', 10);
-    const dynamoResult = await db_1.default.query(`INSERT INTO admins (name, email, password_hash, role, assigned_roles, notification_prefs, is_active)
-     VALUES ($1, $2, $3, $4, $5, $6, true)
+    const dynamoResult = await db_1.default.query(`INSERT INTO admins (name, email, password_hash, role, assigned_roles, notification_prefs)
+     VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (email) DO UPDATE SET
        password_hash = EXCLUDED.password_hash,
        role = EXCLUDED.role,
        assigned_roles = EXCLUDED.assigned_roles,
-       notification_prefs = EXCLUDED.notification_prefs,
-       is_active = true
+       notification_prefs = EXCLUDED.notification_prefs
      RETURNING *`, ['Dynamo', 'dynamogabriel@yahoo.com', dynamoHash, 'super_admin', ['super_admin'], '{}']);
     console.log('Admin created:', dynamoResult.rows[0]?.email || 'already exists');
     const customerData = [
         { user_id: 'USR001', firstname: 'Jane', lastname: 'Smith', email: 'jane@vhi.com', phone: '+2348012345678', industry: 'oil_gas', star_rating: 4, status: 'loyal', password_hash: await bcryptjs_1.default.hash('password123', 10) },
-        { user_id: 'USR002', firstname: 'John', lastname: 'Doe', email: 'john@vhi.com', phone: '+2348023456789', industry: 'medical', star_rating: 3, status: 'prospect', password_hash: await bcryptjs_1.default.hash('password123', 10) },
-        { user_id: 'USR003', firstname: 'Sarah', lastname: 'Lee', email: 'sarah@vhi.com', phone: '+2348034567890', industry: 'pharma', star_rating: 5, status: 'loyal', password_hash: await bcryptjs_1.default.hash('password123', 10) },
+        { user_id: 'USR002', firstname: 'John', lastname: 'Doe', email: 'john@vhi.com', phone: '+2348023456789', industry: 'medical_pharma', star_rating: 3, status: 'prospect', password_hash: await bcryptjs_1.default.hash('password123', 10) },
+        { user_id: 'USR003', firstname: 'Sarah', lastname: 'Lee', email: 'sarah@vhi.com', phone: '+2348034567890', industry: 'medical_pharma', star_rating: 5, status: 'loyal', password_hash: await bcryptjs_1.default.hash('password123', 10) },
         { user_id: 'USR004', firstname: 'Mike', lastname: 'Brown', email: 'mike@vhi.com', phone: '+2348045678901', industry: 'manufacturing', star_rating: 2, status: 'lead', password_hash: await bcryptjs_1.default.hash('password123', 10) },
         { user_id: 'USR005', firstname: 'Lisa', lastname: 'Wang', email: 'lisa@vhi.com', phone: '+2348056789012', industry: 'mining', star_rating: 4, status: 'returning', password_hash: await bcryptjs_1.default.hash('password123', 10) },
     ];

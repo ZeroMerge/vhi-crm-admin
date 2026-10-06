@@ -82,7 +82,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSuccess }: Customer
           {error && <div style={{ padding: 12, background: 'var(--color-status-pending-bg)', color: 'var(--color-status-pending-text)', borderRadius: 'var(--radius-card)', marginBottom: 16 }}>{error}</div>}
 
           <form id="customer-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'flex', gap: 16 }}>
+            <div className="flex-mobile-col" style={{ display: 'flex', gap: 16 }}>
               <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                 <label className="form-label">First Name</label>
                 <input required className="input" value={formData.firstname} onChange={e => setFormData({ ...formData, firstname: e.target.value })} />
@@ -103,7 +103,7 @@ export function CustomerModal({ isOpen, onClose, customer, onSuccess }: Customer
               <input required className="input" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} />
             </div>
 
-            <div style={{ display: 'flex', gap: 16 }}>
+            <div className="flex-mobile-col" style={{ display: 'flex', gap: 16 }}>
               <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
                 <label className="form-label">Industry</label>
                 <CustomSelect

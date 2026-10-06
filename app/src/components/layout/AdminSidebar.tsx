@@ -43,6 +43,7 @@ export function AdminSidebar() {
   const logout = useAuthStore((s) => s.logout);
   const admin = useAuthStore((s) => s.admin);
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
+  const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
 
   const isActive = (path: string) => {
     if (path === '/admin') return location.pathname === '/admin';
@@ -51,7 +52,7 @@ export function AdminSidebar() {
 
   const handleLogout = () => {
     logout();
-    navigate('/admin/login');
+    navigate('/admin/login'); setSidebarOpen(false);
   };
 
   const activeRole = admin?.activeRole;
@@ -106,7 +107,7 @@ export function AdminSidebar() {
           return (
             <button
               key={item.path}
-              onClick={() => navigate(item.path)}
+              onClick={() => { navigate(item.path); setSidebarOpen(false); }}
               data-tooltip={item.label}
               style={{
                 display: 'flex',
@@ -154,7 +155,7 @@ export function AdminSidebar() {
           return (
             <button
               key={item.path}
-              onClick={() => navigate(item.path)}
+              onClick={() => { navigate(item.path); setSidebarOpen(false); }}
               data-tooltip={item.label}
               style={{
                 display: 'flex',

@@ -154,7 +154,7 @@ export default function Customers() {
           background: 'var(--color-surface)',
           padding: '16px',
           borderRadius: 'var(--border-radius-card)',
-          border: '1px solid var(--color-border)',
+          border: '1.5px solid var(--color-border)',
         }}
       >
         {}

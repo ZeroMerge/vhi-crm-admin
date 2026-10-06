@@ -109,7 +109,7 @@ export default function Reports() {
     <PageWrapper title="Reports">
       {}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
-        <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface)', padding: 6, borderRadius: 'var(--border-radius-pill)', border: '1px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+        <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface)', padding: 6, borderRadius: 'var(--border-radius-pill)', border: '1.5px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
           {tabs.map((tab) => (
             <button
               key={tab.value}
@@ -130,7 +130,7 @@ export default function Reports() {
             </button>
           ))}
         </div>
-        <button className="btn btn-outline" onClick={handleExport} disabled={loading} style={{ background: 'var(--color-surface)', border: '1px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+        <button className="btn btn-outline" onClick={handleExport} disabled={loading} style={{ background: 'var(--color-surface)', border: '1.5px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
           <Download size={16} />
           Export Report (CSV)
         </button>
@@ -140,7 +140,7 @@ export default function Reports() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20 }}>
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} style={{ background: 'var(--color-surface)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.04)', padding: 24, minHeight: 140 }}>
+              <div key={i} style={{ background: 'var(--color-surface)', borderRadius: '12px', border: '1.5px solid rgba(0,0,0,0.04)', padding: 24, minHeight: 140 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
                   <div className="skeleton" style={{ width: 100, height: 16, borderRadius: 4 }} />
                   <div className="skeleton" style={{ width: 32, height: 32, borderRadius: 8 }} />
@@ -149,8 +149,8 @@ export default function Reports() {
               </div>
             ))}
           </div>
-          <div className="skeleton" style={{ height: 300, background: 'var(--color-surface)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.04)' }} />
-          <div className="skeleton" style={{ height: 200, background: 'var(--color-surface)', borderRadius: '12px', border: '1px solid rgba(0,0,0,0.04)' }} />
+          <div className="skeleton" style={{ height: 300, background: 'var(--color-surface)', borderRadius: '12px', border: '1.5px solid rgba(0,0,0,0.04)' }} />
+          <div className="skeleton" style={{ height: 200, background: 'var(--color-surface)', borderRadius: '12px', border: '1.5px solid rgba(0,0,0,0.04)' }} />
         </div>
       ) : (
         <>
@@ -160,7 +160,7 @@ export default function Reports() {
               <div key={metric.label} style={{ 
                 background: 'var(--color-surface)', 
                 borderRadius: '12px', 
-                border: '1px solid rgba(0,0,0,0.04)',
+                border: '1.5px solid rgba(0,0,0,0.04)',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
               }}>
                 <div style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -175,7 +175,7 @@ export default function Reports() {
                   <div style={{ 
                     width: 32, height: 32, borderRadius: '8px', 
                     background: 'var(--color-surface)', 
-                    border: '1px solid rgba(0,0,0,0.04)', 
+                    border: '1.5px solid rgba(0,0,0,0.04)', 
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     color: 'var(--color-text-secondary)'
                   }}>
@@ -270,8 +270,8 @@ export default function Reports() {
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
                 {/* Customers Table */}
-                <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-card)', overflow: 'hidden' }}>
-                  <div style={{ padding: '16px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
+                <div style={{ border: '1.5px solid var(--color-border)', borderRadius: 'var(--border-radius-card)', overflow: 'hidden' }}>
+                  <div style={{ padding: '16px', background: 'var(--color-surface)', borderBottom: '1.5px solid var(--color-border)' }}>
                     <h4 style={{ fontWeight: 600, margin: 0 }}>Revenue by Customer</h4>
                   </div>
                   <div className="vhi-table-container" style={{ border: 'none', maxHeight: 400, overflowY: 'auto', borderRadius: 0 }}>
@@ -297,8 +297,8 @@ export default function Reports() {
                 </div>
 
                 {/* Invoices Table */}
-                <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-card)', overflow: 'hidden' }}>
-                  <div style={{ padding: '16px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
+                <div style={{ border: '1.5px solid var(--color-border)', borderRadius: 'var(--border-radius-card)', overflow: 'hidden' }}>
+                  <div style={{ padding: '16px', background: 'var(--color-surface)', borderBottom: '1.5px solid var(--color-border)' }}>
                     <h4 style={{ fontWeight: 600, margin: 0 }}>Revenue by Invoice</h4>
                   </div>
                   <div className="vhi-table-container" style={{ border: 'none', maxHeight: 400, overflowY: 'auto', borderRadius: 0 }}>

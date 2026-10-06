@@ -253,7 +253,7 @@ export default function Invoices() {
               background: 'var(--color-surface)',
               padding: '16px',
               borderRadius: 'var(--border-radius-card)',
-              border: '1px solid var(--color-border)',
+              border: '1.5px solid var(--color-border)',
             }}
           >
         {}
@@ -391,7 +391,7 @@ export default function Invoices() {
 
         <div className="col-right">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ padding: 12, background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1px solid var(--color-border)' }}>
+            <div style={{ padding: 12, background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1.5px solid var(--color-border)' }}>
               <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Invoices</div>
               <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)' }}>{(total ?? 0).toLocaleString()}</div>
             </div>
