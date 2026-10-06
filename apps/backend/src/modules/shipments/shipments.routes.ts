@@ -1,10 +1,26 @@
 import { Router } from 'express';
+import type { PoolClient } from 'pg';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { logAuditEvent } from '../../utils/audit';
 import { generateOrderId } from '../../utils/generateOrderId';
+import { assertInitialStatus, assertTransition, assertValidStatus, conflictError, getAllowedTransitions } from './shipmentStatus';
 
 const router = Router();
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Locks one shipment row for the rest of the transaction. Another transaction already holding
+// the lock means a concurrent change: answer 409 instead of waiting and overwriting it.
+export async function lockShipmentForUpdate(client: PoolClient, whereSql: string, params: unknown[]) {
+  try {
+    const result = await client.query(`SELECT * FROM shipments WHERE ${whereSql} FOR UPDATE NOWAIT`, params);
+    return result.rows[0] ?? null;
+  } catch (err: any) {
+    if (err.code === '55P03') throw conflictError();
+    throw err;
+  }
+}
 
 
 function mapShipmentItem(row: any) {
@@ -173,17 +189,21 @@ router.get('/:id', adminMiddleware, async (req, res, next) => {
 
     const shipment = shipmentResult.rows[0];
     const items = await pool.query('SELECT * FROM shipment_items WHERE shipment_id = $1', [req.params.id]);
+    const allowedTransitions = getAllowedTransitions(shipment.status, 'admin', req.admin!.activeRole);
     const documents = await pool.query('SELECT * FROM shipment_documents WHERE shipment_id = $1', [req.params.id]);
     const tracking = await pool.query('SELECT * FROM tracking_updates WHERE shipment_id = $1 ORDER BY created_at ASC', [req.params.id]);
 
     res.json({
       success: true,
-      data: mapShipment({
-        ...shipment,
-        items: items.rows,
-        documents: documents.rows,
-        trackingUpdates: tracking.rows
-      }),
+      data: {
+        ...mapShipment({
+          ...shipment,
+          items: items.rows,
+          documents: documents.rows,
+          trackingUpdates: tracking.rows
+        }),
+        allowedTransitions,
+      },
     });
   } catch (err) { next(err); }
 });
@@ -198,6 +218,7 @@ router.post('/', adminMiddleware, async (req, res, next) => {
       awbNumber, bolNumber, uniqueId, status = 'pending', isDraft = false,
     } = req.body;
 
+    const initialStatus = assertInitialStatus(status, 'admin');
     const orderId = generateOrderId('admin', shippingMode);
 
     const result = await pool.query(
@@ -212,7 +233,7 @@ router.post('/', adminMiddleware, async (req, res, next) => {
         orderId, customerId, shippingMode, deliveryMode, natureOfItem, hsCode || null,
         invoiceValue || 0, invoiceCurrency || 'NGN', weight || 0, weightUnit || 'kg',
         originAddress, destinationAddress, originPickupOption || null, portOfDischarge || null,
-        awbNumber || null, bolNumber || null, uniqueId || null, status, isDraft,
+        awbNumber || null, bolNumber || null, uniqueId || null, initialStatus, isDraft,
       ]
     );
 
@@ -223,14 +244,71 @@ router.post('/', adminMiddleware, async (req, res, next) => {
 });
 
 
+// Body: { status, message?, reason?, expectedStatus? }. Rules live in ./shipmentStatus.ts.
+// expectedStatus is the status the caller last saw; a mismatch means someone else changed it (409).
 router.put('/:id/status', adminMiddleware, async (req, res, next) => {
+  const { status, message, reason, expectedStatus } = req.body;
   try {
-    const { status, message } = req.body;
-    await pool.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [status, req.params.id]);
+    assertValidStatus(status);
+  } catch (err) { return next(err); }
+  if (!UUID_RE.test(req.params.id)) return res.status(404).json({ success: false, message: 'Shipment not found' });
 
-    if (message) {
-      await pool.query('INSERT INTO tracking_updates (shipment_id, status, message, updated_by) VALUES ($1, $2, $3, $4)', [req.params.id, status, message, req.admin!.id]);
+  let client;
+  try {
+    client = await pool.connect();
+  } catch (err) { return next(err); }
+  let transition;
+  try {
+    await client.query('BEGIN');
+
+    const current = await lockShipmentForUpdate(client, 'id = $1', [req.params.id]);
+    if (!current) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Shipment not found' });
     }
+    if (expectedStatus !== undefined && expectedStatus !== current.status) throw conflictError();
+
+    transition = assertTransition({
+      from: current.status,
+      to: status,
+      actorType: 'admin',
+      actorRole: req.admin!.activeRole,
+      reason,
+    });
+
+    await client.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [transition.to, current.id]);
+    if (message) {
+      await client.query(
+        'INSERT INTO tracking_updates (shipment_id, status, message, updated_by) VALUES ($1, $2, $3, $4)',
+        [current.id, transition.to, message, req.admin!.id]
+      );
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
+  }
+
+  try {
+    await logAuditEvent(
+      req.admin!.id,
+      'admin',
+      req.admin!.activeRole,
+      'UPDATE_SHIPMENT_STATUS',
+      'shipment',
+      req.params.id,
+      {
+        from: transition.from,
+        to: transition.to,
+        reason: reason ?? null,
+        isCorrection: transition.isCorrection,
+        isReopen: transition.isReopen,
+        message: message ?? null,
+      }
+    );
 
     const result = await pool.query(
       `SELECT s.*, c.firstname, c.lastname, c.email, c.phone, c.industry 
@@ -239,19 +317,15 @@ router.put('/:id/status', adminMiddleware, async (req, res, next) => {
        WHERE s.id = $1`,
       [req.params.id]
     );
+    const updated = result.rows[0];
 
-    
-    await logAuditEvent(
-      req.admin!.id,
-      'admin',
-      req.admin!.activeRole,
-      'UPDATE_SHIPMENT_STATUS',
-      'shipment',
-      req.params.id,
-      { status, message }
-    );
-
-    res.json({ success: true, data: mapShipment(result.rows[0]) });
+    res.json({
+      success: true,
+      data: {
+        ...mapShipment(updated),
+        allowedTransitions: getAllowedTransitions(updated.status, 'admin', req.admin!.activeRole),
+      },
+    });
   } catch (err) { next(err); }
 });
 
