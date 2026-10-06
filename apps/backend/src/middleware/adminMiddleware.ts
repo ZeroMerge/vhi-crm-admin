@@ -17,6 +17,20 @@ declare global {
   }
 }
 
+// support_staff is read-only except these exact writes (method + full path incl. mount point).
+// Customer scope is create + profile edit only; star/status/segment/delete stay blocked (client to confirm, OPEN-QUESTIONS).
+const SUPPORT_STAFF_WRITES: Array<[string, RegExp]> = [
+  ['POST', /^\/api\/auth\/admin\/(switch-role|logout)$/],
+  ['PUT', /^\/api\/auth\/admin\/(change-password|profile|notification-preferences)$/],
+  ['POST', /^\/api\/admin\/customers$/],
+  ['PUT', /^\/api\/admin\/customers\/[^/]+$/],
+];
+
+export function supportStaffMayWrite(method: string, fullPath: string): boolean {
+  const normalized = fullPath.replace(/\/+$/, '') || '/';
+  return SUPPORT_STAFF_WRITES.some(([m, re]) => m === method && re.test(normalized));
+}
+
 export const adminMiddleware = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -39,19 +53,16 @@ export const adminMiddleware = (req: Request, res: Response, next: NextFunction)
 
     
     
+    // req.path is relative to the router mount point, so match on baseUrl + path (RISKS R-20).
     if (
       req.admin.activeRole === 'support_staff' &&
-      ['POST', 'PUT', 'DELETE'].includes(req.method)
+      ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method) &&
+      !supportStaffMayWrite(req.method, `${req.baseUrl}${req.path}`)
     ) {
-      const isAuthAction = req.path.endsWith('/switch-role') || req.path.endsWith('/logout') || req.path.endsWith('/admin/logout');
-      const isCustomerAction = req.path.includes('/admin/customers') && req.method !== 'DELETE';
-      
-      if (!isAuthAction && !isCustomerAction) {
-        return res.status(403).json({
-          success: false,
-          message: 'Operation denied: Support staff role is read-only.'
-        });
-      }
+      return res.status(403).json({
+        success: false,
+        message: 'Operation denied: Support staff role is read-only.'
+      });
     }
 
     next();

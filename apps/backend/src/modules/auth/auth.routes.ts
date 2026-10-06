@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
+import { requireActiveAdmin } from '../../middleware/permissions';
 import { logAuditEvent } from '../../utils/audit';
 
 const router = Router();
@@ -52,6 +53,10 @@ router.post('/admin/login', async (req, res, next) => {
 
     const admin = result.rows[0];
     const valid = await bcrypt.compare(password, admin.password_hash);
+    // Inactive or deleted accounts get the same answer as a wrong password (no account-state disclosure).
+    if (valid && (admin.is_active === false || admin.deleted_at)) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
     console.log('[DEBUG] Password bcrypt comparison result:', valid);
     if (!valid) {
       console.log('[DEBUG] Password hash mismatch');
@@ -110,7 +115,7 @@ router.post('/admin/login', async (req, res, next) => {
 });
 
 
-router.post('/admin/switch-role', adminMiddleware, async (req, res, next) => {
+router.post('/admin/switch-role', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
     const { role } = req.body;
     if (!role) {
@@ -172,7 +177,7 @@ router.post('/admin/switch-role', adminMiddleware, async (req, res, next) => {
 });
 
 
-router.get('/admin/me', adminMiddleware, async (req, res, next) => {
+router.get('/admin/me', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
     const adminId = req.admin!.id;
     const result = await pool.query('SELECT id, name, email, assigned_roles, notification_prefs FROM admins WHERE id = $1', [adminId]);
@@ -197,7 +202,7 @@ router.get('/admin/me', adminMiddleware, async (req, res, next) => {
 });
 
 
-router.post('/admin/logout', adminMiddleware, async (req, res, next) => {
+router.post('/admin/logout', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
     if (req.admin) {
       await logAuditEvent(req.admin.id, 'admin', req.admin.activeRole, 'LOGOUT', 'admin', req.admin.id);
@@ -209,7 +214,7 @@ router.post('/admin/logout', adminMiddleware, async (req, res, next) => {
 });
 
 
-router.put('/admin/change-password', adminMiddleware, async (req, res, next) => {
+router.put('/admin/change-password', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const adminId = req.admin!.id;
@@ -238,7 +243,7 @@ router.put('/admin/change-password', adminMiddleware, async (req, res, next) => 
 });
 
 
-router.put('/admin/profile', adminMiddleware, async (req, res, next) => {
+router.put('/admin/profile', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
     const { name, phone } = req.body;
     const adminId = req.admin!.id;
@@ -256,7 +261,7 @@ router.put('/admin/profile', adminMiddleware, async (req, res, next) => {
 });
 
 
-router.put('/admin/notification-preferences', adminMiddleware, async (req, res, next) => {
+router.put('/admin/notification-preferences', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
     const { notificationPrefs } = req.body;
     const adminId = req.admin!.id;

@@ -2,11 +2,14 @@ import { Router } from 'express';
 import type { PoolClient } from 'pg';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
+import { moduleGuard, requireActiveAdmin } from '../../middleware/permissions';
 import { logAuditEvent } from '../../utils/audit';
 import { generateOrderId } from '../../utils/generateOrderId';
 import { assertInitialStatus, assertTransition, assertValidStatus, conflictError, getAllowedTransitions } from './shipmentStatus';
 
 const router = Router();
+
+router.use(adminMiddleware, requireActiveAdmin, moduleGuard('shipments'));
 
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

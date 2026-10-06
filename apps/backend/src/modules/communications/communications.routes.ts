@@ -2,10 +2,13 @@ import { Router } from 'express';
 import { z } from 'zod';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
+import { CROSS_READS, moduleGuard, roleHasModule, requireActiveAdmin } from '../../middleware/permissions';
 import { logAuditEvent } from '../../utils/audit';
 import { sendEmail } from '../../utils/sendEmail';
 
 const router = Router();
+
+router.use(adminMiddleware, requireActiveAdmin, moduleGuard('communications', [{ method: 'GET', path: '/:customerId', anyOf: CROSS_READS.communicationsThread }]));
 const uuidSchema = z.string().uuid();
 const messageSchema = z.object({
   customerId: uuidSchema,
@@ -60,11 +63,15 @@ router.get('/:customerId', adminMiddleware, async (req, res, next) => {
        FROM communications WHERE customer_id = $1 ORDER BY created_at ASC`,
       [req.params.customerId]
     );
-    await pool.query(
-      `UPDATE communications SET read_by_admin = true
-       WHERE customer_id = $1 AND sender_type = 'customer' AND read_by_admin = false`,
-      [req.params.customerId]
-    );
+    // Cross-module readers (e.g. finance via CustomerDetail) see the thread read-only; only roles that
+    // work the communications inbox mark customer messages as read.
+    if (roleHasModule(req.admin!.activeRole, 'communications')) {
+      await pool.query(
+        `UPDATE communications SET read_by_admin = true
+         WHERE customer_id = $1 AND sender_type = 'customer' AND read_by_admin = false`,
+        [req.params.customerId]
+      );
+    }
     res.json({ success: true, data: result.rows });
   } catch (err) { next(err); }
 });

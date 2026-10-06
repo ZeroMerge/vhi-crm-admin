@@ -1,11 +1,14 @@
 import { Router } from 'express';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
+import { CROSS_READS, moduleGuard, requireActiveAdmin } from '../../middleware/permissions';
 import { logAuditEvent } from '../../utils/audit';
 import { UUID_RE, lockShipmentForUpdate, mapShipment } from '../shipments/shipments.routes';
 import { assertTransition, assertValidStatus, conflictError } from '../shipments/shipmentStatus';
 
 const router = Router();
+
+router.use(adminMiddleware, requireActiveAdmin, moduleGuard('tracking', [{ method: 'POST', path: '/:shipmentId/update', anyOf: CROSS_READS.trackingNote }]));
 
 
 router.get('/', adminMiddleware, async (req, res, next) => {

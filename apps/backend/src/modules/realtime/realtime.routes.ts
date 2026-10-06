@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
+import { requireModule, requireActiveAdmin } from '../../middleware/permissions';
 import { customerMiddleware } from '../../middleware/customerMiddleware';
 
 const router = Router();
@@ -20,7 +21,7 @@ const issueRealtimeToken = (subject: string, email: string, appRole: 'admin' | '
   );
 };
 
-router.get('/admin-token', adminMiddleware, (req, res) => {
+router.get('/admin-token', adminMiddleware, requireActiveAdmin, requireModule('communications'), (req, res) => {
   const token = issueRealtimeToken(req.admin!.id, req.admin!.email, 'admin');
   if (!token) {
     return res.status(503).json({ success: false, message: 'Supabase Realtime is not configured' });

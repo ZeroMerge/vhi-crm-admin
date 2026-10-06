@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
+import { CROSS_READS, moduleGuard, requireActiveAdmin } from '../../middleware/permissions';
 import { logAuditEvent } from '../../utils/audit';
 
 const router = Router();
+
+router.use(adminMiddleware, requireActiveAdmin, moduleGuard('invoices', [{ method: 'GET', path: '/', anyOf: CROSS_READS.invoicesList }]));
 
 function mapInvoice(row: any) {
   if (!row) return null;

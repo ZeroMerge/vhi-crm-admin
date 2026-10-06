@@ -123,11 +123,15 @@ describe('POST /api/admin/tracking/:shipmentId/update', dbTest, () => {
   });
 
   test('failure after the status UPDATE rolls back everything (no orphan rows, status unchanged)', async () => {
-    // A token for an admin id that is not in the admins table: the shipments UPDATE succeeds,
-    // then the tracking_updates insert fails on its updated_by foreign key.
-    const ghost = adminToken({ id: crypto.randomUUID(), email: 'ghost@test.local', activeRole: 'manager' });
+    // Force the tracking_updates insert (after the shipments UPDATE) to fail on its updated_by foreign key:
+    // warm the 30s account cache with a harmless request, then delete the admin row. The account check
+    // still passes from cache, the UPDATE succeeds, the INSERT fails, and everything must roll back.
+    const { admin, token } = await asAdmin('manager');
     const s = await insertShipment((await insertCustomer()).id, { status: 'pending' });
-    const res = await post(ghost, s.id, { status: 'processing', message: 'should not persist' });
+    assert.equal((await request(app, 'GET', '/api/admin/tracking/pending', { token })).status, 200);
+    await pool.query('DELETE FROM admins WHERE id = $1', [admin.id]);
+
+    const res = await post(token, s.id, { status: 'processing', message: 'should not persist' });
     assert.equal(res.status, 500);
     await assertNothingWritten(s.id, 'pending');
   });
