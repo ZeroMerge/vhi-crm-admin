@@ -5,6 +5,7 @@ import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { CROSS_READS, moduleGuard, roleHasModule, requireActiveAdmin } from '../../middleware/permissions';
 import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
 import { emit } from '../notifications/notification.service';
+import { publishRealtime } from '../notifications/realtime';
 import { sendEmail } from '../../utils/sendEmail';
 
 const router = Router();
@@ -75,12 +76,19 @@ router.get('/:customerId', adminMiddleware, async (req, res, next) => {
            WHERE customer_id = $1 AND sender_type = 'customer' AND read_by_admin = false`,
           [req.params.customerId]
         );
-        await client.query(
+        const read = await client.query(
           `UPDATE notifications SET read_at = NOW()
            WHERE admin_id = $1 AND type = 'message.received' AND entity_type = 'customer_thread'
-             AND entity_id = $2 AND read_at IS NULL`,
+             AND entity_id = $2 AND read_at IS NULL
+           RETURNING id`,
           [req.admin!.id, req.params.customerId]
         );
+        if (read.rows.length > 0) {
+          await publishRealtime(
+            [{ kind: 'read', recipientType: 'admin', recipientId: req.admin!.id, notificationIds: read.rows.map((r) => String(r.id)) }],
+            client
+          );
+        }
         await client.query('COMMIT');
       } catch (err) {
         await client.query('ROLLBACK');

@@ -125,7 +125,7 @@ export function moduleGuard(module: string, exceptions: ModuleException[] = []):
 
 // ---- Account state (ALWAYS enforced, independent of PERMISSION_ENFORCEMENT) ----
 
-interface AccountState {
+export interface AccountState {
   isActive: boolean;
   deleted: boolean;
   assignedRoles: string[];
@@ -152,6 +152,12 @@ async function loadAccountState(adminId: string): Promise<AccountState | null> {
     : null;
   accountCache.set(adminId, { state, expires: Date.now() + ACCOUNT_CACHE_TTL_MS });
   return state;
+}
+
+// Cached (30s) account state for code outside the request pipeline, e.g. the SSE hub's push-time re-check.
+// null = unknown admin; otherwise the same data requireActiveAdmin uses.
+export async function getAdminAccountState(adminId: string): Promise<AccountState | null> {
+  return loadAccountState(adminId);
 }
 
 // Runs after adminMiddleware. 401 makes the admin UI log out (app/src/services/api.ts).

@@ -3,6 +3,9 @@ import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { customerMiddleware } from '../../middleware/customerMiddleware';
 import { modulesForRoles, requireActiveAdmin } from '../../middleware/permissions';
+import { createStreamHandler, getRealtime, publishRealtime } from './realtime';
+
+const recipientTypeOf = (scope: { column: 'admin_id' | 'customer_id' }) => (scope.column === 'admin_id' ? 'admin' : 'customer');
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
@@ -76,33 +79,76 @@ function notificationsRouter(resolveScope: (req: Request) => Promise<Scope | nul
     });
   }));
 
+  // latestId = highest visible notification id at query time (read or unread). A pushed notification with a higher
+  // id was certainly not counted, so clients can increment safely; anything else is ambiguous and is refetched.
   router.get('/unread-count', withScope(async (_req, res, scope) => {
     const { rows } = await pool.query(
-      `SELECT COUNT(*)::int AS count FROM notifications WHERE ${VISIBLE(scope.column)} AND read_at IS NULL`,
+      `SELECT COUNT(*) FILTER (WHERE read_at IS NULL)::int AS count, MAX(id)::text AS latest_id
+         FROM notifications WHERE ${VISIBLE(scope.column)}`,
       [scope.recipientId, scope.modules]
     );
-    res.json({ success: true, data: { count: rows[0].count } });
+    res.json({ success: true, data: { count: rows[0].count, latestId: rows[0].latest_id } });
   }));
 
   // Someone else's (or a hidden) notification is indistinguishable from a missing one: 404.
+  // A newly read row is published (other tabs/devices clear it); re-marking an already-read row publishes nothing.
   router.post('/:id/read', withScope(async (req, res, scope) => {
     if (!isBigintId(req.params.id)) return res.status(404).json({ success: false, message: 'Notification not found' });
-    const { rows } = await pool.query(
-      `UPDATE notifications SET read_at = COALESCE(read_at, NOW())
-        WHERE id = $3::bigint AND ${VISIBLE(scope.column)}
-        RETURNING *`,
-      [scope.recipientId, scope.modules, req.params.id]
-    );
-    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Notification not found' });
-    res.json({ success: true, data: mapNotification(rows[0]) });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const updated = await client.query(
+        `UPDATE notifications SET read_at = NOW()
+          WHERE id = $3::bigint AND ${VISIBLE(scope.column)} AND read_at IS NULL
+          RETURNING *`,
+        [scope.recipientId, scope.modules, req.params.id]
+      );
+      let row = updated.rows[0];
+      if (row) {
+        await publishRealtime(
+          [{ kind: 'read', recipientType: recipientTypeOf(scope), recipientId: scope.recipientId, notificationIds: [String(row.id)] }],
+          client
+        );
+      } else {
+        const existing = await client.query(
+          `SELECT * FROM notifications WHERE id = $3::bigint AND ${VISIBLE(scope.column)}`,
+          [scope.recipientId, scope.modules, req.params.id]
+        );
+        row = existing.rows[0];
+      }
+      await client.query('COMMIT');
+      if (!row) return res.status(404).json({ success: false, message: 'Notification not found' });
+      res.json({ success: true, data: mapNotification(row) });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }));
 
   router.post('/read-all', withScope(async (_req, res, scope) => {
-    const result = await pool.query(
-      `UPDATE notifications SET read_at = NOW() WHERE ${VISIBLE(scope.column)} AND read_at IS NULL`,
-      [scope.recipientId, scope.modules]
-    );
-    res.json({ success: true, data: { updated: result.rowCount ?? 0 } });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `UPDATE notifications SET read_at = NOW() WHERE ${VISIBLE(scope.column)} AND read_at IS NULL RETURNING id`,
+        [scope.recipientId, scope.modules]
+      );
+      if (result.rows.length > 0) {
+        await publishRealtime(
+          [{ kind: 'read_all', recipientType: recipientTypeOf(scope), recipientId: scope.recipientId, notificationIds: result.rows.map((r) => String(r.id)) }],
+          client
+        );
+      }
+      await client.query('COMMIT');
+      res.json({ success: true, data: { updated: result.rowCount ?? 0 } });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }));
 
   return router;
@@ -111,6 +157,8 @@ function notificationsRouter(resolveScope: (req: Request) => Promise<Scope | nul
 // /api/admin/notifications: account check, no module guard; rows filtered by the admin's current assigned roles.
 const adminRouter = Router();
 adminRouter.use(adminMiddleware, requireActiveAdmin);
+// SSE push channel (Phase 2). REST below stays the source of truth.
+adminRouter.get('/stream', createStreamHandler(getRealtime().hub, 'admin'));
 adminRouter.use(
   notificationsRouter(async (req) => {
     const { rows } = await pool.query('SELECT assigned_roles FROM admins WHERE id = $1', [req.admin!.id]);
@@ -122,6 +170,7 @@ adminRouter.use(
 // /api/client/notifications: the customer's own rows.
 const clientRouter = Router();
 clientRouter.use(customerMiddleware);
+clientRouter.get('/stream', createStreamHandler(getRealtime().hub, 'customer'));
 clientRouter.use(notificationsRouter(async (req) => ({ column: 'customer_id', recipientId: req.customer!.id, modules: null })));
 
 export { adminRouter as adminNotificationsRoutes, clientRouter as clientNotificationsRoutes };

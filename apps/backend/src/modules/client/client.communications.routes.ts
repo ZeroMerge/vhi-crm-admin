@@ -4,6 +4,7 @@ import pool from '../../config/db';
 import { customerMiddleware } from '../../middleware/customerMiddleware';
 import { sendEmail } from '../../utils/sendEmail';
 import { emit } from '../notifications/notification.service';
+import { publishRealtime } from '../notifications/realtime';
 
 const router = Router();
 const messageSchema = z.object({
@@ -30,12 +31,19 @@ router.get('/', customerMiddleware, async (req, res, next) => {
        WHERE customer_id = $1 AND sender_type = 'admin' AND read_by_customer = false`,
       [customerId]
     );
-    await client.query(
+    const read = await client.query(
       `UPDATE notifications SET read_at = NOW()
        WHERE customer_id = $1 AND type = 'message.received' AND entity_type = 'customer_thread'
-         AND entity_id = $1 AND read_at IS NULL`,
+         AND entity_id = $1 AND read_at IS NULL
+       RETURNING id`,
       [customerId]
     );
+    if (read.rows.length > 0) {
+      await publishRealtime(
+        [{ kind: 'read', recipientType: 'customer', recipientId: customerId, notificationIds: read.rows.map((r) => String(r.id)) }],
+        client
+      );
+    }
     await client.query('COMMIT');
     res.json({ success: true, data: result.rows });
   } catch (err) {

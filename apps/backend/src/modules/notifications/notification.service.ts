@@ -1,6 +1,7 @@
 import type { PoolClient } from 'pg';
 import { rolesWithModule } from '../../middleware/permissions';
 import { CATALOG, CatalogEntry, NotificationEvent, NotificationType, RenderContext } from './events';
+import { publishRealtime, RealtimeEvent } from './realtime';
 
 // Recipient roles for an admin-audience entry: the entry's narrower `roles`, else everyone who can see its module.
 export function recipientRoles(entry: Pick<CatalogEntry<NotificationType>, 'module' | 'roles'>): string[] {
@@ -63,6 +64,7 @@ export async function emit(event: NotificationEvent, client: PoolClient): Promis
   // Grouping (message.received): replace each recipient's UNREAD notification for the same entity with a new row
   // (new id → top of the feed) carrying an incremented count. Read rows are never touched.
   const counts = new Map<string, number>();
+  const replacedIds = new Map<string, string[]>();
   if (entry.groupUnread) {
     // Serialise grouping per entity so two concurrent messages cannot both miss each other's unread row.
     await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`notifications:${event.type}:${entity.id}`]);
@@ -71,10 +73,13 @@ export async function emit(event: NotificationEvent, client: PoolClient): Promis
     const { rows } = await client.query(
       `DELETE FROM notifications
         WHERE ${column} = ANY($1::uuid[]) AND type = $2 AND entity_type = $3 AND entity_id = $4 AND read_at IS NULL
-        RETURNING ${column} AS recipient_id, COALESCE((data->>'count')::int, 1) AS count`,
+        RETURNING id, ${column} AS recipient_id, COALESCE((data->>'count')::int, 1) AS count`,
       [recipientIds, event.type, entity.type, entity.id]
     );
-    for (const row of rows) counts.set(row.recipient_id, (counts.get(row.recipient_id) ?? 0) + row.count);
+    for (const row of rows) {
+      counts.set(row.recipient_id, (counts.get(row.recipient_id) ?? 0) + row.count);
+      replacedIds.set(row.recipient_id, [...(replacedIds.get(row.recipient_id) ?? []), String(row.id)]);
+    }
   }
 
   const columns = {
@@ -102,7 +107,8 @@ export async function emit(event: NotificationEvent, client: PoolClient): Promis
      SELECT r.admin_id, r.customer_id, r.module, r.title, r.body, r.data::jsonb, $7, $8, $9, $10, $11, $12
        FROM unnest($1::uuid[], $2::uuid[], $3::text[], $4::text[], $5::text[], $6::text[])
             AS r(admin_id, customer_id, module, title, body, data)
-     ON CONFLICT DO NOTHING`,
+     ON CONFLICT DO NOTHING
+     RETURNING id, admin_id, customer_id`,
     [
       columns.adminIds,
       columns.customerIds,
@@ -118,5 +124,19 @@ export async function emit(event: NotificationEvent, client: PoolClient): Promis
       dedupeKey,
     ]
   );
+  // Realtime: ids only, on this transaction (delivered on COMMIT). Grouping also tells open tabs which old rows went away.
+  const recipientType = audience === 'admins' ? 'admin' : 'customer';
+  const events: RealtimeEvent[] = [];
+  for (const row of result.rows) {
+    const recipientId = (row.admin_id ?? row.customer_id) as string;
+    const id = String(row.id);
+    events.push({ kind: 'created', recipientType, recipientId, notificationIds: [id] });
+    const removed = replacedIds.get(recipientId);
+    if (removed && removed.length > 0) {
+      events.push({ kind: 'replaced', recipientType, recipientId, notificationIds: [id], replacedIds: removed });
+    }
+  }
+  await publishRealtime(events, client);
+
   return result.rowCount ?? 0;
 }

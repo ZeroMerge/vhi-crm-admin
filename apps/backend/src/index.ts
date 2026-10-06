@@ -23,6 +23,7 @@ import { customerMiddleware } from './middleware/customerMiddleware';
 import clientCommunicationsRoutes from './modules/client/client.communications.routes';
 import realtimeRoutes from './modules/realtime/realtime.routes';
 import { adminNotificationsRoutes, clientNotificationsRoutes } from './modules/notifications/notifications.routes';
+import { startRealtime, stopRealtime } from './modules/notifications/realtime';
 
 dotenv.config();
 
@@ -100,8 +101,25 @@ app.get('/api/health', (_req, res) => {
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`VHI CRM Server running on port ${PORT}`);
+  // Realtime push (SSE). If LISTEN cannot connect it keeps retrying; REST is unaffected and clients poll.
+  startRealtime().catch((err) => console.error('[realtime] failed to start', err));
 });
+
+// Graceful shutdown: end every SSE stream (clients reconnect to the next instance), stop LISTEN, stop accepting requests.
+let shuttingDown = false;
+const shutdown = (signal: string) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[${signal}] shutting down`);
+  const force = setTimeout(() => process.exit(1), 10_000);
+  force.unref();
+  stopRealtime()
+    .catch((err) => console.error('[realtime] failed to stop cleanly', err))
+    .finally(() => server.close(() => process.exit(0)));
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 export default app;
