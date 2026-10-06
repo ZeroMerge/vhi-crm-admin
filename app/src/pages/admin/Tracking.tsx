@@ -433,15 +433,22 @@ export default function Tracking() {
                 </div>
                 {selectedTransition?.requiresReason && (
                   <div>
-                    <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>
-                      Reason (Required)
+                    <label htmlFor="tracking-status-reason" style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 4, display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>
+                      {newEventStatus === 'cancelled' ? 'Reason (shown to the customer)' : 'Reason (internal, not shown to the customer)'}
                     </label>
                     <input
+                      id="tracking-status-reason"
                       className="input"
-                      placeholder={newEventStatus === 'cancelled' ? 'Why is this shipment being cancelled? The customer will see this.' : 'Why is this change needed?'}
+                      placeholder={newEventStatus === 'cancelled' ? 'Why is this shipment being cancelled?' : 'Why is this change needed?'}
                       value={newEventReason}
                       onChange={(e) => setNewEventReason(e.target.value)}
+                      aria-describedby="tracking-status-reason-help"
                     />
+                    <p id="tracking-status-reason-help" style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                      {newEventStatus === 'cancelled'
+                        ? 'The customer will see this reason in their cancellation notification.'
+                        : 'Kept in the audit log only.'}
+                    </p>
                   </div>
                 )}
                 <div>

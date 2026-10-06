@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/authStore';
 import type { Communication } from '@/types';
 import { ChatInterface, type Conversation, type Message } from '@/components/ui/ChatInterface';
 import { supabase } from '@/lib/supabase';
+import { useInvalidateNotifications } from '@/hooks/useNotifications';
 
 export default function Communications() {
   const admin = useAuthStore((s) => s.admin);
@@ -47,6 +48,8 @@ export default function Communications() {
     };
   }, [search, filter, sortBy, industry]);
 
+  const invalidateNotifications = useInvalidateNotifications();
+
   // Fetch messages when a thread is selected
   useEffect(() => {
     if (!selectedCustomerId) {
@@ -61,6 +64,8 @@ export default function Communications() {
         if (active) {
           setMessages(data);
         }
+        // The server marks this thread's message notifications read when it is opened.
+        void invalidateNotifications();
       } catch (err) {
         console.error('Failed to fetch thread messages:', err);
       } finally {
@@ -71,7 +76,7 @@ export default function Communications() {
     return () => {
       active = false;
     };
-  }, [selectedCustomerId]);
+  }, [selectedCustomerId, invalidateNotifications]);
 
   // Subscribe to database inserts so messages appear without a refresh.
   useEffect(() => {

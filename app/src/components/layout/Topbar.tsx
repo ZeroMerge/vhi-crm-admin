@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, ChevronDown, User, Settings, LogOut, Menu, Crown, Truck, Users, Headset, Trophy, Medal } from 'lucide-react';
+import { Search, ChevronDown, User, Settings, LogOut, Menu, Crown, Truck, Users, Headset, Trophy, Medal } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
-import { useNotificationStore } from '@/store/notificationStore';
+import { NotificationBell } from '@/components/layout/NotificationBell';
 import { authService } from '@/services/auth.service';
 import { Avatar } from '@/components/shared/Avatar';
 import { formatShortDate } from '@/utils/formatDate';
@@ -25,10 +25,8 @@ export function Topbar() {
   const navigate = useNavigate();
   const admin = useAuthStore((s) => s.admin);
   const logout = useAuthStore((s) => s.logout);
-  const { notifications, unreadCount, markAllAsRead, markAsRead } = useNotificationStore();
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   
   const [searchExpanded, setSearchExpanded] = useState(false);
@@ -40,7 +38,6 @@ export function Topbar() {
     invoices: any[];
   } | null>(null);
 
-  const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
@@ -48,9 +45,6 @@ export function Topbar() {
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (notifRef.current && !notifRef.current.contains(target)) {
-        setShowNotifications(false);
-      }
       if (profileRef.current && !profileRef.current.contains(target)) {
         setShowProfile(false);
       }
@@ -291,107 +285,7 @@ export function Topbar() {
         </div>
 
         {/* Notifications */}
-        <div ref={notifRef} style={{ position: 'relative' }}>
-          <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: '50%',
-              border: '1px solid var(--color-border)',
-              background: 'transparent',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: 'var(--color-text-secondary)',
-              position: 'relative',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <Bell size={20} />
-            {unreadCount > 0 && (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: -2,
-                  right: -2,
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  background: 'var(--color-accent-pink)',
-                  color: 'white',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '2px solid var(--color-page-bg)',
-                }}
-              >
-                {unreadCount}
-              </span>
-            )}
-          </button>
-
-          {showNotifications && (
-            <div className="topbar-notifications-dropdown">
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '12px 16px',
-                  borderBottom: '1px solid var(--color-border)',
-                }}
-              >
-                <span style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Notifications</span>
-                {unreadCount > 0 && (
-                  <button
-                    onClick={markAllAsRead}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--color-primary)',
-                      fontSize: 'var(--font-size-xs)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Mark all as read
-                  </button>
-                )}
-              </div>
-              <div style={{ maxHeight: 400, overflowY: 'auto' }}>
-                {notifications.length === 0 ? (
-                  <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
-                    No notifications
-                  </div>
-                ) : (
-                  notifications.map((n) => (
-                    <div
-                      key={n.id}
-                      onClick={() => markAsRead(n.id)}
-                      style={{
-                        padding: '12px 16px',
-                        borderBottom: '1px solid var(--color-border)',
-                        cursor: 'pointer',
-                        background: n.read ? 'var(--color-page-bg)' : 'var(--color-primary-light)',
-                        borderLeft: n.read ? 'none' : '3px solid var(--color-primary)',
-                      }}
-                    >
-                      <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)', marginBottom: 4 }}>
-                        {n.title}
-                      </div>
-                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
-                        {n.message}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-        </div>
+        <NotificationBell />
 
         {/* Profile Dropdown */}
         <div ref={profileRef} style={{ position: 'relative' }}>

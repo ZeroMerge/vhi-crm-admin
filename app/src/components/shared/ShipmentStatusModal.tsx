@@ -106,15 +106,24 @@ export function ShipmentStatusModal({ isOpen, mode, shipment, onClose, onChanged
       </div>
       {selected?.requiresReason && (
         <div className="form-group">
-          <label className="form-label">Reason (required)</label>
+          <label className="form-label" htmlFor="status-change-reason">
+            {selected.to === 'cancelled' ? 'Reason (shown to the customer)' : 'Reason (internal, not shown to the customer)'}
+          </label>
           <textarea
+            id="status-change-reason"
             className="input"
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder={selected.to === 'cancelled' ? 'Why is this shipment being cancelled? The customer will see this.' : 'Why is this change needed?'}
+            aria-describedby="status-change-reason-help"
+            placeholder={selected.to === 'cancelled' ? 'Why is this shipment being cancelled?' : 'Why is this change needed?'}
             rows={2}
             style={{ resize: 'vertical', width: '100%' }}
           />
+          <p id="status-change-reason-help" style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 4 }}>
+            {selected.to === 'cancelled'
+              ? 'The customer will see this reason in their cancellation notification.'
+              : 'Kept in the audit log only. Customers are not notified of corrections.'}
+          </p>
         </div>
       )}
       {mode === 'update' && (
