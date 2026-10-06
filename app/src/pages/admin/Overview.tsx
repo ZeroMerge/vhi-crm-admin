@@ -161,7 +161,7 @@ export default function Overview() {
   return (
     <PageWrapper title={`Welcome ${admin?.name || 'Admin'}!`}>
       {}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 20, marginBottom: 32 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
         {adminStats.map((stat) => (
           <div key={stat.label} style={{ 
             background: 'var(--color-surface)', 
@@ -169,12 +169,12 @@ export default function Overview() {
             border: '1.5px solid rgba(0,0,0,0.04)',
             boxShadow: '0 2px 8px rgba(0,0,0,0.02)'
           }}>
-            <div style={{ padding: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div style={{ padding: '18px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
-                <div style={{ fontSize: '14px', color: 'var(--color-text-secondary)', marginBottom: 12, fontWeight: 500 }}>
+                <div style={{ fontSize: '13px', color: 'var(--color-text-secondary)', marginBottom: 8, fontWeight: 500 }}>
                   {stat.label}
                 </div>
-                <div style={{ fontSize: '32px', fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1 }}>
+                <div style={{ fontSize: 'clamp(1.5rem, 3.5vw, 2rem)', fontWeight: 600, color: 'var(--color-text-primary)', lineHeight: 1.1 }}>
                   {stat.value}
                 </div>
               </div>
@@ -247,26 +247,27 @@ export default function Overview() {
         boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
         overflow: 'hidden'
       }}>
-        {/* Table Header */}
-        <div style={{ 
+        {/* Table Header Toolbar */}
+        <div className="table-header-toolbar" style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center', 
-          padding: '20px 24px', 
+          padding: '16px 20px', 
           borderBottom: '1.5px solid rgba(0,0,0,0.04)',
           flexWrap: 'wrap',
-          gap: 16
+          gap: 12
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-            <h2 style={{ fontSize: '16px', fontWeight: 600, color: 'var(--color-text-primary)', margin: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', flex: 1, minWidth: 260 }}>
+            <h2 style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)', margin: 0, whiteSpace: 'nowrap' }}>
               Recent Activities
             </h2>
-            <div className="tabs" style={{ margin: 0 }}>
+            <div className="tabs" style={{ margin: 0, overflowX: 'auto', maxWidth: '100%', whiteSpace: 'nowrap', display: 'flex', gap: 4 }}>
               {tabs.map((tab) => (
                 <button
                   key={tab.value}
                   className={`tab ${activeTab === tab.value ? 'active' : ''}`}
                   onClick={() => handleTabChange(tab.value)}
+                  style={{ flexShrink: 0 }}
                 >
                   {tab.value === 'all' && <span className="tab-dot" />}
                   {tab.label}
@@ -274,13 +275,13 @@ export default function Overview() {
               ))}
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button className="btn btn-ghost" onClick={() => setExportOpen(true)}>
-              <SlidersHorizontal size={16} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <button className="btn btn-ghost btn-sm" onClick={() => setExportOpen(true)}>
+              <SlidersHorizontal size={15} />
               Export Data
             </button>
-            <div className="pagination" style={{ borderTop: 'none', padding: 0 }}>
-              <span className="pagination-info" style={{ marginRight: 8 }}>
+            <div className="pagination" style={{ borderTop: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="pagination-info" style={{ marginRight: 4, fontSize: 'var(--font-size-xs)' }}>
                 {total > 0 ? `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} of ${total}` : '0-0 of 0'}
               </span>
               <div style={{ display: 'flex', gap: 4 }}>
@@ -288,15 +289,17 @@ export default function Overview() {
                   className="pagination-btn" 
                   disabled={page === 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  style={{ width: 28, height: 28 }}
                 >
-                  <ChevronLeft size={16} />
+                  <ChevronLeft size={14} />
                 </button>
                 <button 
                   className="pagination-btn"
                   disabled={page === totalPages || total === 0}
                   onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  style={{ width: 28, height: 28 }}
                 >
-                  <ChevronRight size={16} />
+                  <ChevronRight size={14} />
                 </button>
               </div>
             </div>

@@ -124,8 +124,8 @@ export default function Shipments() {
   return (
     <PageWrapper title="Shipments">
       {}
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '10px 20px', background: 'var(--color-primary)', borderRadius: 'var(--radius-badge)', marginBottom: 24 }}>
-        <Package size={20} color="white" />
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'var(--color-primary)', borderRadius: 'var(--radius-badge)', marginBottom: 20 }}>
+        <Package size={18} color="white" />
         <span style={{ color: 'white', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
           Total Shipments: {(total ?? 0).toLocaleString()}
         </span>
@@ -140,143 +140,149 @@ export default function Shipments() {
         overflow: 'hidden',
         marginBottom: 24
       }}>
-        {/* Table Header */}
-        <div style={{ 
+        {/* Table Header Toolbar */}
+        <div className="table-header-toolbar" style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center', 
-          padding: '20px 24px', 
+          padding: '16px 20px', 
           borderBottom: '1.5px solid rgba(0,0,0,0.04)',
           flexWrap: 'wrap',
-          gap: 16
+          gap: 12
         }}>
           {/* Left Side: Search & Filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        {/* Search input on left */}
-        <div className="search-input-wrapper" style={{ maxWidth: 220 }}>
-          <Search size={18} className="search-icon" />
-          <input
-            className="input"
-            placeholder="Search order ID, item, name..."
-            value={search}
-            onChange={(e) => updateFilter('search', e.target.value)}
-          />
-        </div>
+          <div className="table-toolbar-left" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flex: 1, minWidth: 260 }}>
+            {/* Search input on left */}
+            <div className="search-input-wrapper" style={{ flex: '1 1 200px', minWidth: 160 }}>
+              <Search size={18} className="search-icon" />
+              <input
+                className="input"
+                placeholder="Search order ID, item, name..."
+                value={search}
+                onChange={(e) => updateFilter('search', e.target.value)}
+              />
+            </div>
 
-        {/* Filters in middle */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          {status && (
-            <span
-              style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: 'var(--color-primary)',
-                zIndex: 2,
-              }}
-            />
-          )}
-          <CustomSelect
-            value={status}
-            onChange={(val) => updateFilter('status', val)}
-            options={statuses}
-            style={{ borderColor: status ? 'var(--color-primary)' : 'var(--color-border)' }}
-          />
-        </div>
+            {/* Filters */}
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 120px' }}>
+              {status && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: 'var(--color-primary)',
+                    zIndex: 2,
+                  }}
+                />
+              )}
+              <CustomSelect
+                value={status}
+                onChange={(val) => updateFilter('status', val)}
+                options={statuses}
+                style={{ borderColor: status ? 'var(--color-primary)' : 'var(--color-border)', width: '100%' }}
+              />
+            </div>
 
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          {mode && (
-            <span
-              style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: 'var(--color-primary)',
-                zIndex: 2,
-              }}
-            />
-          )}
-          <CustomSelect
-            value={mode}
-            onChange={(val) => updateFilter('mode', val)}
-            options={modes}
-            style={{ borderColor: mode ? 'var(--color-primary)' : 'var(--color-border)' }}
-          />
-        </div>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 110px' }}>
+              {mode && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: 'var(--color-primary)',
+                    zIndex: 2,
+                  }}
+                />
+              )}
+              <CustomSelect
+                value={mode}
+                onChange={(val) => updateFilter('mode', val)}
+                options={modes}
+                style={{ borderColor: mode ? 'var(--color-primary)' : 'var(--color-border)', width: '100%' }}
+              />
+            </div>
 
-        {/* Date pickers inline */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)' }}>
-          <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>From:</span>
-          <DatePicker
-            value={dateFrom}
-            onChange={(date) => updateFilter('dateFrom', date ? date.toISOString() : '')}
-            className="w-[130px]"
-          />
-          <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>To:</span>
-          <DatePicker
-            value={dateTo}
-            onChange={(date) => updateFilter('dateTo', date ? date.toISOString() : '')}
-            className="w-[130px]"
-          />
-        </div>
+            {/* Date pickers with flexible wrapping */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)', flexWrap: 'wrap', flex: '1 1 240px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 110 }}>
+                <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500, flexShrink: 0 }}>From:</span>
+                <DatePicker
+                  value={dateFrom}
+                  onChange={(date) => updateFilter('dateFrom', date ? date.toISOString() : '')}
+                  className="w-full"
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 110 }}>
+                <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500, flexShrink: 0 }}>To:</span>
+                <DatePicker
+                  value={dateTo}
+                  onChange={(date) => updateFilter('dateTo', date ? date.toISOString() : '')}
+                  className="w-full"
+                />
+              </div>
+            </div>
 
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          {sortBy !== 'newest' && (
-            <span
-              style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: 'var(--color-primary)',
-                zIndex: 2,
-              }}
-            />
-          )}
-          <CustomSelect
-            value={sortBy}
-            onChange={(val) => updateFilter('sortBy', val)}
-            options={sorts.map(s => ({ ...s, label: `Sort: ${s.label}` }))}
-            style={{ borderColor: sortBy !== 'newest' ? 'var(--color-primary)' : 'var(--color-border)' }}
-          />
-        </div>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 120px' }}>
+              {sortBy !== 'newest' && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 4,
+                    right: 4,
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: 'var(--color-primary)',
+                    zIndex: 2,
+                  }}
+                />
+              )}
+              <CustomSelect
+                value={sortBy}
+                onChange={(val) => updateFilter('sortBy', val)}
+                options={sorts.map(s => ({ ...s, label: `Sort: ${s.label}` }))}
+                style={{ borderColor: sortBy !== 'newest' ? 'var(--color-primary)' : 'var(--color-border)', width: '100%' }}
+              />
+            </div>
 
-        {isFilterActive && (
-          <button onClick={clearAllFilters} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: 'var(--font-size-sm)', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <X size={16} /> Clear
-          </button>
-        )}
-          </div>
-
-          {}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button className="btn btn-ghost" onClick={() => setExportOpen(true)}>
-              <SlidersHorizontal size={16} /> Export
-            </button>
-            {!isSupportStaff && (
-              <button className="btn btn-primary" onClick={() => navigate('/admin/shipments/new')} id="btn-new-shipment">
-                <Plus size={16} /> New Shipment
+            {isFilterActive && (
+              <button onClick={clearAllFilters} style={{ background: 'none', border: 'none', color: 'var(--color-primary)', fontSize: 'var(--font-size-sm)', fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <X size={16} /> Clear
               </button>
             )}
+          </div>
+
+          {/* Right Side: Actions & Pagination */}
+          <div className="table-toolbar-right" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div className="actions-group" style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+              <button className="btn btn-ghost btn-sm" onClick={() => setExportOpen(true)}>
+                <SlidersHorizontal size={15} /> Export
+              </button>
+              {!isSupportStaff && (
+                <button className="btn btn-primary btn-sm" onClick={() => navigate('/admin/shipments/new')} id="btn-new-shipment">
+                  <Plus size={15} /> New Shipment
+                </button>
+              )}
+            </div>
             
-            <div className="pagination" style={{ borderTop: 'none', padding: 0, margin: 0 }}>
-              <span className="pagination-info" style={{ marginRight: 8 }}>
+            <div className="pagination" style={{ borderTop: 'none', padding: 0, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span className="pagination-info" style={{ marginRight: 4, fontSize: 'var(--font-size-xs)' }}>
                 {total > 0 ? `${(page - 1) * pageSize + 1}-${Math.min(page * pageSize, total)} of ${total}` : '0-0 of 0'}
               </span>
               <div style={{ display: 'flex', gap: 4 }}>
-                <button className="pagination-btn" onClick={() => handlePageChange(page - 1)} disabled={page === 1}>
-                  <ChevronLeft size={16} />
+                <button className="pagination-btn" onClick={() => handlePageChange(page - 1)} disabled={page === 1} style={{ width: 28, height: 28 }}>
+                  <ChevronLeft size={14} />
                 </button>
-                <button className="pagination-btn" onClick={() => handlePageChange(page + 1)} disabled={page === Math.ceil(total / pageSize) || total === 0}>
-                  <ChevronRight size={16} />
+                <button className="pagination-btn" onClick={() => handlePageChange(page + 1)} disabled={page === Math.ceil(total / pageSize) || total === 0} style={{ width: 28, height: 28 }}>
+                  <ChevronRight size={14} />
                 </button>
               </div>
             </div>

@@ -108,30 +108,32 @@ export default function Reports() {
   return (
     <PageWrapper title="Reports">
       {}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
-        <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface)', padding: 6, borderRadius: 'var(--border-radius-pill)', border: '1.5px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+      {/* Controls Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 4, background: 'var(--color-surface)', padding: 4, borderRadius: 'var(--border-radius-pill)', border: '1.5px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)', overflowX: 'auto', maxWidth: '100%', whiteSpace: 'nowrap' }}>
           {tabs.map((tab) => (
             <button
               key={tab.value}
               onClick={() => handleTabChange(tab.value)}
               style={{
-                padding: '8px 20px',
+                padding: '6px 16px',
                 borderRadius: 'var(--border-radius-pill)',
                 border: 'none',
                 background: activeTab === tab.value ? 'var(--color-primary-light)' : 'transparent',
                 color: activeTab === tab.value ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                fontSize: 'var(--font-size-sm)',
+                fontSize: 'var(--font-size-xs)',
                 fontWeight: activeTab === tab.value ? 600 : 500,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
+                flexShrink: 0,
               }}
             >
               {tab.label}
             </button>
           ))}
         </div>
-        <button className="btn btn-outline" onClick={handleExport} disabled={loading} style={{ background: 'var(--color-surface)', border: '1.5px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-          <Download size={16} />
+        <button className="btn btn-outline btn-sm" onClick={handleExport} disabled={loading} style={{ background: 'var(--color-surface)', border: '1.5px solid rgba(0,0,0,0.04)', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+          <Download size={15} />
           Export Report (CSV)
         </button>
       </div>

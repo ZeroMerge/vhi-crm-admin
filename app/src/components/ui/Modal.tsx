@@ -36,18 +36,36 @@ export function Modal({ isOpen, onClose, title, children, footer, maxWidth = '56
     >
       <div
         className="modal-content"
-        style={{ maxWidth, animation: 'scaleIn 0.2s ease-out', position: 'relative' }}
+        style={{
+          width: '100%',
+          maxWidth: maxWidth ? `min(100%, ${maxWidth})` : '100%',
+          boxSizing: 'border-box',
+          overflowX: 'hidden',
+          animation: 'scaleIn 0.2s ease-out',
+          position: 'relative',
+        }}
       >
         <button
           onClick={onClose}
           className="modal-close"
           aria-label="Close modal"
-          style={{ position: 'absolute', top: 16, right: 16 }}
+          style={{ position: 'absolute', top: 14, right: 14, zIndex: 10 }}
         >
           <X size={20} />
         </button>
         {title && (
-          <h2 style={{ fontSize: '1.75rem', fontWeight: 400, color: 'var(--color-text-primary)', marginBottom: 8, paddingRight: 48 }}>
+          <h2
+            className="modal-title"
+            style={{
+              fontSize: 'clamp(1.15rem, 3.5vw, 1.5rem)',
+              fontWeight: 600,
+              color: 'var(--color-text-primary)',
+              marginBottom: 12,
+              paddingRight: 40,
+              wordBreak: 'break-word',
+              lineHeight: 1.3,
+            }}
+          >
             {title}
           </h2>
         )}
