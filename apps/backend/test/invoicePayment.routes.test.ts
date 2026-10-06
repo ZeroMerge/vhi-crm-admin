@@ -184,6 +184,33 @@ describe('PUT /api/admin/invoices/:id/payment', dbTest, () => {
     assert.deepEqual(await invoiceState(inv.id), { status: 'part_paid', payments: 1, total: '60.00' });
   });
 
+  test('draft invoice is 409 ("issue the invoice first") and writes nothing', async () => {
+    const inv = await newInvoice('100.00', 'draft');
+    const res = await pay(inv.id, { amount: 10, paymentMethod: 'manual' });
+    assert.equal(res.status, 409);
+    assert.match(res.body.message, /Issue the invoice before recording payments/);
+    assert.deepEqual(await invoiceState(inv.id), { status: 'draft', payments: 0, total: '0' });
+  });
+
+  test('a lock held longer than lock_timeout (5s) gives 409 and writes nothing', async () => {
+    const inv = await newInvoice('100.00');
+    const other = new Client({ connectionString: process.env.TEST_DATABASE_URL });
+    await other.connect();
+    try {
+      await other.query('BEGIN');
+      await other.query('SELECT id FROM invoices WHERE id = $1 FOR UPDATE', [inv.id]);
+      const started = Date.now();
+      const res = await pay(inv.id, { amount: 10, paymentMethod: 'manual' });
+      const waited = Date.now() - started;
+      assert.equal(res.status, 409, JSON.stringify(res.body));
+      assert.ok(waited >= 4500 && waited < 15000, `waited ${waited}ms`);
+    } finally {
+      await other.query('ROLLBACK');
+      await other.end();
+    }
+    assert.deepEqual(await invoiceState(inv.id), { status: 'sent', payments: 0, total: '0' });
+  });
+
   test('legacy row already marked paid with a shortfall still gets 409 (no backfill; see docs/sql review query)', async () => {
     const inv = await newInvoice('100.00', 'paid');
     await pool.query(

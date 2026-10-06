@@ -225,9 +225,20 @@ router.put('/:id/payment', adminMiddleware, async (req, res, next) => {
   let settlement;
   try {
     await client.query('BEGIN');
+    // Wait at most 5s for a concurrent payment on the same invoice; longer means something is stuck (409).
+    await client.query("SET LOCAL lock_timeout = '5s'");
 
     // Serialises payments on the same invoice: a concurrent payment waits, then sees the new total.
-    const locked = await client.query('SELECT * FROM invoices WHERE id = $1 FOR UPDATE', [req.params.id]);
+    let locked;
+    try {
+      locked = await client.query('SELECT * FROM invoices WHERE id = $1 FOR UPDATE', [req.params.id]);
+    } catch (err: any) {
+      if (err.code === '55P03') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ success: false, message: 'This invoice is being updated by someone else. Try again.' });
+      }
+      throw err;
+    }
     if (locked.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ success: false, message: 'Invoice not found' });
@@ -236,6 +247,10 @@ router.put('/:id/payment', adminMiddleware, async (req, res, next) => {
     if (invoice.status === 'paid') {
       await client.query('ROLLBACK');
       return res.status(409).json({ success: false, message: 'Invoice is already fully paid' });
+    }
+    if (invoice.status === 'draft') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, message: 'Issue the invoice before recording payments' });
     }
 
     const balance = await client.query(
