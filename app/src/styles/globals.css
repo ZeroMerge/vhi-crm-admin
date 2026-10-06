@@ -242,7 +242,7 @@ img {
   }
 
 
-  /* Notion-Style Pinned Frozen Column Sheet for Mobile Tables */
+  /* Mobile Tables — smooth horizontal scroll without column collisions */
   .vhi-table-container {
     overflow-x: auto !important;
     position: relative;
@@ -250,30 +250,8 @@ img {
     -webkit-overflow-scrolling: touch;
   }
   
-  /* Make the first column (checkbox) sticky at left 0 */
-  .vhi-table th:first-child,
-  .vhi-table td:first-child {
-    position: sticky !important;
-    left: 0 !important;
-    background: var(--color-surface) !important;
-    z-index: 5 !important;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-  }
-  
-  /* Make the second column (primary row identifier) sticky at left 40px */
-  .vhi-table th:nth-child(2),
-  .vhi-table td:nth-child(2) {
-    position: sticky !important;
-    left: 40px !important;
-    background: var(--color-surface) !important;
-    z-index: 5 !important;
-    box-shadow: 3px 0 6px rgba(0, 0, 0, 0.05);
-  }
-  
-  /* Avoid table cells overlapping/hover clipping */
-  .vhi-table tr:hover td:first-child,
-  .vhi-table tr:hover td:nth-child(2) {
-    background: var(--color-primary-light) !important;
+  .vhi-table {
+    min-width: 640px;
   }
 
   .sidebar-overlay {

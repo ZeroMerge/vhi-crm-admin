@@ -5,6 +5,7 @@ import { Avatar } from '@/components/shared/Avatar';
 import { Switch } from '@/components/ui/switch';
 import { adminManagementService, type AdminUser } from '@/services/admin-management.service';
 import { Plus, Trash2, Edit, Key } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const ALL_ROLES = [
   { value: 'super_admin', label: 'Super Admin', color: '#7B2D8B' },
@@ -18,6 +19,7 @@ const ALL_ROLES = [
 export default function Team() {
   const { admin } = useAuthStore();
   const isSuperAdmin = admin?.activeRole === 'super_admin';
+  const isMobile = useIsMobile();
 
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loadingAdmins, setLoadingAdmins] = useState(false);
@@ -187,17 +189,29 @@ export default function Team() {
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1.5px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ 
+            padding: isMobile ? '16px' : '20px 24px', 
+            borderBottom: '1.5px solid var(--color-border)', 
+            display: 'flex', 
+            flexDirection: isMobile ? 'column' : 'row',
+            justifyContent: 'space-between', 
+            alignItems: isMobile ? 'stretch' : 'center',
+            gap: 12
+          }}>
             <h3 className="card-title" style={{ marginBottom: 0 }}>System Administrators</h3>
             {isSuperAdmin && (
-              <button className="btn btn-primary btn-sm" onClick={() => setInviteModalOpen(true)}>
+              <button 
+                className="btn btn-primary btn-sm" 
+                onClick={() => setInviteModalOpen(true)}
+                style={{ width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}
+              >
                 <Plus size={14} style={{ marginRight: 6 }} />
                 Invite Admin
               </button>
             )}
           </div>
 
-          <div style={{ overflowX: 'auto', width: '100%' }}>
+          <div style={{ width: '100%' }}>
             {loadingAdmins ? (
               <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-muted)' }}>
                 Loading administrator accounts...
@@ -206,125 +220,246 @@ export default function Team() {
               <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-muted)' }}>
                 No administrators found.
               </div>
-            ) : (
-              <div className="vhi-table-container"><table className="vhi-table" style={{ whiteSpace: 'nowrap' }}>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Email Address</th>
-                    <th>Assigned Roles</th>
-                    <th>Status</th>
-                    <th>Last Login</th>
-                    <th style={{ width: 140 }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {admins.map((adm) => (
-                    <tr key={adm.id}>
-                      <td style={{ fontWeight: 500 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <Avatar name={adm.name} size="sm" />
-                          <span>{adm.name}</span>
+            ) : isMobile ? (
+              /* Mobile View: Fluid Admin Cards */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 12 }}>
+                {admins.map((adm) => (
+                  <div
+                    key={adm.id}
+                    style={{
+                      background: 'var(--color-page-bg)',
+                      border: '1.5px solid var(--color-border)',
+                      borderRadius: '12px',
+                      padding: 16,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12
+                    }}
+                  >
+                    {/* Top Row: User Avatar, Name, Email, and Active Switch */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
+                        <Avatar name={adm.name} size="md" />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)', wordBreak: 'break-word' }}>
+                            {adm.name}
+                          </div>
+                          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', wordBreak: 'break-all' }}>
+                            {adm.email}
+                          </div>
                         </div>
-                      </td>
-                      <td>{adm.email}</td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap', alignItems: 'center' }}>
-                          {(() => {
-                            if (adm.assigned_roles?.includes('super_admin')) {
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                        <Switch
+                          checked={adm.is_active}
+                          disabled={adm.id === admin?.id}
+                          onCheckedChange={() => handleToggleAdminStatus(adm.id, adm.is_active)}
+                        />
+                        <span style={{ fontSize: 10, color: adm.is_active ? 'var(--color-primary)' : 'var(--color-text-muted)', fontWeight: 600 }}>
+                          {adm.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Middle Row: Roles */}
+                    <div>
+                      <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 4, fontWeight: 500 }}>
+                        Assigned Roles:
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {adm.assigned_roles?.includes('super_admin') ? (
+                          <span style={{ background: '#000', color: '#fff', fontSize: 10, padding: '3px 8px', borderRadius: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            Super Admin
+                          </span>
+                        ) : null}
+                        {adm.assigned_roles?.filter(r => r !== 'super_admin').map((role) => {
+                          const rMatch = ALL_ROLES.find((r) => r.value === role);
+                          return (
+                            <span
+                              key={role}
+                              style={{
+                                background: `${rMatch?.color || '#ccc'}15`,
+                                color: rMatch?.color || '#333',
+                                fontSize: 10,
+                                padding: '3px 8px',
+                                borderRadius: 'var(--border-radius-pill)',
+                                fontWeight: 600,
+                                textTransform: 'capitalize'
+                              }}
+                            >
+                              {role.replace(/_/g, ' ')}
+                            </span>
+                          );
+                        })}
+                        {(!adm.assigned_roles || adm.assigned_roles.length === 0) && (
+                          <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>None</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bottom Row: Last login and Action buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1.5px solid var(--color-border)', paddingTop: 12, marginTop: 2 }}>
+                      <span style={{ fontSize: 11, color: '#64748b' }}>
+                        Last login: {adm.last_login_at ? new Date(adm.last_login_at).toLocaleDateString() : 'Never'}
+                      </span>
+
+                      {isSuperAdmin ? (
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            style={{ height: 32, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}
+                            onClick={() => openResetPasswordModal(adm)}
+                          >
+                            <Key size={13} />
+                            <span>Pwd</span>
+                          </button>
+                          <button
+                            className="btn btn-outline btn-sm"
+                            style={{ height: 32, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}
+                            onClick={() => openEditRolesModal(adm)}
+                          >
+                            <Edit size={13} />
+                            <span>Roles</span>
+                          </button>
+                          {adm.id !== admin?.id && (
+                            <button
+                              className="btn btn-outline btn-sm"
+                              style={{ height: 32, padding: '0 8px', display: 'flex', alignItems: 'center', color: 'var(--color-status-cancelled-text)', borderColor: 'var(--color-border)' }}
+                              onClick={() => handleDeleteAdmin(adm.id)}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--color-text-muted)', fontSize: 11 }}>Read-only</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* Desktop View: Full Table */
+              <div className="vhi-table-container">
+                <table className="vhi-table" style={{ whiteSpace: 'nowrap' }}>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email Address</th>
+                      <th>Assigned Roles</th>
+                      <th>Status</th>
+                      <th>Last Login</th>
+                      <th style={{ width: 140 }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {admins.map((adm) => (
+                      <tr key={adm.id}>
+                        <td style={{ fontWeight: 500 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Avatar name={adm.name} size="sm" />
+                            <span>{adm.name}</span>
+                          </div>
+                        </td>
+                        <td>{adm.email}</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: 4, flexWrap: 'nowrap', alignItems: 'center' }}>
+                            {(() => {
+                              if (adm.assigned_roles?.includes('super_admin')) {
+                                return (
+                                  <span style={{ background: '#000', color: '#fff', fontSize: 10, padding: '2px 8px', borderRadius: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                    Super Admin
+                                  </span>
+                                );
+                              }
+
+                              const rolesToRender = adm.assigned_roles?.slice(0, 2) || [];
+                              const hiddenCount = (adm.assigned_roles?.length || 0) - 2;
+
                               return (
-                                <span style={{ background: '#000', color: '#fff', fontSize: 10, padding: '2px 8px', borderRadius: '4px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                  Super Admin
-                                </span>
-                              );
-                            }
-
-                            const rolesToRender = adm.assigned_roles?.slice(0, 2) || [];
-                            const hiddenCount = (adm.assigned_roles?.length || 0) - 2;
-
-                            return (
-                              <>
-                                {rolesToRender.map((role: string) => {
-                                  const rMatch = ALL_ROLES.find((r) => r.value === role);
-                                  return (
+                                <>
+                                  {rolesToRender.map((role: string) => {
+                                    const rMatch = ALL_ROLES.find((r) => r.value === role);
+                                    return (
+                                      <span
+                                        key={role}
+                                        style={{
+                                          background: `${rMatch?.color || '#ccc'}15`,
+                                          color: rMatch?.color || '#333',
+                                          fontSize: 10,
+                                          padding: '2px 8px',
+                                          borderRadius: 'var(--border-radius-pill)',
+                                          fontWeight: 600,
+                                          textTransform: 'capitalize'
+                                        }}
+                                      >
+                                        {role.replace(/_/g, ' ')}
+                                      </span>
+                                    );
+                                  })}
+                                  {hiddenCount > 0 && (
                                     <span
-                                      key={role}
+                                      title={adm.assigned_roles?.slice(2).map(r => r.replace(/_/g, ' ')).join(', ')}
                                       style={{
-                                        background: `${rMatch?.color || '#ccc'}15`,
-                                        color: rMatch?.color || '#333',
+                                        background: 'var(--color-border)',
+                                        color: 'var(--color-text-secondary)',
                                         fontSize: 10,
                                         padding: '2px 8px',
                                         borderRadius: 'var(--border-radius-pill)',
                                         fontWeight: 600,
-                                        textTransform: 'capitalize'
+                                        cursor: 'help'
                                       }}
                                     >
-                                      {role.replace(/_/g, ' ')}
+                                      +{hiddenCount} more
                                     </span>
-                                  );
-                                })}
-                                {hiddenCount > 0 && (
-                                  <span
-                                    title={adm.assigned_roles?.slice(2).map(r => r.replace(/_/g, ' ')).join(', ')}
-                                    style={{
-                                      background: 'var(--color-border)',
-                                      color: 'var(--color-text-secondary)',
-                                      fontSize: 10,
-                                      padding: '2px 8px',
-                                      borderRadius: 'var(--border-radius-pill)',
-                                      fontWeight: 600,
-                                      cursor: 'help'
-                                    }}
-                                  >
-                                    +{hiddenCount} more
-                                  </span>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center' }}>
-                          <Switch
-                            checked={adm.is_active}
-                            disabled={adm.id === admin?.id}
-                            onCheckedChange={() => handleToggleAdminStatus(adm.id, adm.is_active)}
-                          />
-                        </div>
-                      </td>
-                      <td>
-                        <span style={{ fontSize: '13px', color: '#64748b' }}>
-                          {adm.last_login_at ? new Date(adm.last_login_at).toLocaleString() : 'Never'}
-                        </span>
-                      </td>
-                      <td>
-                        {isSuperAdmin ? (
-                          <div style={{ display: 'flex', gap: 4 }}>
-                            <button className="btn btn-icon btn-ghost" title="Edit Password" style={{ width: 28, height: 28 }} onClick={() => openResetPasswordModal(adm)}>
-                              <Key size={14} />
-                            </button>
-                            <button className="btn btn-icon btn-ghost" title="Edit Roles" style={{ width: 28, height: 28 }} onClick={() => openEditRolesModal(adm)}>
-                              <Edit size={14} />
-                            </button>
-                            <button
-                              className="btn btn-icon btn-ghost text-red"
-                              title="Delete Admin"
-                              style={{ width: 28, height: 28, color: 'var(--color-status-cancelled-text)' }}
-                              disabled={adm.id === admin?.id}
-                              onClick={() => handleDeleteAdmin(adm.id)}
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
-                        ) : (
-                          <span style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>No access</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table></div>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center' }}>
+                            <Switch
+                              checked={adm.is_active}
+                              disabled={adm.id === admin?.id}
+                              onCheckedChange={() => handleToggleAdminStatus(adm.id, adm.is_active)}
+                            />
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{ fontSize: '13px', color: '#64748b' }}>
+                            {adm.last_login_at ? new Date(adm.last_login_at).toLocaleString() : 'Never'}
+                          </span>
+                        </td>
+                        <td>
+                          {isSuperAdmin ? (
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button className="btn btn-icon btn-ghost" title="Edit Password" style={{ width: 28, height: 28 }} onClick={() => openResetPasswordModal(adm)}>
+                                <Key size={14} />
+                              </button>
+                              <button className="btn btn-icon btn-ghost" title="Edit Roles" style={{ width: 28, height: 28 }} onClick={() => openEditRolesModal(adm)}>
+                                <Edit size={14} />
+                              </button>
+                              <button
+                                className="btn btn-icon btn-ghost text-red"
+                                title="Delete Admin"
+                                style={{ width: 28, height: 28, color: 'var(--color-status-cancelled-text)' }}
+                                disabled={adm.id === admin?.id}
+                                onClick={() => handleDeleteAdmin(adm.id)}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <span style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>No access</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -353,9 +488,9 @@ export default function Team() {
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 12 }}>
-                <button type="button" className="btn btn-outline" onClick={() => setPasswordModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={resettingPassword || !newAdminPassword.trim()}>
+              <div style={{ display: 'flex', gap: 12, justifyContent: isMobile ? 'stretch' : 'flex-end', marginTop: 12, flexDirection: isMobile ? 'column-reverse' : 'row' }}>
+                <button type="button" className="btn btn-outline" style={{ width: isMobile ? '100%' : 'auto' }} onClick={() => setPasswordModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" style={{ width: isMobile ? '100%' : 'auto' }} disabled={resettingPassword || !newAdminPassword.trim()}>
                   {resettingPassword ? 'Updating...' : 'Save New Password'}
                 </button>
               </div>
@@ -386,7 +521,7 @@ export default function Team() {
                     <input className="input" readOnly value={inviteSuccessData.tempPassword} style={{ background: 'var(--color-page-bg)', fontSize: 'var(--font-size-xs)', fontWeight: 'bold' }} />
                   </div>
                 )}
-                <button className="btn btn-primary" onClick={closeInviteModal} style={{ marginTop: 8 }}>
+                <button className="btn btn-primary" onClick={closeInviteModal} style={{ marginTop: 8, width: '100%' }}>
                   Close Modal
                 </button>
               </div>
@@ -437,9 +572,9 @@ export default function Team() {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 12 }}>
-                  <button type="button" className="btn btn-outline" onClick={closeInviteModal}>Cancel</button>
-                  <button type="submit" className="btn btn-primary" disabled={inviting || inviteRoles.length === 0}>
+                <div style={{ display: 'flex', gap: 12, justifyContent: isMobile ? 'stretch' : 'flex-end', marginTop: 12, flexDirection: isMobile ? 'column-reverse' : 'row' }}>
+                  <button type="button" className="btn btn-outline" style={{ width: isMobile ? '100%' : 'auto' }} onClick={closeInviteModal}>Cancel</button>
+                  <button type="submit" className="btn btn-primary" style={{ width: isMobile ? '100%' : 'auto' }} disabled={inviting || inviteRoles.length === 0}>
                     {inviting ? 'Inviting...' : 'Invite Admin'}
                   </button>
                 </div>
@@ -482,9 +617,9 @@ export default function Team() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 12 }}>
-                <button type="button" className="btn btn-outline" onClick={() => setEditRolesModalOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={updatingRoles || selectedAdminRoles.length === 0}>
+              <div style={{ display: 'flex', gap: 12, justifyContent: isMobile ? 'stretch' : 'flex-end', marginTop: 12, flexDirection: isMobile ? 'column-reverse' : 'row' }}>
+                <button type="button" className="btn btn-outline" style={{ width: isMobile ? '100%' : 'auto' }} onClick={() => setEditRolesModalOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary" style={{ width: isMobile ? '100%' : 'auto' }} disabled={updatingRoles || selectedAdminRoles.length === 0}>
                   {updatingRoles ? 'Updating...' : 'Save Roles'}
                 </button>
               </div>
