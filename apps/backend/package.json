@@ -11,7 +11,7 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:seed-realistic": "tsx src/db/comprehensive_seed.ts",
     "db:delete-customer": "tsx src/db/delete-customer.ts",
-    "test": "tsx --import ./test/setup.ts --test --test-concurrency=1 \"test/**/*.test.ts\"",
+    "test": "tsx --import ./test/setup.ts --test --test-concurrency=1 --test-reporter=spec --test-reporter-destination=stdout --test-reporter=./test/fail-on-any-failure.mjs --test-reporter-destination=stderr \"test/**/*.test.ts\"",
     "typecheck": "tsc --noEmit && tsc --noEmit -p test"
   },
   "dependencies": {
