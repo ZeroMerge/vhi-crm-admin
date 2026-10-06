@@ -154,11 +154,10 @@ export default function Customers() {
           background: 'var(--color-surface)',
           padding: '16px',
           borderRadius: 'var(--border-radius-card)',
-          border: '1px solid var(--color-border)',
+          border: '1.5px solid var(--color-border)',
         }}
       >
-        {}
-        <div className="search-input-wrapper" style={{ maxWidth: 260 }}>
+        <div className="search-input-wrapper" style={{ flex: '1 1 240px', minWidth: 200 }}>
           <Search size={18} className="search-icon" />
           <input
             className="input"
@@ -168,100 +167,102 @@ export default function Customers() {
           />
         </div>
 
-        {/* Filters in middle */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          {industry && (
-            <span
-              style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: 'var(--color-primary)',
-                zIndex: 2,
-              }}
+        {/* Filters in 2x2 grid on mobile, inline on desktop */}
+        <div className="filter-grid" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 130px' }}>
+            {industry && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 4,
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: 'var(--color-primary)',
+                  zIndex: 2,
+                }}
+              />
+            )}
+            <CustomSelect
+              value={industry}
+              onChange={(val) => updateFilter('industry', val)}
+              options={industries}
+              style={{ borderColor: industry ? 'var(--color-primary)' : 'var(--color-border)', width: '100%' }}
             />
-          )}
-          <CustomSelect
-            value={industry}
-            onChange={(val) => updateFilter('industry', val)}
-            options={industries}
-            style={{ borderColor: industry ? 'var(--color-primary)' : 'var(--color-border)' }}
-          />
-        </div>
+          </div>
 
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          {star && (
-            <span
-              style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: 'var(--color-primary)',
-                zIndex: 2,
-              }}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 130px' }}>
+            {star && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 4,
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: 'var(--color-primary)',
+                  zIndex: 2,
+                }}
+              />
+            )}
+            <CustomSelect
+              value={star}
+              onChange={(val) => updateFilter('star', val)}
+              options={[
+                { value: '', label: 'All Stars' },
+                ...[1, 2, 3, 4, 5].map((s) => ({ value: String(s), label: `${s} Star${s > 1 ? 's' : ''}` }))
+              ]}
+              style={{ borderColor: star ? 'var(--color-primary)' : 'var(--color-border)', width: '100%' }}
             />
-          )}
-          <CustomSelect
-            value={star}
-            onChange={(val) => updateFilter('star', val)}
-            options={[
-              { value: '', label: 'All Stars' },
-              ...[1, 2, 3, 4, 5].map((s) => ({ value: String(s), label: `${s} Star${s > 1 ? 's' : ''}` }))
-            ]}
-            style={{ borderColor: star ? 'var(--color-primary)' : 'var(--color-border)' }}
-          />
-        </div>
+          </div>
 
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          {status && (
-            <span
-              style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: 'var(--color-primary)',
-                zIndex: 2,
-              }}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 130px' }}>
+            {status && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 4,
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: 'var(--color-primary)',
+                  zIndex: 2,
+                }}
+              />
+            )}
+            <CustomSelect
+              value={status}
+              onChange={(val) => updateFilter('status', val)}
+              options={statuses}
+              style={{ borderColor: status ? 'var(--color-primary)' : 'var(--color-border)', width: '100%' }}
             />
-          )}
-          <CustomSelect
-            value={status}
-            onChange={(val) => updateFilter('status', val)}
-            options={statuses}
-            style={{ borderColor: status ? 'var(--color-primary)' : 'var(--color-border)' }}
-          />
-        </div>
+          </div>
 
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-          {sortBy !== 'newest' && (
-            <span
-              style={{
-                position: 'absolute',
-                top: 4,
-                right: 4,
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: 'var(--color-primary)',
-                zIndex: 2,
-              }}
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 130px' }}>
+            {sortBy !== 'newest' && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: 4,
+                  right: 4,
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  background: 'var(--color-primary)',
+                  zIndex: 2,
+                }}
+              />
+            )}
+            <CustomSelect
+              value={sortBy}
+              onChange={(val) => updateFilter('sortBy', val)}
+              options={sorts.map(s => ({ ...s, label: `Sort by: ${s.label}` }))}
+              style={{ borderColor: sortBy !== 'newest' ? 'var(--color-primary)' : 'var(--color-border)', width: '100%' }}
             />
-          )}
-          <CustomSelect
-            value={sortBy}
-            onChange={(val) => updateFilter('sortBy', val)}
-            options={sorts.map(s => ({ ...s, label: `Sort by: ${s.label}` }))}
-            style={{ borderColor: sortBy !== 'newest' ? 'var(--color-primary)' : 'var(--color-border)' }}
-          />
+          </div>
         </div>
 
         {isFilterActive && (
@@ -284,8 +285,8 @@ export default function Customers() {
           </button>
         )}
 
-        {/* Action buttons on right */}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+        {/* Action buttons on right / 50-50 on mobile */}
+        <div className="filter-actions" style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
           <button
             className="btn btn-primary btn-sm"
             onClick={() => setShowModal(true)}

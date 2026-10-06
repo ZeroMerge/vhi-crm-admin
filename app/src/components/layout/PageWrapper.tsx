@@ -23,7 +23,7 @@ export function PageWrapper({ children, title }: PageWrapperProps) {
         <Topbar />
         <main className="page-content">
           {title && (
-            <h1 style={{ fontSize: 'var(--font-size-4xl)', fontWeight: 400, color: 'var(--color-text-primary)', marginBottom: 'var(--space-6)' }}>
+            <h1 className="page-title">
               {title}
             </h1>
           )}

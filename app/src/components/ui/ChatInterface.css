@@ -3,7 +3,7 @@
   height: 100%;
   overflow: hidden;
   border-radius: var(--border-radius-lg);
-  border: 1px solid var(--color-border);
+  border: 1.5px solid var(--color-border);
   background-color: var(--color-surface);
 }
 
@@ -12,18 +12,18 @@
   width: 24rem;
   flex-shrink: 0;
   flex-direction: column;
-  border-right: 1px solid var(--color-border);
+  border-right: 1.5px solid var(--color-border);
   background-color: var(--color-background);
 }
 
 .chat-sidebar-header {
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1.5px solid var(--color-border);
   background-color: var(--color-surface);
   padding: 0.75rem;
 }
 
 .chat-sidebar-search {
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1.5px solid var(--color-border);
   background-color: var(--color-surface);
   padding: 0.5rem 0.75rem 0.75rem;
 }
@@ -52,7 +52,7 @@
   cursor: pointer;
   align-items: flex-start;
   gap: 0.5rem;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1.5px solid var(--color-border);
   padding: 0.75rem;
   transition: background-color 0.2s;
   border-left: 2px solid transparent;
@@ -96,7 +96,7 @@
 .chat-main-header {
   display: flex;
   align-items: center;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1.5px solid var(--color-border);
   padding: 0.75rem 1rem;
 }
 
@@ -143,7 +143,7 @@
 .chat-message-bubble.system {
   background-color: var(--color-status-pending-bg);
   color: var(--color-status-pending-text);
-  border: 1px solid var(--color-status-pending-text);
+  border: 1.5px solid var(--color-status-pending-text);
 }
 
 .chat-message-time {
@@ -161,7 +161,7 @@
 }
 
 .chat-main-input-area {
-  border-top: 1px solid var(--color-border);
+  border-top: 1.5px solid var(--color-border);
   padding: 0.75rem 1rem;
 }
 

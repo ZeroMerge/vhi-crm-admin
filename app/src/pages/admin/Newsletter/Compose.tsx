@@ -219,7 +219,7 @@ export default function ComposeNewsletter() {
             </div>
 
             {/* Preview Content */}
-            <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-sm)', padding: 20, background: 'var(--color-surface)' }}>
+            <div style={{ border: '1.5px solid var(--color-border)', borderRadius: 'var(--border-radius-sm)', padding: 20, background: 'var(--color-surface)' }}>
               <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 12 }}>
                 From: VHI Newsletters &lt;newsletter@valuehandlers.com&gt;
               </div>

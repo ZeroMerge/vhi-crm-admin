@@ -210,7 +210,7 @@ function CustomerPicker({
         {open && !value && (
           <div style={{
             position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
-            background: 'white', border: '1px solid var(--color-border)',
+            background: 'white', border: '1.5px solid var(--color-border)',
             borderRadius: 'var(--radius-card)', boxShadow: 'var(--shadow-dropdown)',
             marginTop: 4, maxHeight: 260, overflowY: 'auto',
           }}>
@@ -237,7 +237,7 @@ function CustomerPicker({
                   width: '100%', textAlign: 'left', padding: '10px 16px',
                   background: 'none', border: 'none', cursor: 'pointer',
                   display: 'flex', flexDirection: 'column', gap: 2,
-                  borderBottom: '1px solid var(--color-border)',
+                  borderBottom: '1.5px solid var(--color-border)',
                   transition: 'background 0.1s',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-surface)')}
@@ -372,7 +372,7 @@ export default function ComposeShipment() {
             </Field>
 
             <Field label="Weight" required error={errors.weight}>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="flex-mobile-col" style={{ display: 'flex', gap: 8 }}>
                 <input
                   className="input"
                   type="number"
@@ -392,7 +392,7 @@ export default function ComposeShipment() {
             </Field>
 
             <Field label="Invoice Value" required error={errors.invoiceValue}>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div className="flex-mobile-col" style={{ display: 'flex', gap: 8 }}>
                 <input
                   className="input"
                   type="number"
@@ -500,7 +500,7 @@ export default function ComposeShipment() {
             {saveErr && (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
-                background: '#fef2f2', border: '1px solid #fca5a5',
+                background: '#fef2f2', border: '1.5px solid #fca5a5',
                 borderRadius: 'var(--radius-card)',
                 fontSize: 'var(--font-size-sm)', color: 'var(--color-danger)',
               }}>

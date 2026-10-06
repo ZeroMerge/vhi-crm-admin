@@ -6,6 +6,7 @@ import { PageWrapper } from '@/components/layout/PageWrapper';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar } from '@/components/shared/Avatar';
 import { authService } from '@/services/auth.service';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const ALL_ROLES = [
   { value: 'super_admin', label: 'Super Admin', color: '#7B2D8B' },
@@ -20,6 +21,7 @@ export default function Settings() {
   const { admin, setAdmin } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'profile';
+  const isMobile = useIsMobile();
 
   
   const [name, setName] = useState(admin?.name || '');
@@ -132,8 +134,8 @@ export default function Settings() {
   return (
     <PageWrapper title="Settings">
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        {}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--color-border)', gap: 32, overflowX: 'auto', paddingBottom: 1 }}>
+        {/* Tab navigation */}
+        <div style={{ display: 'flex', borderBottom: '1.5px solid var(--color-border)', gap: isMobile ? 16 : 32, overflowX: 'auto', paddingBottom: 1, WebkitOverflowScrolling: 'touch' }}>
           {tabsConfig.map((t) => {
               const isActive = activeTab === t.id;
               return (
@@ -150,7 +152,7 @@ export default function Settings() {
                     fontWeight: isActive ? 600 : 500,
                     fontSize: 'var(--font-size-sm)',
                     border: 'none',
-                    borderBottom: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
+                    borderBottom: isActive ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     whiteSpace: 'nowrap',
@@ -165,20 +167,20 @@ export default function Settings() {
         </div>
 
       <div style={{ width: '100%', maxWidth: 880 }}>
-        {}
+        {/* Tab 1: Profile */}
         {activeTab === 'profile' && (
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)', paddingBottom: 16 }}>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: isMobile ? 16 : 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1.5px solid var(--color-border)', paddingBottom: 16 }}>
               <User size={20} color="var(--color-primary)" />
               <h3 className="card-title" style={{ marginBottom: 0 }}>Admin Profile</h3>
             </div>
 
-            <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: isMobile ? 16 : 24, alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row' }}>
               <Avatar name={admin?.name || 'VHI Admin'} size="lg" />
               <div>
                 <button
                   className="btn btn-outline btn-sm"
-                  onClick={() => alert('Photo uploads are not configured. Deterministic initials initials component is active.')}
+                  onClick={() => alert('Photo uploads are not configured. Deterministic initials component is active.')}
                 >
                   Upload photo
                 </button>
@@ -188,7 +190,7 @@ export default function Settings() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, width: '100%' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? 16 : 20, width: '100%' }}>
               <div className="form-group">
                 <label className="form-label">Full Name</label>
                 <input
@@ -211,8 +213,8 @@ export default function Settings() {
 
               <div className="form-group">
                 <label className="form-label">Email Address (Read-only)</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--color-page-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-input)', color: 'var(--color-text-muted)' }}>
-                  <Mail size={16} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px', background: 'var(--color-page-bg)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--border-radius-input)', color: 'var(--color-text-muted)', wordBreak: 'break-all' }}>
+                  <Mail size={16} style={{ flexShrink: 0 }} />
                   <span>{admin?.email}</span>
                 </div>
               </div>
@@ -220,25 +222,31 @@ export default function Settings() {
               <div className="form-group">
                 <label className="form-label">Assigned Roles</label>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                  {admin?.assignedRoles?.map((r) => {
-                    const matched = ALL_ROLES.find((role) => role.value === r);
-                    return (
-                      <span
-                        key={r}
-                        style={{
-                          background: `${matched?.color || 'var(--color-border)'}15`,
-                          color: matched?.color || 'var(--color-text-muted)',
-                          padding: '4px 10px',
-                          borderRadius: 'var(--border-radius-pill)',
-                          fontSize: 'var(--font-size-xs)',
-                          fontWeight: 600,
-                          textTransform: 'capitalize'
-                        }}
-                      >
-                        {r.replace(/_/g, ' ')}
-                      </span>
-                    );
-                  })}
+                  {admin?.assignedRoles && admin.assignedRoles.length > 0 ? (
+                    admin.assignedRoles.map((r) => {
+                      const matched = ALL_ROLES.find((role) => role.value === r);
+                      const isSuper = r === 'super_admin';
+                      return (
+                        <span
+                          key={r}
+                          style={{
+                            background: isSuper ? 'var(--color-primary-light)' : `${matched?.color || 'var(--color-border)'}18`,
+                            color: isSuper ? 'var(--color-primary)' : (matched?.color || 'var(--color-text-muted)'),
+                            border: isSuper ? '1.5px solid var(--color-primary)' : '1.5px solid transparent',
+                            padding: '4px 10px',
+                            borderRadius: 'var(--border-radius-pill)',
+                            fontSize: 'var(--font-size-xs)',
+                            fontWeight: 600,
+                            textTransform: 'capitalize'
+                          }}
+                        >
+                          {r.replace(/_/g, ' ')}
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>No roles assigned</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -256,13 +264,13 @@ export default function Settings() {
                 fontWeight: 500
               }}
             >
-              <Check size={14} />
+              <Check size={14} style={{ flexShrink: 0 }} />
               <span>To switch between your assigned active roles, click on your active role tag in the top bar dropdown.</span>
             </div>
 
             <button
               className="btn btn-primary"
-              style={{ alignSelf: 'flex-start' }}
+              style={{ alignSelf: isMobile ? 'stretch' : 'flex-start', width: isMobile ? '100%' : 'auto' }}
               onClick={handleSaveProfile}
               disabled={savingProfile || !name.trim()}
             >
@@ -271,12 +279,12 @@ export default function Settings() {
           </div>
         )}
 
-        {}
+        {/* Tab 2: Account Settings */}
         {activeTab === 'account' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-            {}
-            <div className="card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)', paddingBottom: 16, marginBottom: 20 }}>
+            {/* Change Password */}
+            <div className="card" style={{ padding: isMobile ? 16 : 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1.5px solid var(--color-border)', paddingBottom: 16, marginBottom: 20 }}>
                 <Lock size={20} color="var(--color-primary)" />
                 <h3 className="card-title" style={{ marginBottom: 0 }}>Change Password</h3>
               </div>
@@ -311,7 +319,7 @@ export default function Settings() {
                       {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
-                  {}
+                  {/* Password Strength Meter */}
                   {newPassword && (
                     <div style={{ marginTop: 8 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
@@ -338,7 +346,7 @@ export default function Settings() {
 
                 <button
                   className="btn btn-primary"
-                  style={{ alignSelf: 'flex-start' }}
+                  style={{ alignSelf: isMobile ? 'stretch' : 'flex-start', width: isMobile ? '100%' : 'auto' }}
                   onClick={handleUpdatePassword}
                   disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
                 >
@@ -348,8 +356,8 @@ export default function Settings() {
             </div>
 
             {/* 2FA Card */}
-            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)', paddingBottom: 16 }}>
+            <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: isMobile ? 16 : 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1.5px solid var(--color-border)', paddingBottom: 16 }}>
                 <Shield size={20} color="var(--color-primary)" />
                 <div>
                   <h3 className="card-title" style={{ marginBottom: 0 }}>Two-Factor Authentication (2FA)</h3>
@@ -357,7 +365,7 @@ export default function Settings() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: isMobile ? 'flex-start' : 'center', justifyContent: 'space-between', flexDirection: isMobile ? 'column' : 'row', gap: 12 }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>SMS/Email Verification Codes</div>
                   <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Verification challenges will be prompted during login.</div>
@@ -370,8 +378,8 @@ export default function Settings() {
             </div>
 
             {/* Active Sessions */}
-            <div className="card">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)', paddingBottom: 16, marginBottom: 20 }}>
+            <div className="card" style={{ padding: isMobile ? 16 : 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1.5px solid var(--color-border)', paddingBottom: 16, marginBottom: 20 }}>
                 <Key size={20} color="var(--color-primary)" />
                 <h3 className="card-title" style={{ marginBottom: 0 }}>Active Connected Devices</h3>
               </div>
@@ -381,15 +389,15 @@ export default function Settings() {
                   { device: 'Windows 11 PC • Lagos, Nigeria', browser: 'Chrome Browser', current: true, ip: '102.89.34.12' },
                   { device: 'Apple iPhone 15 Pro • Lagos, Nigeria', browser: 'Safari Mobile', current: false, ip: '102.89.44.82' }
                 ].map((s, idx) => (
-                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: 'var(--color-page-bg)', border: '1px solid var(--color-border)', borderRadius: 'var(--border-radius-input)' }}>
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexDirection: isMobile ? 'column' : 'row', gap: 10, padding: 12, background: 'var(--color-page-bg)', border: '1.5px solid var(--color-border)', borderRadius: 'var(--border-radius-input)' }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>
                         {s.device} {s.current && <span style={{ marginLeft: 6, fontSize: 10, background: 'var(--color-primary-light)', color: 'var(--color-primary)', padding: '1px 6px', borderRadius: 'var(--border-radius-pill)', fontWeight: 600 }}>Active Session</span>}
                       </div>
-                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{s.browser} • IP: {s.ip}</div>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>{s.browser} • IP: {s.ip}</div>
                     </div>
                     {!s.current && (
-                      <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-status-pending-text)' }} onClick={() => alert('Session terminated.')}>
+                      <button className="btn btn-ghost btn-sm" style={{ color: 'var(--color-status-pending-text)', padding: 0 }} onClick={() => alert('Session terminated.')}>
                         Revoke
                       </button>
                     )}
@@ -402,8 +410,8 @@ export default function Settings() {
 
         {/* Tab 3: Notifications */}
         {activeTab === 'notifications' && (
-          <div className="card">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--color-border)', paddingBottom: 16, marginBottom: 24 }}>
+          <div className="card" style={{ padding: isMobile ? 16 : 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1.5px solid var(--color-border)', paddingBottom: 16, marginBottom: 24 }}>
               <Bell size={20} color="var(--color-primary)" />
               <div>
                 <h3 className="card-title" style={{ marginBottom: 0 }}>Notification Preferences</h3>
@@ -421,8 +429,8 @@ export default function Settings() {
                 { key: 'overdue_alert', label: 'Overdue Invoices', desc: 'Receive immediate alerts when invoice due dates pass without settlement.' },
                 { key: 'newsletter_sent', label: 'Newsletter Broadcasts', desc: 'Receive internal confirmations when marketing campaigns are broadcast.' }
               ].map((pref) => (
-                <label key={pref.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: 16, borderBottom: '1px solid var(--color-border)' }}>
-                  <div style={{ paddingRight: 16 }}>
+                <label key={pref.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: 16, borderBottom: '1.5px solid var(--color-border)', gap: 12 }}>
+                  <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
                     <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{pref.label}</div>
                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>{pref.desc}</div>
                   </div>

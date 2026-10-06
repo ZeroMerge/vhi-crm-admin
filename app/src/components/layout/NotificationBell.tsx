@@ -97,7 +97,7 @@ export function NotificationBell() {
           width: 40,
           height: 40,
           borderRadius: '50%',
-          border: '1px solid var(--color-border)',
+          border: '1.5px solid var(--color-border)',
           background: 'transparent',
           display: 'flex',
           alignItems: 'center',
@@ -143,7 +143,7 @@ export function NotificationBell() {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '12px 16px',
-              borderBottom: '1px solid var(--color-border)',
+              borderBottom: '1.5px solid var(--color-border)',
             }}
           >
             <h2 style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', margin: 0 }}>Notifications</h2>
@@ -183,7 +183,7 @@ export function NotificationBell() {
                         textAlign: 'left',
                         padding: '12px 16px',
                         border: 'none',
-                        borderBottom: '1px solid var(--color-border)',
+                        borderBottom: '1.5px solid var(--color-border)',
                         cursor: 'pointer',
                         background: n.readAt ? 'var(--color-page-bg)' : 'var(--color-primary-light)',
                         borderLeft: n.readAt ? '3px solid transparent' : '3px solid var(--color-primary)',

@@ -125,7 +125,7 @@ export default function Newsletter() {
       <div style={{ 
         background: 'var(--color-surface)', 
         borderRadius: '12px', 
-        border: '1px solid rgba(0,0,0,0.04)',
+        border: '1.5px solid rgba(0,0,0,0.04)',
         boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
         overflow: 'hidden',
         marginBottom: 24
@@ -136,7 +136,7 @@ export default function Newsletter() {
           justifyContent: 'space-between', 
           alignItems: 'center', 
           padding: '20px 24px', 
-          borderBottom: '1px solid rgba(0,0,0,0.04)',
+          borderBottom: '1.5px solid rgba(0,0,0,0.04)',
           flexWrap: 'wrap',
           gap: 16
         }}>
@@ -164,7 +164,7 @@ export default function Newsletter() {
             display: 'flex', 
             padding: '12px 24px', 
             background: 'var(--color-surface)', 
-            borderBottom: '1px solid rgba(0,0,0,0.04)',
+            borderBottom: '1.5px solid rgba(0,0,0,0.04)',
             fontSize: 'var(--font-size-xs)',
             fontWeight: 600,
             color: 'var(--color-text-secondary)',
@@ -201,7 +201,7 @@ export default function Newsletter() {
                     flexWrap: 'wrap', 
                     alignItems: 'center', 
                     padding: '16px 24px', 
-                    borderBottom: '1px solid rgba(0,0,0,0.04)',
+                    borderBottom: '1.5px solid rgba(0,0,0,0.04)',
                     gap: 16,
                     cursor: 'pointer',
                     transition: 'background 0.2s ease'
@@ -216,7 +216,7 @@ export default function Newsletter() {
                       padding: '4px 10px',
                       borderRadius: 'var(--radius-badge)',
                       background: 'var(--color-surface)',
-                      border: '1px solid var(--color-border)',
+                      border: '1.5px solid var(--color-border)',
                       color: 'var(--color-text-secondary)',
                       fontSize: '11px',
                       fontWeight: 600,

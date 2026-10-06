@@ -173,7 +173,7 @@ export default function InvoiceDetail() {
                 <div style={{ fontSize: 'var(--font-size-sm)' }}>{invoice.notes}</div>
               </div>
             )}
-            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 16 }}>
+            <div style={{ borderTop: '1.5px solid var(--color-border)', paddingTop: 20, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 16 }}>
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Amount</div>
                 <div style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 600 }}>{formatCurrency(invoice.amount, invoice.currency)}</div>
@@ -204,7 +204,7 @@ export default function InvoiceDetail() {
                 <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>{invoice.customer?.email} &bull; {invoice.customer?.phone}</div>
               </div>
             </div>
-            <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ borderTop: '1.5px solid var(--color-border)', paddingTop: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 4 }}>Linked Shipment</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -238,7 +238,7 @@ export default function InvoiceDetail() {
             </div>
 
             {['draft', 'pending'].includes(invoice.status) && (
-              <div className="form-group" style={{ marginBottom: 0, marginTop: 16, borderTop: '1px solid var(--color-border)', paddingTop: 16 }}>
+              <div className="form-group" style={{ marginBottom: 0, marginTop: 16, borderTop: '1.5px solid var(--color-border)', paddingTop: 16 }}>
                 <label className="form-label">Follow-up Reminder</label>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                   <DatePicker

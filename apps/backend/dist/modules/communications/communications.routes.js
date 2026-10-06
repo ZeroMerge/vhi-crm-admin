@@ -4,16 +4,28 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
+const zod_1 = require("zod");
 const db_1 = __importDefault(require("../../config/db"));
 const adminMiddleware_1 = require("../../middleware/adminMiddleware");
 const audit_1 = require("../../utils/audit");
+const sendEmail_1 = require("../../utils/sendEmail");
 const router = (0, express_1.Router)();
+const uuidSchema = zod_1.z.string().uuid();
+const messageSchema = zod_1.z.object({
+    customerId: uuidSchema,
+    subject: zod_1.z.string().trim().min(1).max(255),
+    body: zod_1.z.string().trim().min(1).max(10000),
+});
+const customerExists = async (customerId) => {
+    const result = await db_1.default.query('SELECT id FROM customers WHERE id = $1', [customerId]);
+    return result.rows.length > 0;
+};
 router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
         const { search, filter, sortBy, industry } = req.query;
         let sql = `
       SELECT c.id, c.firstname, c.lastname, c.email, c.industry,
-        (SELECT COUNT(*) FROM communications WHERE customer_id = c.id AND is_read = false) as unread_count,
+        (SELECT COUNT(*) FROM communications WHERE customer_id = c.id AND sender_type = 'customer' AND read_by_admin = false) as unread_count,
         (SELECT body FROM communications WHERE customer_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message,
         (SELECT created_at FROM communications WHERE customer_id = c.id ORDER BY created_at DESC LIMIT 1) as last_message_at
       FROM customers c
@@ -22,7 +34,7 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
         const params = [];
         let paramIdx = 1;
         if (filter === 'unread') {
-            sql += ` AND EXISTS (SELECT 1 FROM communications WHERE customer_id = c.id AND is_read = false)`;
+            sql += ` AND EXISTS (SELECT 1 FROM communications WHERE customer_id = c.id AND sender_type = 'customer' AND read_by_admin = false)`;
         }
         if (industry && industry !== 'all') {
             sql += ` AND c.industry = $${paramIdx}`;
@@ -34,11 +46,7 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
             params.push(`%${search}%`);
             paramIdx++;
         }
-        let orderSql = ' ORDER BY last_message_at DESC';
-        if (sortBy === 'oldest') {
-            orderSql = ' ORDER BY last_message_at ASC';
-        }
-        sql += orderSql;
+        sql += sortBy === 'oldest' ? ' ORDER BY last_message_at ASC' : ' ORDER BY last_message_at DESC';
         const result = await db_1.default.query(sql, params);
         res.json({ success: true, data: result.rows });
     }
@@ -48,8 +56,13 @@ router.get('/', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
 });
 router.get('/:customerId', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
-        const result = await db_1.default.query('SELECT * FROM communications WHERE customer_id = $1 ORDER BY created_at ASC', [req.params.customerId]);
-        await db_1.default.query('UPDATE communications SET is_read = true WHERE customer_id = $1 AND is_read = false', [req.params.customerId]);
+        if (!uuidSchema.safeParse(req.params.customerId).success || !(await customerExists(req.params.customerId))) {
+            return res.status(404).json({ success: false, message: 'Customer not found' });
+        }
+        const result = await db_1.default.query(`SELECT *, sender_type AS "senderType", (sender_type = 'customer') AS "sentByCustomer"
+       FROM communications WHERE customer_id = $1 ORDER BY created_at ASC`, [req.params.customerId]);
+        await db_1.default.query(`UPDATE communications SET read_by_admin = true
+       WHERE customer_id = $1 AND sender_type = 'customer' AND read_by_admin = false`, [req.params.customerId]);
         res.json({ success: true, data: result.rows });
     }
     catch (err) {
@@ -58,11 +71,35 @@ router.get('/:customerId', adminMiddleware_1.adminMiddleware, async (req, res, n
 });
 router.post('/send', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
-        const { customerId, subject, body } = req.body;
-        const result = await db_1.default.query('INSERT INTO communications (customer_id, sent_by, subject, body) VALUES ($1, $2, $3, $4) RETURNING *', [customerId, req.admin.id, subject, body]);
+        const parsed = messageSchema.safeParse(req.body);
+        if (!parsed.success) {
+            return res.status(400).json({ success: false, message: 'Validation failed', errors: parsed.error.flatten().fieldErrors });
+        }
+        const { customerId, subject, body } = parsed.data;
+        const custResult = await db_1.default.query('SELECT firstname, email FROM customers WHERE id = $1', [customerId]);
+        if (custResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Customer not found' });
+        }
+        const customer = custResult.rows[0];
+        const result = await db_1.default.query(`INSERT INTO communications (customer_id, sent_by, sender_type, subject, body, read_by_admin, read_by_customer)
+       VALUES ($1, $2, 'admin', $3, $4, true, false)
+       RETURNING *, sender_type AS "senderType", false AS "sentByCustomer"`, [customerId, req.admin.id, subject, body]);
         const comm = result.rows[0];
+        // Trigger email notification asynchronously
+        const emailHtml = `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
+        <h2>New Message from VHI</h2>
+        <p>Hello ${customer.firstname},</p>
+        <p>You have received a new message from our support team.</p>
+        <blockquote style="border-left: 4px solid #eee; padding-left: 10px; margin-left: 0;">
+          ${body.replace(/\n/g, '<br>')}
+        </blockquote>
+        <p><a href="${process.env.CLIENT_FRONTEND_URL}/messages" style="display: inline-block; padding: 10px 20px; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px;">View and Reply in Portal</a></p>
+      </div>
+    `;
+        (0, sendEmail_1.sendEmail)(customer.email, subject || 'New Message from VHI Support', emailHtml).catch(console.error);
         await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'SEND_COMMUNICATION', 'communication', comm.id, { customerId, subject });
-        res.json({ success: true, data: comm });
+        res.status(201).json({ success: true, data: comm });
     }
     catch (err) {
         next(err);
@@ -70,7 +107,9 @@ router.post('/send', adminMiddleware_1.adminMiddleware, async (req, res, next) =
 });
 router.delete('/:messageId', adminMiddleware_1.adminMiddleware, async (req, res, next) => {
     try {
-        await db_1.default.query('DELETE FROM communications WHERE id = $1', [req.params.messageId]);
+        const result = await db_1.default.query('DELETE FROM communications WHERE id = $1 RETURNING id', [req.params.messageId]);
+        if (result.rows.length === 0)
+            return res.status(404).json({ success: false, message: 'Message not found' });
         await (0, audit_1.logAuditEvent)(req.admin.id, 'admin', req.admin.activeRole, 'DELETE_COMMUNICATION', 'communication', req.params.messageId);
         res.json({ success: true, message: 'Message deleted' });
     }

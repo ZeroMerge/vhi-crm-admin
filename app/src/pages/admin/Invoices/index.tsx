@@ -253,11 +253,11 @@ export default function Invoices() {
               background: 'var(--color-surface)',
               padding: '16px',
               borderRadius: 'var(--border-radius-card)',
-              border: '1px solid var(--color-border)',
+              border: '1.5px solid var(--color-border)',
             }}
           >
         {}
-        <div className="search-input-wrapper" style={{ maxWidth: 220 }}>
+        <div className="search-input-wrapper" style={{ flex: '1 1 200px', minWidth: 160 }}>
           <Search size={18} className="search-icon" />
           <input
             className="input"
@@ -268,7 +268,7 @@ export default function Invoices() {
         </div>
 
         {/* Filters in middle */}
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 120px' }}>
           {status && (
             <span
               style={{
@@ -287,11 +287,11 @@ export default function Invoices() {
             value={status}
             onChange={(val) => updateFilter('status', val)}
             options={statuses}
-            style={{ borderColor: status ? 'var(--color-primary)' : 'var(--color-border)' }}
+            style={{ borderColor: status ? 'var(--color-primary)' : 'var(--color-border)', width: '100%' }}
           />
         </div>
 
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 110px' }}>
           {currency && (
             <span
               style={{
@@ -310,24 +310,28 @@ export default function Invoices() {
             value={currency}
             onChange={(val) => updateFilter('currency', val)}
             options={currencies}
-            style={{ borderColor: currency ? 'var(--color-primary)' : 'var(--color-border)' }}
+            style={{ borderColor: currency ? 'var(--color-primary)' : 'var(--color-border)', width: '100%' }}
           />
         </div>
 
         {/* Dates */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)' }}>
-          <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>From:</span>
-          <DatePicker
-            value={dateFrom}
-            onChange={(date) => updateFilter('dateFrom', date ? date.toISOString() : '')}
-            className="w-[130px]"
-          />
-          <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>To:</span>
-          <DatePicker
-            value={dateTo}
-            onChange={(date) => updateFilter('dateTo', date ? date.toISOString() : '')}
-            className="w-[130px]"
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)', flexWrap: 'wrap', flex: '1 1 220px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 105 }}>
+            <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500, flexShrink: 0 }}>From:</span>
+            <DatePicker
+              value={dateFrom}
+              onChange={(date) => updateFilter('dateFrom', date ? date.toISOString() : '')}
+              className="w-full"
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 105 }}>
+            <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500, flexShrink: 0 }}>To:</span>
+            <DatePicker
+              value={dateTo}
+              onChange={(date) => updateFilter('dateTo', date ? date.toISOString() : '')}
+              className="w-full"
+            />
+          </div>
         </div>
 
         {}
@@ -391,7 +395,7 @@ export default function Invoices() {
 
         <div className="col-right">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ padding: 12, background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1px solid var(--color-border)' }}>
+            <div style={{ padding: 12, background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1.5px solid var(--color-border)' }}>
               <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Invoices</div>
               <div style={{ fontWeight: 700, fontSize: 'var(--font-size-lg)' }}>{(total ?? 0).toLocaleString()}</div>
             </div>

@@ -181,7 +181,7 @@ export default function ShipmentDetail() {
       </div>
 
       {/* Two Column Layout */}
-      <div className="two-col-layout">
+      <div className="two-col-layout flex-mobile-col">
         {/* Left Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           {/* Shipment Info */}
@@ -254,7 +254,7 @@ export default function ShipmentDetail() {
               <div style={{ marginTop: 16 }}>
                 <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 8 }}>Items</div>
                 {shipment.items.map((item) => (
-                  <div key={item.id} style={{ padding: '10px 0', borderTop: '1px solid var(--color-border)' }}>
+                  <div key={item.id} style={{ padding: '10px 0', borderTop: '1.5px solid var(--color-border)' }}>
                     <div style={{ fontWeight: 500 }}>{item.description}</div>
                     <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
                       Qty: {item.quantity} · {(item.weight ?? 0).toLocaleString()}kg · {item.dimensionL}x{item.dimensionW}x{item.dimensionH} {item.dimensionUnit}
@@ -336,7 +336,7 @@ export default function ShipmentDetail() {
                   
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
                     {breakdownItems.map(item => (
-                      <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--color-surface)', borderRadius: 'var(--border-radius-sm)', border: '1px solid var(--color-border)' }}>
+                      <div key={item.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--color-surface)', borderRadius: 'var(--border-radius-sm)', border: '1.5px solid var(--color-border)' }}>
                         <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>{item.desc}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <span style={{ fontSize: 'var(--font-size-sm)' }}>{formatCurrency(item.amount, shipment.invoiceCurrency)}</span>

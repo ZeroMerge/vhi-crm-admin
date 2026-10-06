@@ -115,7 +115,7 @@ export default function CustomerDetail() {
       </button>
 
       <div className="card" style={{ marginBottom: 24 }}>
-        <div className="two-col-layout" style={{ display: 'flex', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
+        <div className="two-col-layout flex-mobile-col" style={{ display: 'flex', alignItems: 'flex-start', gap: 24, flexWrap: 'wrap' }}>
           <div style={{
             width: 80,
             height: 80,
@@ -156,7 +156,7 @@ export default function CustomerDetail() {
             </div>
           </div>
 
-          <div className="col-right" style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-end' }}>
+          <div className="col-right" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>Star Rating:</span>
               <StarRating value={starRating} onChange={setStarRating} />
@@ -203,7 +203,7 @@ export default function CustomerDetail() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid var(--color-border)', overflowX: 'auto' }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1.5px solid var(--color-border)', overflowX: 'auto' }}>
         {tabs.map((tab) => (
           <button
             key={tab.value}

@@ -80,7 +80,7 @@ export function ExportModal({ isOpen, onClose, selectedCount = 0, rows = [], fil
       </p>
 
       {}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 28 }}>
+      <div className="flex-mobile-col" style={{ display: 'flex', gap: 16, marginBottom: 28 }}>
         {}
         <button
           onClick={() => setFormat('pdf')}
@@ -88,7 +88,7 @@ export function ExportModal({ isOpen, onClose, selectedCount = 0, rows = [], fil
             flex: 1,
             padding: '16px 18px',
             borderRadius: 'var(--radius-card)',
-            border: format === 'pdf' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+            border: format === 'pdf' ? '2px solid var(--color-primary)' : '1.5px solid var(--color-border)',
             background: format === 'pdf' ? 'var(--color-primary-light)' : 'white',
             cursor: 'pointer',
             display: 'flex',
@@ -109,7 +109,7 @@ export function ExportModal({ isOpen, onClose, selectedCount = 0, rows = [], fil
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            border: format === 'pdf' ? 'none' : '1px solid var(--color-border)'
+            border: format === 'pdf' ? 'none' : '1.5px solid var(--color-border)'
           }}>
             <FileText size={20} />
           </div>
@@ -144,7 +144,7 @@ export function ExportModal({ isOpen, onClose, selectedCount = 0, rows = [], fil
             flex: 1,
             padding: '16px 18px',
             borderRadius: 'var(--radius-card)',
-            border: format === 'csv' ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+            border: format === 'csv' ? '2px solid var(--color-primary)' : '1.5px solid var(--color-border)',
             background: format === 'csv' ? 'var(--color-primary-light)' : 'white',
             cursor: 'pointer',
             display: 'flex',
@@ -165,7 +165,7 @@ export function ExportModal({ isOpen, onClose, selectedCount = 0, rows = [], fil
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            border: format === 'csv' ? 'none' : '1px solid var(--color-border)'
+            border: format === 'csv' ? 'none' : '1.5px solid var(--color-border)'
           }}>
             <FileSpreadsheet size={20} />
           </div>

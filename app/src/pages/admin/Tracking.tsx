@@ -292,101 +292,189 @@ export default function Tracking() {
 
         <div style={{ 
           background: 'var(--color-surface)', 
-          border: '1px solid var(--color-border)', 
+          border: '1.5px solid var(--color-border)', 
           borderRadius: 'var(--border-radius-card)', 
-          padding: '16px 20px', 
-          marginBottom: 24 
+          padding: isMobile ? '14px 16px' : '16px 20px', 
+          marginBottom: isMobile ? 16 : 24,
+          wordBreak: 'break-word',
         }}>
-          <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 6 }}>
+          <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 6, wordBreak: 'break-word', lineHeight: 1.4 }}>
             {s.origin_address} &rarr; {s.destination_address}
           </div>
-          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', fontWeight: 500 }}>
-            {(s.shipping_mode ?? '').replace(/_/g, ' ').toUpperCase()}
-            <span style={{ margin: '0 8px', color: 'var(--color-border)' }}>|</span>
-            {(s.weight ?? 0).toLocaleString()} {s.weight_unit || 'kg'}
-            <span style={{ margin: '0 8px', color: 'var(--color-border)' }}>|</span>
-            {s.nature_of_item || 'No Category'}
+          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', fontWeight: 500, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+            <span>{(s.shipping_mode ?? '').replace(/_/g, ' ').toUpperCase()}</span>
+            <span style={{ color: 'var(--color-border)' }}>|</span>
+            <span>{(s.weight ?? 0).toLocaleString()} {s.weight_unit || 'kg'}</span>
+            <span style={{ color: 'var(--color-border)' }}>|</span>
+            <span>{s.nature_of_item || 'No Category'}</span>
           </div>
         </div>
 
-        <div className="card" style={{ marginBottom: 24, padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
-            <h3 className="card-title" style={{ marginBottom: 0 }}>Tracking Timeline</h3>
+        <div className="card" style={{ marginBottom: isMobile ? 16 : 24, padding: isMobile ? '16px' : '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 20 : 32, flexWrap: 'wrap', gap: 8 }}>
+            <h3 className="card-title" style={{ marginBottom: 0, fontSize: isMobile ? 'var(--font-size-md)' : undefined }}>Tracking Timeline</h3>
             <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
               Tracking: <span style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{trackingNumber || 'Not assigned'}</span>
             </div>
           </div>
 
-          <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '0 20px 24px 20px', minHeight: '80px' }}>
-            <div style={{
-              position: 'absolute',
-              top: '12px',
-              left: '0',
-              right: '0',
-              height: '4px',
-              backgroundColor: 'var(--color-border)',
-              zIndex: 1,
-            }} />
-            
-            <div style={{
-              position: 'absolute',
-              top: '12px',
-              left: '0',
-              width: `${(Math.max(0, currentStatusIndex) / (TIMELINE_STEPS.length - 1)) * 100}%`,
-              height: '4px',
-              backgroundColor: 'var(--color-primary)',
-              zIndex: 1,
-              transition: 'width 0.3s ease',
-            }} />
+          {isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, position: 'relative', paddingLeft: 6, margin: '8px 0 12px 0' }}>
+              {/* Vertical connecting line */}
+              <div style={{
+                position: 'absolute',
+                top: '14px',
+                bottom: '14px',
+                left: '19px',
+                width: '3px',
+                backgroundColor: 'var(--color-border)',
+                zIndex: 1,
+              }} />
+              <div style={{
+                position: 'absolute',
+                top: '14px',
+                left: '19px',
+                width: '3px',
+                height: `${(Math.max(0, currentStatusIndex) / (TIMELINE_STEPS.length - 1)) * 100}%`,
+                backgroundColor: 'var(--color-primary)',
+                zIndex: 1,
+                transition: 'height 0.3s ease',
+              }} />
 
-            {TIMELINE_STEPS.map((step, idx) => {
-              const isCompleted = idx < currentStatusIndex;
-              const isActive = idx === currentStatusIndex;
+              {TIMELINE_STEPS.map((step, idx) => {
+                const isCompleted = idx < currentStatusIndex;
+                const isActive = idx === currentStatusIndex;
 
-              return (
-                <div key={step.value} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2, flex: 1, textAlign: 'center' }}>
-                  <div style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '50%',
-                    backgroundColor: isCompleted ? 'var(--color-primary)' : isActive ? 'var(--color-page-bg)' : 'var(--color-page-bg)',
-                    border: `3px solid ${isCompleted || isActive ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: isCompleted ? '#ffffff' : isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                    fontSize: '12px',
-                    fontWeight: 'bold',
-                    boxShadow: isActive ? '0 0 0 4px var(--color-primary-light)' : 'none',
-                    transition: 'all 0.3s ease',
-                  }}>
-                    {isCompleted ? '✓' : isActive ? '●' : ''}
-                  </div>
-
-                  <div style={{ marginTop: '12px', padding: '0 8px' }}>
+                return (
+                  <div key={step.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 14, position: 'relative', zIndex: 2 }}>
                     <div style={{
-                      fontWeight: isActive || isCompleted ? 600 : 500,
-                      fontSize: 'var(--font-size-sm)',
-                      color: isActive ? 'var(--color-primary)' : isCompleted ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-                      whiteSpace: 'nowrap',
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      backgroundColor: isCompleted ? 'var(--color-primary)' : isActive ? 'var(--color-page-bg)' : 'var(--color-surface)',
+                      border: `3px solid ${isCompleted || isActive ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: isCompleted ? '#ffffff' : isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      flexShrink: 0,
+                      boxShadow: isActive ? '0 0 0 4px var(--color-primary-light)' : 'none',
                     }}>
-                      {step.label}
-                      {isActive && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: '4px', color: 'var(--color-primary)', fontWeight: 'bold' }}>• Now</span>}
+                      {isCompleted ? '✓' : isActive ? '●' : ''}
                     </div>
-                    <div style={{
-                      fontSize: 'var(--font-size-xs)',
-                      color: 'var(--color-text-muted)',
-                      marginTop: '4px',
-                      maxWidth: '120px',
-                      margin: '4px auto 0 auto',
-                    }}>
-                      {step.description}
+
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        fontWeight: isActive || isCompleted ? 600 : 500,
+                        fontSize: 'var(--font-size-sm)',
+                        color: isActive ? 'var(--color-primary)' : isCompleted ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        flexWrap: 'wrap',
+                      }}>
+                        <span>{step.label}</span>
+                        {isActive && (
+                          <span style={{
+                            fontSize: '10px',
+                            color: 'var(--color-primary)',
+                            fontWeight: 700,
+                            background: 'var(--color-primary-light)',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                          }}>
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <div style={{
+                        fontSize: 'var(--font-size-xs)',
+                        color: 'var(--color-text-muted)',
+                        marginTop: '2px',
+                      }}>
+                        {step.description}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', margin: '0 20px 24px 20px', minHeight: '80px' }}>
+              <div style={{
+                position: 'absolute',
+                top: '12px',
+                left: '0',
+                right: '0',
+                height: '4px',
+                backgroundColor: 'var(--color-border)',
+                zIndex: 1,
+              }} />
+              
+              <div style={{
+                position: 'absolute',
+                top: '12px',
+                left: '0',
+                width: `${(Math.max(0, currentStatusIndex) / (TIMELINE_STEPS.length - 1)) * 100}%`,
+                height: '4px',
+                backgroundColor: 'var(--color-primary)',
+                zIndex: 1,
+                transition: 'width 0.3s ease',
+              }} />
+
+              {TIMELINE_STEPS.map((step, idx) => {
+                const isCompleted = idx < currentStatusIndex;
+                const isActive = idx === currentStatusIndex;
+
+                return (
+                  <div key={step.value} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative', zIndex: 2, flex: 1, textAlign: 'center' }}>
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      backgroundColor: isCompleted ? 'var(--color-primary)' : isActive ? 'var(--color-page-bg)' : 'var(--color-page-bg)',
+                      border: `3px solid ${isCompleted || isActive ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: isCompleted ? '#ffffff' : isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                      fontSize: '12px',
+                      fontWeight: 'bold',
+                      boxShadow: isActive ? '0 0 0 4px var(--color-primary-light)' : 'none',
+                      transition: 'all 0.3s ease',
+                    }}>
+                      {isCompleted ? '✓' : isActive ? '●' : ''}
+                    </div>
+
+                    <div style={{ marginTop: '12px', padding: '0 8px' }}>
+                      <div style={{
+                        fontWeight: isActive || isCompleted ? 600 : 500,
+                        fontSize: 'var(--font-size-sm)',
+                        color: isActive ? 'var(--color-primary)' : isCompleted ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {step.label}
+                        {isActive && <span style={{ fontSize: 'var(--font-size-xs)', marginLeft: '4px', color: 'var(--color-primary)', fontWeight: 'bold' }}>• Now</span>}
+                      </div>
+                      <div style={{
+                        fontSize: 'var(--font-size-xs)',
+                        color: 'var(--color-text-muted)',
+                        marginTop: '4px',
+                        maxWidth: '120px',
+                        margin: '4px auto 0 auto',
+                      }}>
+                        {step.description}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {!isSupportStaff && (
@@ -517,7 +605,7 @@ export default function Tracking() {
           background: 'var(--color-surface)',
           padding: '16px',
           borderRadius: 'var(--border-radius-card)',
-          border: '1px solid var(--color-border)',
+          border: '1.5px solid var(--color-border)',
         }}
       >
         <div className="search-input-wrapper" style={{ maxWidth: 240 }}>
@@ -646,7 +734,7 @@ export default function Tracking() {
                         padding: '14px 16px',
                         background: selectedShipment?.id === sh.id ? 'var(--color-primary-light)' : 'var(--color-surface)',
                         border: 'none',
-                        borderBottom: '1px solid var(--color-border)',
+                        borderBottom: '1.5px solid var(--color-border)',
                         borderLeft: selectedShipment?.id === sh.id ? '4px solid var(--color-primary)' : '4px solid transparent',
                         cursor: 'pointer',
                         textAlign: 'left',
@@ -687,7 +775,7 @@ export default function Tracking() {
         ) : (
           <div className="col-right">
             {selectedShipment ? renderDetails() : (
-              <div style={{ padding: '80px', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1px solid var(--color-border)' }}>
+              <div style={{ padding: '80px', textAlign: 'center', color: 'var(--color-text-muted)', background: 'var(--color-surface)', borderRadius: 'var(--border-radius-card)', border: '1.5px solid var(--color-border)' }}>
                 No shipment selected. Choose a shipment from the left list.
               </div>
             )}
