@@ -10,7 +10,9 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:seed-realistic": "tsx src/db/comprehensive_seed.ts",
-    "db:delete-customer": "tsx src/db/delete-customer.ts"
+    "db:delete-customer": "tsx src/db/delete-customer.ts",
+    "test": "tsx --import ./test/setup.ts --test --test-concurrency=1 \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
