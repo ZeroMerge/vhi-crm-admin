@@ -3,7 +3,8 @@ import type { PoolClient } from 'pg';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { moduleGuard, requireActiveAdmin } from '../../middleware/permissions';
-import { logAuditEvent } from '../../utils/audit';
+import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
+import { emit } from '../notifications/notification.service';
 import { generateOrderId } from '../../utils/generateOrderId';
 import { assertInitialStatus, assertTransition, assertValidStatus, conflictError, getAllowedTransitions } from './shipmentStatus';
 
@@ -213,18 +214,25 @@ router.get('/:id', adminMiddleware, async (req, res, next) => {
 
 
 router.post('/', adminMiddleware, async (req, res, next) => {
+  const {
+    customerId, shippingMode, deliveryMode, natureOfItem, hsCode,
+    invoiceValue, invoiceCurrency, weight, weightUnit,
+    originAddress, destinationAddress, originPickupOption, portOfDischarge,
+    awbNumber, bolNumber, uniqueId, status = 'pending', isDraft = false,
+  } = req.body;
+  let initialStatus;
   try {
-    const {
-      customerId, shippingMode, deliveryMode, natureOfItem, hsCode,
-      invoiceValue, invoiceCurrency, weight, weightUnit,
-      originAddress, destinationAddress, originPickupOption, portOfDischarge,
-      awbNumber, bolNumber, uniqueId, status = 'pending', isDraft = false,
-    } = req.body;
+    initialStatus = assertInitialStatus(status, 'admin');
+  } catch (err) { return next(err); }
+  const orderId = generateOrderId('admin', shippingMode);
 
-    const initialStatus = assertInitialStatus(status, 'admin');
-    const orderId = generateOrderId('admin', shippingMode);
-
-    const result = await pool.query(
+  let client;
+  try {
+    client = await pool.connect();
+  } catch (err) { return next(err); }
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
       `INSERT INTO shipments (
         order_id, customer_id, shipping_mode, delivery_mode, nature_of_item, hs_code,
         invoice_value, invoice_currency, weight, weight_unit,
@@ -239,11 +247,27 @@ router.post('/', adminMiddleware, async (req, res, next) => {
         awbNumber || null, bolNumber || null, uniqueId || null, initialStatus, isDraft,
       ]
     );
-
     const shipment = result.rows[0];
-    await logAuditEvent(req.admin!.id, 'admin', req.admin!.activeRole, 'CREATE_SHIPMENT', 'shipment', shipment.id, { orderId, customerId });
+    await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'CREATE_SHIPMENT', 'shipment', shipment.id, { orderId, customerId });
+    if (shipment.customer_id) {
+      await emit(
+        {
+          type: 'shipment.created_for_customer',
+          actor: { type: 'admin', id: req.admin!.id },
+          sourceId: shipment.id,
+          shipment: { id: shipment.id, orderId: shipment.order_id, customerId: shipment.customer_id, status: shipment.status },
+        },
+        client
+      );
+    }
+    await client.query('COMMIT');
     res.status(201).json({ success: true, data: mapShipment(shipment) });
-  } catch (err) { next(err); }
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
+  }
 });
 
 
@@ -287,6 +311,31 @@ router.put('/:id/status', adminMiddleware, async (req, res, next) => {
       );
     }
 
+    const auditId = await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'UPDATE_SHIPMENT_STATUS', 'shipment', current.id, {
+      from: transition.from,
+      to: transition.to,
+      reason: reason ?? null,
+      isCorrection: transition.isCorrection,
+      isReopen: transition.isReopen,
+      message: message ?? null,
+    });
+    if (current.customer_id) {
+      await emit(
+        {
+          type: 'shipment.status_changed',
+          actor: { type: 'admin', id: req.admin!.id },
+          sourceId: auditId,
+          shipment: { id: current.id, orderId: current.order_id, customerId: current.customer_id },
+          from: transition.from,
+          to: transition.to,
+          reason: typeof reason === 'string' ? reason.trim() : null,
+          isCorrection: transition.isCorrection,
+          isReopen: transition.isReopen,
+        },
+        client
+      );
+    }
+
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -296,23 +345,6 @@ router.put('/:id/status', adminMiddleware, async (req, res, next) => {
   }
 
   try {
-    await logAuditEvent(
-      req.admin!.id,
-      'admin',
-      req.admin!.activeRole,
-      'UPDATE_SHIPMENT_STATUS',
-      'shipment',
-      req.params.id,
-      {
-        from: transition.from,
-        to: transition.to,
-        reason: reason ?? null,
-        isCorrection: transition.isCorrection,
-        isReopen: transition.isReopen,
-        message: message ?? null,
-      }
-    );
-
     const result = await pool.query(
       `SELECT s.*, c.firstname, c.lastname, c.email, c.phone, c.industry 
        FROM shipments s 
@@ -333,38 +365,72 @@ router.put('/:id/status', adminMiddleware, async (req, res, next) => {
 });
 
 
+const isBlank = (v: unknown) => v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
+
 router.put('/:id/tracking', adminMiddleware, async (req, res, next) => {
+  const { awbNumber, bolNumber, uniqueId } = req.body;
+  const updates: Array<[string, unknown]> = [];
+  if (awbNumber !== undefined) updates.push(['awb_number', awbNumber]);
+  if (bolNumber !== undefined) updates.push(['bol_number', bolNumber]);
+  if (uniqueId !== undefined) updates.push(['unique_id', uniqueId]);
+  if (updates.length === 0) {
+    return res.status(400).json({ success: false, message: 'Provide awbNumber, bolNumber or uniqueId' });
+  }
+  if (!UUID_RE.test(req.params.id)) return res.status(404).json({ success: false, message: 'Shipment not found' });
+
+  let client;
   try {
-    const { awbNumber, bolNumber, uniqueId } = req.body;
-    const fields: string[] = [];
-    const params: any[] = [];
-    let idx = 1;
+    client = await pool.connect();
+  } catch (err) { return next(err); }
+  try {
+    await client.query('BEGIN');
+    const current = await lockShipmentForUpdate(client, 'id = $1', [req.params.id]);
+    if (!current) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Shipment not found' });
+    }
 
-    if (awbNumber !== undefined) { fields.push(`awb_number = $${idx++}`); params.push(awbNumber); }
-    if (bolNumber !== undefined) { fields.push(`bol_number = $${idx++}`); params.push(bolNumber); }
-    if (uniqueId !== undefined) { fields.push(`unique_id = $${idx++}`); params.push(uniqueId); }
+    const sets = updates.map(([column], i) => `${column} = $${i + 1}`);
+    await client.query(
+      `UPDATE shipments SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${updates.length + 1}`,
+      [...updates.map(([, value]) => value), current.id]
+    );
 
-    params.push(req.params.id);
-    await pool.query(`UPDATE shipments SET ${fields.join(', ')}, updated_at = NOW() WHERE id = $${idx}`, params);
+    const auditId = await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'UPDATE_SHIPMENT_TRACKING_FIELDS', 'shipment', current.id, { awbNumber, bolNumber, uniqueId });
+
+    // Only an empty → set transition notifies (editing an existing number does not).
+    const newAwb = awbNumber !== undefined && isBlank(current.awb_number) && !isBlank(awbNumber) ? String(awbNumber).trim() : null;
+    const newBol = bolNumber !== undefined && isBlank(current.bol_number) && !isBlank(bolNumber) ? String(bolNumber).trim() : null;
+    if (current.customer_id && (newAwb || newBol)) {
+      await emit(
+        {
+          type: 'shipment.tracking_assigned',
+          actor: { type: 'admin', id: req.admin!.id },
+          sourceId: auditId,
+          shipment: { id: current.id, orderId: current.order_id, customerId: current.customer_id },
+          awbNumber: newAwb,
+          bolNumber: newBol,
+        },
+        client
+      );
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
+  }
+
+  try {
     const result = await pool.query(
-      `SELECT s.*, c.firstname, c.lastname, c.email, c.phone, c.industry 
-       FROM shipments s 
-       LEFT JOIN customers c ON s.customer_id = c.id 
+      `SELECT s.*, c.firstname, c.lastname, c.email, c.phone, c.industry
+       FROM shipments s
+       LEFT JOIN customers c ON s.customer_id = c.id
        WHERE s.id = $1`,
       [req.params.id]
     );
-
-    
-    await logAuditEvent(
-      req.admin!.id,
-      'admin',
-      req.admin!.activeRole,
-      'UPDATE_SHIPMENT_TRACKING_FIELDS',
-      'shipment',
-      req.params.id,
-      { awbNumber, bolNumber, uniqueId }
-    );
-
     res.json({ success: true, data: mapShipment(result.rows[0]) });
   } catch (err) { next(err); }
 });

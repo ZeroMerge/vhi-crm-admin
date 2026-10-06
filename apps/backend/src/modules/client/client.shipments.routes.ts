@@ -3,7 +3,8 @@ import multer from 'multer';
 import { z } from 'zod';
 import pool from '../../config/db';
 import { customerMiddleware } from '../../middleware/customerMiddleware';
-import { logAuditEvent } from '../../utils/audit';
+import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
+import { emit } from '../notifications/notification.service';
 import { generateOrderId } from '../../utils/generateOrderId';
 import { uploadToCloudinary } from '../../utils/uploadToCloudinary';
 import { lockShipmentForUpdate, mapShipment } from '../shipments/shipments.routes';
@@ -235,6 +236,17 @@ router.post(
         );
       }
 
+      // Step 7b: notify operations staff (same transaction: no notification if anything rolls back)
+      await emit(
+        {
+          type: 'shipment.created',
+          actor: { type: 'customer', id: customerId },
+          sourceId: shipment.id,
+          shipment: { id: shipment.id, orderId: shipment.order_id, customerId, shippingMode: shipment.shipping_mode },
+        },
+        client
+      );
+
       // Step 8: COMMIT
       await client.query('COMMIT');
 
@@ -376,6 +388,22 @@ router.delete('/:orderId', customerMiddleware, async (req, res, next) => {
     }
 
     await client.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [transition.to, shipment.id]);
+    const auditId = await insertAuditEvent(client, customerId, 'customer', null, 'CANCEL_SHIPMENT', 'shipment', shipment.id, {
+      orderId: shipment.order_id,
+      from: transition.from,
+      to: transition.to,
+      reason: null,
+      isCorrection: transition.isCorrection,
+    });
+    await emit(
+      {
+        type: 'shipment.cancelled_by_client',
+        actor: { type: 'customer', id: customerId },
+        sourceId: auditId,
+        shipment: { id: shipment.id, orderId: shipment.order_id, customerId },
+      },
+      client
+    );
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -384,17 +412,7 @@ router.delete('/:orderId', customerMiddleware, async (req, res, next) => {
     client.release();
   }
 
-  try {
-    await logAuditEvent(customerId, 'customer', null, 'CANCEL_SHIPMENT', 'shipment', shipment.id, {
-      orderId: shipment.order_id,
-      from: transition.from,
-      to: transition.to,
-      reason: null,
-      isCorrection: transition.isCorrection,
-    });
-
-    res.json({ success: true, message: 'Shipment cancelled successfully' });
-  } catch (err) { next(err); }
+  res.json({ success: true, message: 'Shipment cancelled successfully' });
 });
 
 export default router;

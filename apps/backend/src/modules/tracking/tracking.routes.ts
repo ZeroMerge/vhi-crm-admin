@@ -2,7 +2,8 @@ import { Router } from 'express';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { CROSS_READS, moduleGuard, requireActiveAdmin } from '../../middleware/permissions';
-import { logAuditEvent } from '../../utils/audit';
+import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
+import { emit } from '../notifications/notification.service';
 import { UUID_RE, lockShipmentForUpdate, mapShipment } from '../shipments/shipments.routes';
 import { assertTransition, assertValidStatus, conflictError } from '../shipments/shipmentStatus';
 
@@ -95,7 +96,6 @@ router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
     client = await pool.connect();
   } catch (err) { return next(err); }
   let trackingRow;
-  let auditMetadata;
   try {
     await client.query('BEGIN');
 
@@ -112,7 +112,6 @@ router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
         await client.query('ROLLBACK');
         return res.status(400).json({ success: false, message: 'A message is required for a tracking note without a status change' });
       }
-      auditMetadata = { noteOnly: true, status: current.status, message: text };
     } else {
       const transition = assertTransition({
         from: current.status,
@@ -122,7 +121,7 @@ router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
         reason,
       });
       await client.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [transition.to, current.id]);
-      auditMetadata = {
+      const auditId = await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'ADD_TRACKING_UPDATE', 'shipment', current.id, {
         noteOnly: false,
         from: transition.from,
         to: transition.to,
@@ -130,7 +129,23 @@ router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
         isCorrection: transition.isCorrection,
         isReopen: transition.isReopen,
         message: text || null,
-      };
+      });
+      if (current.customer_id) {
+        await emit(
+          {
+            type: 'shipment.status_changed',
+            actor: { type: 'admin', id: req.admin!.id },
+            sourceId: auditId,
+            shipment: { id: current.id, orderId: current.order_id, customerId: current.customer_id },
+            from: transition.from,
+            to: transition.to,
+            reason: typeof reason === 'string' ? reason.trim() : null,
+            isCorrection: transition.isCorrection,
+            isReopen: transition.isReopen,
+          },
+          client
+        );
+      }
     }
 
     const result = await client.query(
@@ -138,6 +153,15 @@ router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
       [current.id, noteOnly ? current.status : status, text, req.admin!.id]
     );
     trackingRow = result.rows[0];
+    // Note-only updates are audited in the same transaction but do not notify in Phase 1 (deferred until the
+    // client UI shows tracking history).
+    if (noteOnly) {
+      await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'ADD_TRACKING_UPDATE', 'shipment', current.id, {
+        noteOnly: true,
+        status: current.status,
+        message: text,
+      });
+    }
 
     await client.query('COMMIT');
   } catch (err) {
@@ -147,19 +171,7 @@ router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
     client.release();
   }
 
-  try {
-    await logAuditEvent(
-      req.admin!.id,
-      'admin',
-      req.admin!.activeRole,
-      'ADD_TRACKING_UPDATE',
-      'shipment',
-      req.params.shipmentId,
-      auditMetadata
-    );
-
-    res.json({ success: true, data: trackingRow });
-  } catch (err) { next(err); }
+  res.json({ success: true, data: trackingRow });
 });
 
 

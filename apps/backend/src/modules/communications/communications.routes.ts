@@ -3,7 +3,8 @@ import { z } from 'zod';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { CROSS_READS, moduleGuard, roleHasModule, requireActiveAdmin } from '../../middleware/permissions';
-import { logAuditEvent } from '../../utils/audit';
+import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
+import { emit } from '../notifications/notification.service';
 import { sendEmail } from '../../utils/sendEmail';
 
 const router = Router();
@@ -64,41 +65,79 @@ router.get('/:customerId', adminMiddleware, async (req, res, next) => {
       [req.params.customerId]
     );
     // Cross-module readers (e.g. finance via CustomerDetail) see the thread read-only; only roles that
-    // work the communications inbox mark customer messages as read.
+    // work the communications inbox mark customer messages, and their own message notifications, as read.
     if (roleHasModule(req.admin!.activeRole, 'communications')) {
-      await pool.query(
-        `UPDATE communications SET read_by_admin = true
-         WHERE customer_id = $1 AND sender_type = 'customer' AND read_by_admin = false`,
-        [req.params.customerId]
-      );
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        await client.query(
+          `UPDATE communications SET read_by_admin = true
+           WHERE customer_id = $1 AND sender_type = 'customer' AND read_by_admin = false`,
+          [req.params.customerId]
+        );
+        await client.query(
+          `UPDATE notifications SET read_at = NOW()
+           WHERE admin_id = $1 AND type = 'message.received' AND entity_type = 'customer_thread'
+             AND entity_id = $2 AND read_at IS NULL`,
+          [req.admin!.id, req.params.customerId]
+        );
+        await client.query('COMMIT');
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
     }
     res.json({ success: true, data: result.rows });
   } catch (err) { next(err); }
 });
 
 router.post('/send', adminMiddleware, async (req, res, next) => {
+  const parsed = messageSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: 'Validation failed', errors: parsed.error.flatten().fieldErrors });
+  }
+  const { customerId, subject, body } = parsed.data;
+
+  let client;
   try {
-    const parsed = messageSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({ success: false, message: 'Validation failed', errors: parsed.error.flatten().fieldErrors });
-    }
-    const { customerId, subject, body } = parsed.data;
-    const custResult = await pool.query('SELECT firstname, email FROM customers WHERE id = $1', [customerId]);
+    client = await pool.connect();
+  } catch (err) { return next(err); }
+  let customer;
+  let comm;
+  try {
+    await client.query('BEGIN');
+    const custResult = await client.query('SELECT firstname, email FROM customers WHERE id = $1', [customerId]);
     if (custResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
-    const customer = custResult.rows[0];
+    customer = custResult.rows[0];
 
-    const result = await pool.query(
+    const result = await client.query(
       `INSERT INTO communications (customer_id, sent_by, sender_type, subject, body, read_by_admin, read_by_customer)
        VALUES ($1, $2, 'admin', $3, $4, true, false)
        RETURNING *, sender_type AS "senderType", false AS "sentByCustomer"`,
       [customerId, req.admin!.id, subject, body]
     );
-    const comm = result.rows[0];
+    comm = result.rows[0];
 
-    // Trigger email notification asynchronously
-    const emailHtml = `
+    await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'SEND_COMMUNICATION', 'communication', comm.id, { customerId, subject });
+    await emit(
+      { type: 'message.received', actor: { type: 'admin', id: req.admin!.id }, sourceId: comm.id, customerId, direction: 'to_customer', text: body },
+      client
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
+  }
+
+  // Email only after the message is committed (never from inside the transaction).
+  const emailHtml = `
       <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
         <h2>New Message from VHI</h2>
         <p>Hello ${customer.firstname},</p>
@@ -109,11 +148,9 @@ router.post('/send', adminMiddleware, async (req, res, next) => {
         <p><a href="${process.env.CLIENT_FRONTEND_URL}/messages" style="display: inline-block; padding: 10px 20px; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px;">View and Reply in Portal</a></p>
       </div>
     `;
-    sendEmail(customer.email, subject || 'New Message from VHI Support', emailHtml).catch(console.error);
+  sendEmail(customer.email, subject || 'New Message from VHI Support', emailHtml).catch(console.error);
 
-    await logAuditEvent(req.admin!.id, 'admin', req.admin!.activeRole, 'SEND_COMMUNICATION', 'communication', comm.id, { customerId, subject });
-    res.status(201).json({ success: true, data: comm });
-  } catch (err) { next(err); }
+  res.status(201).json({ success: true, data: comm });
 });
 
 router.delete('/:messageId', adminMiddleware, async (req, res, next) => {
