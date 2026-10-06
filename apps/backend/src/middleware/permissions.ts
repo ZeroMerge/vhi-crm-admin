@@ -33,6 +33,17 @@ export function roleHasAnyModule(role: string | null | undefined, modules: strin
   return modules.some((m) => roleHasModule(role, m));
 }
 
+// Modules readable by ANY of the given roles; null means every module (super_admin's '*').
+export function modulesForRoles(roles: string[]): string[] | null {
+  const modules = new Set<string>();
+  for (const role of roles) {
+    const allowed = ROLE_MODULES[role] ?? [];
+    if (allowed.includes('*')) return null;
+    allowed.forEach((m) => modules.add(m));
+  }
+  return [...modules];
+}
+
 // Roles that can see a module; the notification layer routes recipients with this.
 export function rolesWithModule(module: string): string[] {
   return Object.keys(ROLE_MODULES).filter((role) => roleHasModule(role, module));

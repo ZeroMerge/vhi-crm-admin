@@ -22,6 +22,7 @@ import clientCargoRoutes from './modules/client/client.cargo.routes';
 import { customerMiddleware } from './middleware/customerMiddleware';
 import clientCommunicationsRoutes from './modules/client/client.communications.routes';
 import realtimeRoutes from './modules/realtime/realtime.routes';
+import { adminNotificationsRoutes, clientNotificationsRoutes } from './modules/notifications/notifications.routes';
 
 dotenv.config();
 
@@ -88,6 +89,8 @@ app.use('/api/client/tracking', clientTrackingRoutes);
 app.use('/api/client/cargo-clearings', customerMiddleware, clientCargoRoutes);
 app.use('/api/client/communications', clientCommunicationsRoutes);
 app.use('/api/realtime', realtimeRoutes);
+app.use('/api/admin/notifications', adminNotificationsRoutes);
+app.use('/api/client/notifications', clientNotificationsRoutes);
 
 
 app.get('/api/health', (_req, res) => {
