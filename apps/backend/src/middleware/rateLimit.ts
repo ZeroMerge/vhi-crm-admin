@@ -1,8 +1,9 @@
 // Small in-memory fixed-window rate limiter for public endpoints (Phase 4: invite inspect / accept). Per process: with several
 // instances the effective limit multiplies (as with the SSE limits, RISKS R-58).
 //
-// The key is req.ip. The app does not set `trust proxy`, so behind a reverse proxy (Render, inferred) req.ip is the proxy's
-// address and the limit applies to all callers together: stricter, never looser. See docs/OPEN-QUESTIONS.md.
+// The key is req.ip, so it depends on TRUST_PROXY_HOPS (src/config/trustProxy.ts): set to the number of proxies in front of the
+// server (Render: 1) it is the client's address; at 0 (default) behind a proxy it is the proxy's, and the limit is shared by all
+// callers: stricter, never looser.
 import type { Request, RequestHandler } from 'express';
 
 export interface RateLimitOptions {

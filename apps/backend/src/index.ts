@@ -29,6 +29,7 @@ import clientPreferencesRoutes from './modules/client/client.preferences.routes'
 import { initEmail, startEmailWorker, stopEmailWorker } from './modules/email';
 import { initScheduler, startScheduler, stopScheduler } from './modules/scheduler';
 import resendWebhookRoutes from './modules/webhooks/resend.routes';
+import { applyTrustProxy, trustProxyHopsFromEnv } from './config/trustProxy';
 
 dotenv.config();
 
@@ -50,8 +51,21 @@ try {
   process.exit(1);
 }
 
+let trustProxyHops = 0;
+try {
+  trustProxyHops = trustProxyHopsFromEnv();
+} catch (err) {
+  console.error(`[startup] ${(err as Error).message}`);
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
+// Before any route: req.ip (per-IP rate limits) depends on it.
+applyTrustProxy(app, trustProxyHops);
+if (process.env.NODE_ENV === 'production') {
+  console.log(`[startup] TRUST_PROXY_HOPS=${trustProxyHops}${trustProxyHops === 0 ? ' (off: req.ip is the proxy address; rate limits are shared)' : ''}`);
+}
 
 const allowedOrigins = [
   'http://localhost:3000',
