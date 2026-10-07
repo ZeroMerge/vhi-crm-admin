@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { LinkBases, normaliseBase } from './templates/urls';
 import { Brand, brandFromEnv } from './templates/brand';
 import { DEFAULT_TIMEZONE, assertTimezone } from '../../utils/appTime';
+import { webhookKey } from '../webhooks/signature';
 
 export type EmailProviderName = 'resend' | 'console';
 
@@ -22,6 +23,8 @@ export interface EmailConfig {
   brand: Brand;
   /** APP_TIMEZONE (default Africa/Lagos): times shown in emails; the scheduler uses the same setting. */
   timezone: string;
+  /** RESEND_WEBHOOK_SECRET ("whsec_…"): verifies bounce/complaint webhooks. Unset → the webhook route answers 503. */
+  resendWebhookSecret: string | null;
   warnings: string[];
 }
 
@@ -124,6 +127,17 @@ export function emailConfigFromEnv(env: NodeJS.ProcessEnv = process.env): EmailC
     timezone = DEFAULT_TIMEZONE;
   }
 
+  const resendWebhookSecret = blank(env.RESEND_WEBHOOK_SECRET) ? null : env.RESEND_WEBHOOK_SECRET!.trim();
+  if (resendWebhookSecret) {
+    try {
+      webhookKey(resendWebhookSecret);
+    } catch (err) {
+      problems.push(`RESEND_WEBHOOK_SECRET ${(err as Error).message} (copy the signing secret from Resend → Webhooks)`);
+    }
+  } else if (production && provider === 'resend') {
+    problems.push('RESEND_WEBHOOK_SECRET is required in production with the resend provider (bounce and complaint handling)');
+  }
+
   if (problems.length) throw new EmailConfigError(problems);
-  return { provider, resendApiKey, from, replyTo, supportInbox, linkSecret, bases, messageBatchMs, concurrency, brand, timezone, warnings };
+  return { provider, resendApiKey, from, replyTo, supportInbox, linkSecret, bases, messageBatchMs, concurrency, brand, timezone, resendWebhookSecret, warnings };
 }

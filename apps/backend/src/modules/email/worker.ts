@@ -175,6 +175,14 @@ export class EmailWorker {
     const kind: EmailKind = row.kind;
     const template = EMAIL_TEMPLATES[kind];
 
+    // ---- suppressions (bounce/complaint webhooks): a bounced address gets nothing; after a spam complaint only service emails go
+    const suppressed = await this.deps.pool.query('SELECT reason FROM email_suppressions WHERE address = lower($1)', [row.to_address]);
+    const suppression: string | undefined = suppressed.rows[0]?.reason;
+    if (suppression === 'bounce') return { status: 'cancelled', reason: 'address is suppressed: it bounced' };
+    if (suppression === 'complaint' && template.preference !== null) {
+      return { status: 'cancelled', reason: 'address is suppressed: the recipient marked our email as spam' };
+    }
+
     // ---- recipient and preference checks, at send time
     let unsubscribeToken: string | null = null;
     if (template.audience === 'customer') {

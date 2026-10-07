@@ -386,6 +386,7 @@ describe('email configuration and providers', () => {
     API_PUBLIC_URL: 'https://api.example.com',
     CLIENT_FRONTEND_URL: 'https://client.example.com',
     ADMIN_FRONTEND_URL: 'https://admin.example.com',
+    RESEND_WEBHOOK_SECRET: 'whsec_' + Buffer.alloc(24, 7).toString('base64'),
   };
 
   test('development defaults to the console provider and needs no secrets', () => {

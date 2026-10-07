@@ -28,6 +28,7 @@ import emailRoutes from './modules/email/email.routes';
 import clientPreferencesRoutes from './modules/client/client.preferences.routes';
 import { initEmail, startEmailWorker, stopEmailWorker } from './modules/email';
 import { initScheduler, startScheduler, stopScheduler } from './modules/scheduler';
+import resendWebhookRoutes from './modules/webhooks/resend.routes';
 
 dotenv.config();
 
@@ -76,6 +77,8 @@ app.use((req, _res, next) => {
 // cookies or credentials, so they are mounted BEFORE the CORS check: browsers post the confirmation form with
 // `Origin: null` (the page sends Referrer-Policy: no-referrer), and mail providers post with no Origin at all.
 app.use('/api/email', emailRoutes);
+// Provider webhooks: server-to-server, authorised by their signature over the raw body, so also before CORS and express.json().
+app.use('/api/webhooks', resendWebhookRoutes);
 
 app.use(cors({
   origin: (origin, callback) => {
