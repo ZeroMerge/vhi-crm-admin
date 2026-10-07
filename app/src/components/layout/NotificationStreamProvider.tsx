@@ -1,8 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import api from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
-import { NotificationStreamContext, notificationKeys } from '@/hooks/useNotifications';
+import { NotificationStreamContext, StreamEventsContext, notificationKeys } from '@/hooks/useNotifications';
+import { createListeners } from '@/lib/threadSync';
 import type { AppNotification, UnreadCount } from '@/services/notification.service';
 import { planPushUpdate, type InfiniteList, type PushedNotification } from '@/lib/notificationCache';
 import { startNotificationStream, type StreamEvent } from '@/lib/notificationStream';
@@ -55,6 +56,7 @@ export function NotificationStreamProvider({ children }: { children: ReactNode }
   const queryClient = useQueryClient();
   const token = useAuthStore((s) => s.token);
   const [connected, setConnected] = useState(false);
+  const listeners = useMemo(() => createListeners<StreamEvent>(), []);
 
   useEffect(() => {
     if (!token) return;
@@ -62,7 +64,11 @@ export function NotificationStreamProvider({ children }: { children: ReactNode }
       name: 'vhi-admin-notifications',
       url: `${api.defaults.baseURL}/api/admin/notifications/stream`,
       getToken: () => useAuthStore.getState().token,
-      onEvent: (event) => applyStreamEvent(queryClient, event),
+      onEvent: (event) => {
+        applyStreamEvent(queryClient, event);
+        // Pages (Communications) subscribe to the same stream through this; it never opens another connection.
+        listeners.emit(event);
+      },
       onConnectedChange: setConnected,
       // Same as the axios 401 handler in services/api.ts.
       onUnauthorized: () => {
@@ -71,7 +77,11 @@ export function NotificationStreamProvider({ children }: { children: ReactNode }
       },
     });
     return () => stream.stop();
-  }, [queryClient, token]);
+  }, [queryClient, token, listeners]);
 
-  return <NotificationStreamContext.Provider value={connected}>{children}</NotificationStreamContext.Provider>;
+  return (
+    <NotificationStreamContext.Provider value={connected}>
+      <StreamEventsContext.Provider value={listeners}>{children}</StreamEventsContext.Provider>
+    </NotificationStreamContext.Provider>
+  );
 }
