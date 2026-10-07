@@ -9,6 +9,8 @@ export interface AdminUser {
   is_active: boolean;
   created_at: string;
   last_login_at?: string;
+  /** Invited but has not set a password yet (Phase 4). */
+  invitePending?: boolean;
 }
 
 export const adminManagementService = {
@@ -17,9 +19,16 @@ export const adminManagementService = {
     return res.data.data;
   },
   
-  invite: async (data: { name: string; email: string; assignedRoles: string[] }): Promise<{ admin: AdminUser; inviteLink: string; tempPassword?: string }> => {
-    const res = await api.post<ApiResponse<{ admin: AdminUser; inviteLink: string; tempPassword?: string }>>('/api/admin/admins/invite', data);
+  // Sends an invitation email with a single-use link (72 h). No password or link comes back.
+  invite: async (data: { name: string; email: string; assignedRoles: string[] }): Promise<{ admin: AdminUser; invitePending: boolean }> => {
+    const res = await api.post<ApiResponse<{ admin: AdminUser; invitePending: boolean }>>('/api/admin/admins/invite', data);
     return res.data.data;
+  },
+
+  // New link by email; the previous one stops working. 409 when already accepted or the admin is deactivated.
+  resendInvite: async (id: string): Promise<{ message: string }> => {
+    const res = await api.post<{ success: boolean; message: string }>(`/api/admin/admins/${id}/resend-invite`);
+    return { message: res.data.message };
   },
   
   updateRoles: async (id: string, assignedRoles: string[]): Promise<AdminUser> => {

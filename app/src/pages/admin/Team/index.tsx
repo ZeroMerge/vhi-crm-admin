@@ -4,7 +4,7 @@ import { useAuthStore } from '@/store/authStore';
 import { Avatar } from '@/components/shared/Avatar';
 import { Switch } from '@/components/ui/switch';
 import { adminManagementService, type AdminUser } from '@/services/admin-management.service';
-import { Plus, Trash2, Edit, Key } from 'lucide-react';
+import { Plus, Trash2, Edit, Key, Send } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 const ALL_ROLES = [
@@ -30,7 +30,9 @@ export default function Team() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRoles, setInviteRoles] = useState<string[]>(['support_staff']);
   const [inviting, setInviting] = useState(false);
-  const [inviteSuccessData, setInviteSuccessData] = useState<{ inviteLink: string; tempPassword?: string } | null>(null);
+  // Email address the invitation went to; set → the modal shows the success state.
+  const [inviteSentTo, setInviteSentTo] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
 
   const [editRolesModalOpen, setEditRolesModalOpen] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<AdminUser | null>(null);
@@ -130,11 +132,8 @@ export default function Team() {
         email: inviteEmail,
         assignedRoles: inviteRoles
       });
-      setAdmins((prev) => [response.admin, ...prev]);
-      setInviteSuccessData({
-        inviteLink: response.inviteLink,
-        tempPassword: response.tempPassword
-      });
+      setAdmins((prev) => [{ ...response.admin, invitePending: true }, ...prev]);
+      setInviteSentTo(response.admin.email);
     } catch (err: any) {
       console.error(err);
       alert(err.response?.data?.message || 'Failed to invite administrator.');
@@ -148,8 +147,48 @@ export default function Team() {
     setInviteName('');
     setInviteEmail('');
     setInviteRoles(['support_staff']);
-    setInviteSuccessData(null);
+    setInviteSentTo(null);
   };
+
+  const handleResendInvite = async (user: AdminUser) => {
+    if (!window.confirm(`Send a new invitation email to ${user.email}? The previous link will stop working.`)) return;
+    setResendingId(user.id);
+    try {
+      await adminManagementService.resendInvite(user.id);
+      alert('A new invitation was sent; the previous link no longer works.');
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        // Already accepted, or deactivated: say why, and refresh so the badge and action reflect the current state.
+        alert(err.response?.data?.message || 'This invitation can no longer be resent.');
+        try {
+          setAdmins(await adminManagementService.list());
+        } catch {
+          // keep the current list
+        }
+      } else {
+        console.error('Failed to resend invite:', err);
+        alert(err.response?.data?.message || 'Failed to resend the invitation.');
+      }
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  const invitedBadge = (
+    <span
+      style={{
+        background: '#FFF4E5',
+        color: '#8A4B00',
+        fontSize: 10,
+        padding: '2px 8px',
+        borderRadius: 'var(--border-radius-pill)',
+        fontWeight: 600,
+        flexShrink: 0
+      }}
+    >
+      Invited
+    </span>
+  );
 
   const openEditRolesModal = (user: AdminUser) => {
     setSelectedAdmin(user);
@@ -241,8 +280,9 @@ export default function Team() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
                         <Avatar name={adm.name} size="md" />
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)', wordBreak: 'break-word' }}>
+                          <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)', wordBreak: 'break-word', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                             {adm.name}
+                            {adm.invitePending && invitedBadge}
                           </div>
                           <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', wordBreak: 'break-all' }}>
                             {adm.email}
@@ -304,7 +344,18 @@ export default function Team() {
                       </span>
 
                       {isSuperAdmin ? (
-                        <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          {adm.invitePending && (
+                            <button
+                              className="btn btn-outline btn-sm"
+                              style={{ height: 32, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}
+                              disabled={resendingId === adm.id}
+                              onClick={() => handleResendInvite(adm)}
+                            >
+                              <Send size={13} />
+                              <span>{resendingId === adm.id ? 'Sending…' : 'Resend invite'}</span>
+                            </button>
+                          )}
                           <button
                             className="btn btn-outline btn-sm"
                             style={{ height: 32, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}
@@ -349,7 +400,7 @@ export default function Team() {
                       <th>Assigned Roles</th>
                       <th>Status</th>
                       <th>Last Login</th>
-                      <th style={{ width: 140 }}>Actions</th>
+                      <th style={{ width: 170 }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -359,6 +410,7 @@ export default function Team() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Avatar name={adm.name} size="sm" />
                             <span>{adm.name}</span>
+                            {adm.invitePending && invitedBadge}
                           </div>
                         </td>
                         <td>{adm.email}</td>
@@ -435,6 +487,18 @@ export default function Team() {
                         <td>
                           {isSuperAdmin ? (
                             <div style={{ display: 'flex', gap: 4 }}>
+                              {adm.invitePending && (
+                                <button
+                                  className="btn btn-icon btn-ghost"
+                                  title="Resend invite"
+                                  aria-label={`Resend invite to ${adm.email}`}
+                                  style={{ width: 28, height: 28 }}
+                                  disabled={resendingId === adm.id}
+                                  onClick={() => handleResendInvite(adm)}
+                                >
+                                  <Send size={14} />
+                                </button>
+                              )}
                               <button className="btn btn-icon btn-ghost" title="Edit Password" style={{ width: 28, height: 28 }} onClick={() => openResetPasswordModal(adm)}>
                                 <Key size={14} />
                               </button>
@@ -506,23 +570,13 @@ export default function Team() {
             <button className="modal-close" onClick={closeInviteModal}>×</button>
             <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 600, marginBottom: 20 }}>Invite Administrator</h3>
 
-            {inviteSuccessData ? (
+            {inviteSentTo ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div style={{ background: '#E8F5E9', color: '#2E7D32', padding: 16, borderRadius: 'var(--border-radius-input)', fontSize: 'var(--font-size-sm)', fontWeight: 500 }}>
-                  Admin invited successfully! An invitation has been drafted.
+                <div role="status" style={{ background: '#E8F5E9', color: '#2E7D32', padding: 16, borderRadius: 'var(--border-radius-input)', fontSize: 'var(--font-size-sm)', fontWeight: 500, wordBreak: 'break-word' }}>
+                  Invitation email sent to {inviteSentTo}. The link expires in 72 hours.
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Local Invite Links (For Testing/Dev)</label>
-                  <input className="input" readOnly value={inviteSuccessData.inviteLink} style={{ background: 'var(--color-page-bg)', fontSize: 'var(--font-size-xs)' }} />
-                </div>
-                {inviteSuccessData.tempPassword && (
-                  <div className="form-group">
-                    <label className="form-label">Temporary Password (Seed)</label>
-                    <input className="input" readOnly value={inviteSuccessData.tempPassword} style={{ background: 'var(--color-page-bg)', fontSize: 'var(--font-size-xs)', fontWeight: 'bold' }} />
-                  </div>
-                )}
                 <button className="btn btn-primary" onClick={closeInviteModal} style={{ marginTop: 8, width: '100%' }}>
-                  Close Modal
+                  Close
                 </button>
               </div>
             ) : (
