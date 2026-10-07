@@ -42,6 +42,7 @@ export function links(bases: LinkBases) {
     adminInvoices: () => buildUrl(bases.admin, ['admin', 'invoices']),
     adminCustomers: () => buildUrl(bases.admin, ['admin', 'customers']),
     adminCommunications: (customerId: string) => buildUrl(bases.admin, ['admin', 'communications'], { selected: customerId }),
+    adminAcceptInvite: (token: string) => buildUrl(bases.admin, ['admin', 'accept-invite'], { token }),
     adminLogin: () => buildUrl(bases.admin, ['admin', 'login']),
     adminNotificationSettings: () => buildUrl(bases.admin, ['admin', 'settings'], { tab: 'notifications' }),
     // API

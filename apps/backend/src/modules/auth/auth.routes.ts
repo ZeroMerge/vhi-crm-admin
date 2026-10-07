@@ -7,8 +7,75 @@ import { requireActiveAdmin } from '../../middleware/permissions';
 import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
 import { enqueueEmail } from '../email/outbox';
 import { ADMIN_EMAIL_PREF_KEYS, adminPrefsUpdateSchema, normaliseAdminPrefs } from '../email/preferences';
+import { passwordProblem } from '../../utils/passwordPolicy';
+import { rateLimit } from '../../middleware/rateLimit';
+import { findInvite, INVITE_MESSAGES, INVITE_PENDING } from '../admin/invites';
 
 const router = Router();
+
+// ---- Admin invitations (Phase 4). Public, so rate-limited per IP. The token travels only in POST bodies (never a GET URL), and
+// responses carry Referrer-Policy: no-referrer and Cache-Control: no-store.
+export const inviteInspectLimiter = rateLimit({ windowMs: 60_000, max: 10 });
+export const inviteAcceptLimiter = rateLimit({ windowMs: 60_000, max: 10 });
+
+const noStore: import('express').RequestHandler = (_req, res, next) => {
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+};
+
+// Who the invitation is for, so the accept page can say "Set a password for {email}". Changes nothing.
+router.post('/admin/invite/inspect', noStore, inviteInspectLimiter, async (req, res, next) => {
+  try {
+    const client = await pool.connect();
+    try {
+      const invite = await findInvite(client, req.body?.token);
+      if (invite.state === 'expired') return res.status(410).json({ success: false, code: 'expired', message: INVITE_MESSAGES.expired });
+      if (invite.state !== 'valid') return res.status(400).json({ success: false, code: 'invalid', message: INVITE_MESSAGES.invalid });
+      res.json({ success: true, data: { email: invite.email, name: invite.name } });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Sets the password and uses up the invitation (single use). No session is created: the page sends the admin to the login form.
+router.post('/admin/accept-invite', noStore, inviteAcceptLimiter, async (req, res, next) => {
+  try {
+    const { token, password, confirmPassword } = req.body ?? {};
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const invite = await findInvite(client, token, true);
+      if (invite.state !== 'valid') {
+        await client.query('ROLLBACK');
+        return invite.state === 'expired'
+          ? res.status(410).json({ success: false, code: 'expired', message: INVITE_MESSAGES.expired })
+          : res.status(400).json({ success: false, code: 'invalid', message: INVITE_MESSAGES.invalid });
+      }
+      const problem = passwordProblem(password, invite.email) ?? (password !== confirmPassword ? 'Passwords do not match' : null);
+      if (problem) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, code: 'password', message: problem });
+      }
+      const hash = await bcrypt.hash(password, 10);
+      await client.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hash, invite.adminId]);
+      await client.query('UPDATE admin_invites SET used_at = NOW() WHERE id = $1', [invite.inviteId]);
+      await insertAuditEvent(client, invite.adminId, 'admin', null, 'ACCEPT_ADMIN_INVITE', 'admin', invite.adminId);
+      await client.query('COMMIT');
+      res.json({ success: true, message: 'Password set. Sign in to continue.', data: { email: invite.email } });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    next(err);
+  }
+});
 
 
 router.post('/admin/verify-email', async (req, res, next) => {
@@ -54,6 +121,10 @@ router.post('/admin/login', async (req, res, next) => {
     }
 
     const admin = result.rows[0];
+    // An invited admin has no password until the invitation is accepted: same answer as a wrong password.
+    if (admin.password_hash === INVITE_PENDING) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
     const valid = await bcrypt.compare(password, admin.password_hash);
     // Inactive or deleted accounts get the same answer as a wrong password (no account-state disclosure).
     if (valid && (admin.is_active === false || admin.deleted_at)) {
@@ -227,9 +298,13 @@ router.put('/admin/change-password', adminMiddleware, requireActiveAdmin, async 
       return res.status(404).json({ success: false, message: 'Admin not found' });
     }
 
-    const valid = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
+    const valid = typeof currentPassword === 'string' && (await bcrypt.compare(currentPassword, result.rows[0].password_hash));
     if (!valid) {
       return res.status(400).json({ success: false, message: 'Current password is incorrect' });
+    }
+    const problem = passwordProblem(newPassword, result.rows[0].email);
+    if (problem) {
+      return res.status(400).json({ success: false, message: problem });
     }
 
     const hash = await bcrypt.hash(newPassword, 10);

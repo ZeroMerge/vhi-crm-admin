@@ -5,6 +5,8 @@ import { adminMiddleware, requireActiveRole } from '../../middleware/adminMiddle
 import { requireActiveAdmin } from '../../middleware/permissions';
 import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
 import { enqueueEmail } from '../email/outbox';
+import type { PoolClient } from 'pg';
+import { INVITE_PENDING, issueInvite } from './invites';
 
 const router = Router();
 
@@ -16,10 +18,12 @@ router.use(requireActiveRole('super_admin'));
 router.get('/', async (req, res, next) => {
   try {
     const result = await pool.query(
-      `SELECT id, name, email, assigned_roles, is_active, created_at, last_login_at
+      `SELECT id, name, email, assigned_roles, is_active, created_at, last_login_at,
+              password_hash = $1 AS "invitePending"
        FROM admins
        WHERE deleted_at IS NULL
-       ORDER BY created_at DESC;`
+       ORDER BY created_at DESC;`,
+      [INVITE_PENDING]
     );
     res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -27,7 +31,19 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+/** Queues the invitation email on the caller's transaction. One group per admin: a resend replaces a still-queued email's token. */
+async function queueInviteEmail(client: PoolClient, admin: { id: string; name: string | null; email: string; assigned_roles: string[] | null }, inviterId: string, token: string) {
+  const inviter = await client.query('SELECT name FROM admins WHERE id = $1', [inviterId]);
+  await enqueueEmail(client, {
+    kind: 'admin.invite',
+    to: admin.email,
+    adminId: admin.id,
+    groupKey: `invite:${admin.id}`,
+    params: { adminName: admin.name ?? '', inviterName: inviter.rows[0]?.name ?? '', roles: admin.assigned_roles ?? [], token },
+  });
+}
 
+// Invite (Phase 4): no password is created or returned. The admin gets an email with a single-use link (72 h) to set one.
 router.post('/invite', async (req, res, next) => {
   try {
     const { name, email, assignedRoles } = req.body;
@@ -35,45 +51,81 @@ router.post('/invite', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Name, email, and assigned roles are required' });
     }
 
-    
     const checkEmail = await pool.query('SELECT id FROM admins WHERE email = $1', [email]);
     if (checkEmail.rows.length > 0) {
       return res.status(400).json({ success: false, message: 'An admin with this email already exists' });
     }
 
-    
-    const tempPassword = Math.random().toString(36).slice(-10) + 'A@1';
-    const passwordHash = await bcrypt.hash(tempPassword, 10);
-
-    const result = await pool.query(
-      `INSERT INTO admins (name, email, password_hash, assigned_roles, is_active)
-       VALUES ($1, $2, $3, $4, true)
-       RETURNING id, name, email, assigned_roles, is_active, created_at;`,
-      [name, email, passwordHash, assignedRoles]
-    );
-
-    const newAdmin = result.rows[0];
-
-    
-    await logAuditEvent(
-      req.admin!.id,
-      'admin',
-      req.admin!.activeRole,
-      'INVITE_ADMIN',
-      'admin',
-      newAdmin.id,
-      { invitedEmail: email, assignedRoles }
-    );
+    // One transaction: the admin, the invitation, the audit row and the email (outbox) exist together or not at all.
+    const client = await pool.connect();
+    let newAdmin;
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `INSERT INTO admins (name, email, password_hash, assigned_roles, is_active)
+         VALUES ($1, $2, $3, $4, true)
+         RETURNING id, name, email, assigned_roles, is_active, created_at;`,
+        [name, email, INVITE_PENDING, assignedRoles]
+      );
+      newAdmin = result.rows[0];
+      const token = await issueInvite(client, newAdmin.id, req.admin!.id);
+      await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'INVITE_ADMIN', 'admin', newAdmin.id, { invitedEmail: email, assignedRoles });
+      await queueInviteEmail(client, newAdmin, req.admin!.id, token);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
 
     res.status(201).json({
       success: true,
-      message: 'Admin invited successfully. An email invitation has been sent.',
-      data: {
-        admin: newAdmin,
-        inviteLink: `${process.env.ADMIN_FRONTEND_URL || 'http://localhost:3000'}/admin/setup-password?token=${newAdmin.id}`,
-        tempPassword 
-      }
+      message: `Invitation email sent to ${newAdmin.email}`,
+      data: { admin: { ...newAdmin, invitePending: true }, invitePending: true },
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Resend: the previous link stops working (revoked) and a new email goes out. Only for admins who haven't accepted yet.
+router.post('/:id/resend-invite', async (req, res, next) => {
+  try {
+    const client = await pool.connect();
+    let target;
+    try {
+      await client.query('BEGIN');
+      const found = await client.query(
+        `SELECT id, name, email, assigned_roles, is_active, password_hash = $2 AS pending
+           FROM admins WHERE id::text = $1 AND deleted_at IS NULL FOR UPDATE`,
+        [req.params.id, INVITE_PENDING]
+      );
+      target = found.rows[0];
+      if (!target) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, message: 'Admin not found' });
+      }
+      if (!target.pending) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ success: false, message: 'This admin has already accepted their invitation' });
+      }
+      if (target.is_active === false) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ success: false, message: 'Activate this admin before resending the invitation' });
+      }
+      const token = await issueInvite(client, target.id, req.admin!.id);
+      await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'RESEND_ADMIN_INVITE', 'admin', target.id, { invitedEmail: target.email });
+      await queueInviteEmail(client, target, req.admin!.id, token);
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+
+    res.json({ success: true, message: `A new invitation was sent to ${target.email}; the previous link no longer works.` });
   } catch (err) {
     next(err);
   }

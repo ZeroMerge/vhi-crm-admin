@@ -102,6 +102,13 @@ export const SAMPLES: Sample[] = [
     note: 'Admin preference shipment_created (default on)',
     params: { adminName: 'Tunde', customerName: 'Ada Obi', orderId: 'VHI-AF-104233', shipmentId: '5b97855b-19f6-49c3-9a03-a7c057cb031c', shippingMode: 'air_freight' },
   }),
+  sample({
+    id: 'a6-invite',
+    kind: 'admin.invite',
+    note: 'Service; single-use link valid 72 hours, printed under the button',
+    params: { adminName: 'Funmi', inviterName: 'Tunde Bakare', roles: ['finance_officer'], token: 'kE3vY0m1yQ2b6v9T8x4Wq7Zc5nHs1Lr0Pa2Uo3Ie4Df' },
+  }),
+  sample({ id: 'a6-invite-no-inviter-name', kind: 'admin.invite', note: 'Inviter has no name; two roles', params: { adminName: '', inviterName: '', roles: ['manager', 'crm_officer'], token: 'kE3vY0m1yQ2b6v9T8x4Wq7Zc5nHs1Lr0Pa2Uo3Ie4Df' } }),
   sample({ id: 'a2-roles-changed', kind: 'admin.roles_changed', note: 'Service', params: { adminName: 'Tunde', roles: ['manager', 'logistics_officer'] } }),
   sample({ id: 'a3-deactivated', kind: 'admin.deactivated', note: 'Service (status → inactive only)', params: { adminName: 'Tunde' } }),
   sample({ id: 'a4-reset-by-admin', kind: 'admin.password_reset_by_admin', note: 'Service; never includes the temporary password', params: { adminName: 'Tunde' } }),

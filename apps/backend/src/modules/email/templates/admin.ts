@@ -43,6 +43,31 @@ export function adminShipmentCreated(p: AdminShipmentCreatedParams, ctx: Templat
   };
 }
 
+export interface AdminInviteParams {
+  adminName: string;
+  inviterName: string;
+  roles: string[];
+  /** Single-use invitation token; wiped from the row once the email is sent. */
+  token: string;
+}
+/** A6: service email (no opt-out). The link is printed too, for mail clients that break buttons. */
+export function adminInvite(p: AdminInviteParams, ctx: TemplateContext): EmailDoc {
+  const roles = p.roles.map(roleLabel).join(', ') || 'a team member';
+  const inviter = oneLine(p.inviterName);
+  return {
+    subject: "You're invited to VHI CRM",
+    preheader: `${inviter || 'A super admin'} invited you to VHI CRM as ${roles}.`,
+    greeting: greeting(p.adminName),
+    blocks: [
+      { kind: 'p', text: `${inviter || 'A super admin'} has invited you to VHI CRM as ${roles}.` },
+      { kind: 'p', text: 'Set a password to get started. This link expires in 72 hours.' },
+      { kind: 'button', label: 'Set your password', url: ctx.links.adminAcceptInvite(p.token), showUrl: true },
+      { kind: 'p', text: "If you weren't expecting this invitation, you can ignore this email." },
+    ],
+    footer: { kind: 'staff' },
+  };
+}
+
 export interface AdminRolesChangedParams { adminName: string; roles: string[] }
 export function adminRolesChanged(p: AdminRolesChangedParams, ctx: TemplateContext): EmailDoc {
   const roles = p.roles.map(roleLabel).join(', ') || 'none';

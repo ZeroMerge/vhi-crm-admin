@@ -32,6 +32,7 @@ export const EMAIL_TEMPLATES = {
   'admin.shipment_created': def('admin', 'shipment_created', admin.adminShipmentCreated),
   'admin.overdue_digest': def('admin', 'overdue_alert', admin.adminOverdueDigest),
   'admin.registration_digest': def('admin', 'registration', admin.adminRegistrationDigest),
+  'admin.invite': def('admin', null, admin.adminInvite),
   'admin.roles_changed': def('admin', null, admin.adminRolesChanged),
   'admin.deactivated': def('admin', null, admin.adminDeactivated),
   'admin.password_reset_by_admin': def('admin', null, admin.adminPasswordResetByAdmin),

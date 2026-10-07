@@ -6,6 +6,7 @@ import { z } from 'zod';
 import pool from '../../config/db';
 import { enqueueEmail } from '../email/outbox';
 import { emit } from '../notifications/notification.service';
+import { passwordProblem } from '../../utils/passwordPolicy';
 
 const router = Router();
 
@@ -24,6 +25,10 @@ router.post('/register', async (req, res, next) => {
 
     if (!firstname || !lastname || !email || !password) {
       return res.status(400).json({ success: false, message: 'firstname, lastname, email, and password are required' });
+    }
+    const passwordError = passwordProblem(password, typeof email === 'string' ? email : null);
+    if (passwordError) {
+      return res.status(400).json({ success: false, message: passwordError });
     }
 
     const existing = await pool.query('SELECT id FROM customers WHERE email = $1', [email]);

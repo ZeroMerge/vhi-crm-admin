@@ -8,6 +8,7 @@ import { isAdminEmailPref, normaliseAdminPrefs, normaliseCustomerPrefs } from '.
 import { createUnsubscribeToken } from './unsubscribeToken';
 import { links } from './templates/urls';
 import { SENSITIVE_PARAMS } from './outbox';
+import { INVITE_PENDING } from '../admin/invites';
 
 /** Delay after the 1st..5th retryable failure; the 6th failure marks the row failed. */
 export const RETRY_DELAYS_MS = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000, 6 * 60 * 60_000];
@@ -208,9 +209,16 @@ export class EmailWorker {
       }
     } else if (template.audience === 'admin') {
       if (!row.admin_id) return { status: 'cancelled', reason: 'admin deleted' };
-      const { rows } = await this.deps.pool.query('SELECT is_active, deleted_at, notification_prefs FROM admins WHERE id = $1', [row.admin_id]);
+      const { rows } = await this.deps.pool.query(
+        'SELECT is_active, deleted_at, notification_prefs, password_hash = $2 AS invite_pending FROM admins WHERE id = $1',
+        [row.admin_id, INVITE_PENDING]
+      );
       const admin = rows[0];
       if (!admin) return { status: 'cancelled', reason: 'admin deleted' };
+      if (kind === 'admin.invite') {
+        if (admin.deleted_at || admin.is_active === false) return { status: 'cancelled', reason: 'admin is not active' };
+        if (!admin.invite_pending) return { status: 'cancelled', reason: 'invitation already accepted' };
+      }
       if (isAdminEmailPref(template.preference)) {
         // Operational emails only for working accounts; account notices (roles, deactivation, passwords) always go out.
         if (admin.is_active === false || admin.deleted_at) return { status: 'cancelled', reason: 'admin is not active' };
