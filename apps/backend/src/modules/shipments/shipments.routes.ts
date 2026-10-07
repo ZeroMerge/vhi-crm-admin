@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { setShipmentStatus } from './statusUpdate';
 import type { PoolClient } from 'pg';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
@@ -303,7 +304,7 @@ router.put('/:id/status', adminMiddleware, async (req, res, next) => {
       reason,
     });
 
-    await client.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [transition.to, current.id]);
+    await setShipmentStatus(client, current.id, transition.to);
     if (message) {
       await client.query(
         'INSERT INTO tracking_updates (shipment_id, status, message, updated_by) VALUES ($1, $2, $3, $4)',

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { setShipmentStatus } from '../shipments/statusUpdate';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { CROSS_READS, moduleGuard, requireActiveAdmin } from '../../middleware/permissions';
@@ -120,7 +121,7 @@ router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
         actorRole: req.admin!.activeRole,
         reason,
       });
-      await client.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [transition.to, current.id]);
+      await setShipmentStatus(client, current.id, transition.to);
       const auditId = await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'ADD_TRACKING_UPDATE', 'shipment', current.id, {
         noteOnly: false,
         from: transition.from,

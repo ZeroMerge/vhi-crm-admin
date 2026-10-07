@@ -41,8 +41,9 @@ router.post('/register', async (req, res, next) => {
     try {
       await client.query('BEGIN');
       const insertResult = await client.query(
-        `INSERT INTO customers (user_id, firstname, lastname, email, phone, industry, password_hash, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        // Without verification (non-production) the account is active, and counts as verified, at signup.
+        `INSERT INTO customers (user_id, firstname, lastname, email, phone, industry, password_hash, is_active, verified_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $8 THEN NOW() END)
          RETURNING id, user_id, firstname, lastname, email`,
         [userId, firstname, lastname, email, phone || null, industry || null, passwordHash, isDev]
       );
@@ -110,7 +111,7 @@ router.get('/verify-email', async (req, res, next) => {
       return res.status(410).json({ success: false, message: 'Verification link has expired. Please register again.' });
     }
 
-    await pool.query('UPDATE customers SET is_active = true, updated_at = NOW() WHERE id = $1', [record.customer_id]);
+    await pool.query('UPDATE customers SET is_active = true, verified_at = COALESCE(verified_at, NOW()), updated_at = NOW() WHERE id = $1', [record.customer_id]);
     await pool.query('DELETE FROM email_verification_tokens WHERE id = $1', [record.id]);
 
     res.json({ success: true, message: 'Email verified successfully. You can now log in.' });

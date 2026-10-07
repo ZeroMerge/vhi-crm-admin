@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { setShipmentStatus } from '../shipments/statusUpdate';
 import multer from 'multer';
 import { z } from 'zod';
 import pool from '../../config/db';
@@ -387,7 +388,7 @@ router.delete('/:orderId', customerMiddleware, async (req, res, next) => {
       throw err;
     }
 
-    await client.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [transition.to, shipment.id]);
+    await setShipmentStatus(client, shipment.id, transition.to);
     const auditId = await insertAuditEvent(client, customerId, 'customer', null, 'CANCEL_SHIPMENT', 'shipment', shipment.id, {
       orderId: shipment.order_id,
       from: transition.from,
