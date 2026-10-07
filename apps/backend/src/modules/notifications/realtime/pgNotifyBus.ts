@@ -46,7 +46,7 @@ export function chunkEvents(events: RealtimeEvent[], maxBytes = MAX_PAYLOAD_BYTE
   return payloads;
 }
 
-// LISTEN needs a session-level connection; a transaction pooler (Supabase :6543 / pgbouncer=true) silently breaks it.
+// LISTEN needs a session-level connection; a transaction-mode pooler (often port 6543, or pgbouncer=true) silently breaks it.
 export function looksLikeTransactionPooler(connectionString: string): boolean {
   try {
     const url = new URL(connectionString);

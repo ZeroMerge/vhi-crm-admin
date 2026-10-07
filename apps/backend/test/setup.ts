@@ -38,5 +38,4 @@ process.env.ADMIN_JWT_SECRET = 'test-admin-secret';
 process.env.CLIENT_JWT_SECRET = 'test-client-secret';
 process.env.JWT_EXPIRES_IN = '1h';
 process.env.RESEND_API_KEY = 're_test_not_a_real_key';
-process.env.SUPABASE_JWT_SECRET = 'test-supabase-secret';
 process.env.VHI_TEST_SETUP = '1';

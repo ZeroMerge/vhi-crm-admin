@@ -20,7 +20,6 @@ import newsletterRoutes from '../src/modules/newsletter/newsletter.routes';
 import reportsRoutes from '../src/modules/reports/reports.routes';
 import feedbackRoutes from '../src/modules/feedback/feedback.routes';
 import searchRoutes from '../src/modules/search/search.routes';
-import realtimeRoutes from '../src/modules/realtime/realtime.routes';
 
 // Expected access comes from the admin UI's own role map plus this independent copy of the approved
 // cross-reads (Phase 0 Item 6 audit), not from the server module under test.
@@ -60,7 +59,6 @@ describe('server-side role permissions', dbTest, () => {
       ['/api/admin/newsletter', newsletterRoutes],
       ['/api/admin/reports', reportsRoutes],
       ['/api/admin/feedback', feedbackRoutes],
-      ['/api/realtime', realtimeRoutes],
     ];
     app = await startApp(mounts);
 
@@ -96,7 +94,6 @@ describe('server-side role permissions', dbTest, () => {
     { name: 'communications list', method: 'GET', path: () => '/api/admin/communications', modules: ['communications'], write: false },
     { name: 'communications thread (cross-read: customers)', method: 'GET', path: () => `/api/admin/communications/${ids.customer}`, modules: ['communications', 'customers'], write: false },
     { name: 'communications delete', method: 'DELETE', path: () => `/api/admin/communications/${crypto.randomUUID()}`, modules: ['communications'], write: true },
-    { name: 'realtime admin token', method: 'GET', path: () => '/api/realtime/admin-token', modules: ['communications'], write: false },
     { name: 'newsletter segments', method: 'GET', path: () => '/api/admin/newsletter/segments', modules: ['newsletter'], write: false },
     { name: 'newsletter preview count', method: 'POST', path: () => '/api/admin/newsletter/preview-count', body: { segments: ['all'], status: 'all' }, modules: ['newsletter'], write: true },
     { name: 'reports', method: 'GET', path: () => '/api/admin/reports/monthly', modules: ['reports'], write: false },

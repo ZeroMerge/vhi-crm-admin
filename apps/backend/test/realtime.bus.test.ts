@@ -42,9 +42,9 @@ describe('chunkEvents', () => {
   });
 
   test('transaction-pooler URLs are detected for the startup warning', () => {
-    assert.equal(looksLikeTransactionPooler('postgresql://u:p@aws-0-eu.pooler.supabase.com:6543/postgres'), true);
+    assert.equal(looksLikeTransactionPooler('postgresql://u:p@pooler.example.com:6543/postgres'), true);
     assert.equal(looksLikeTransactionPooler('postgresql://u:p@host:5432/db?pgbouncer=true'), true);
-    assert.equal(looksLikeTransactionPooler('postgresql://u:p@aws-0-eu.pooler.supabase.com:5432/postgres'), false);
+    assert.equal(looksLikeTransactionPooler('postgresql://u:p@pooler.example.com:5432/postgres'), false);
     assert.equal(looksLikeTransactionPooler('not a url'), false);
   });
 });
