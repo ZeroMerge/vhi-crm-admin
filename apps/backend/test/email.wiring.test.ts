@@ -1,6 +1,8 @@
 import { test, describe, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import bcrypt from 'bcryptjs';
+import path from 'path';
+import { spawn, spawnSync } from 'child_process';
 import { dbTest, resetDatabase, truncateAll } from './helpers/db';
 import { startApp, request, TestApp } from './helpers/app';
 import { adminToken, customerToken, insertAdmin, insertCustomer, insertShipment } from './helpers/fixtures';
@@ -59,7 +61,7 @@ describe('email wiring: events, routes, preferences, unsubscribe', dbTest, () =>
     for (const k of ['EMAIL_LINK_SECRET', 'API_PUBLIC_URL', 'CLIENT_FRONTEND_URL', 'ADMIN_FRONTEND_URL', 'SUPPORT_EMAIL']) delete process.env[k];
     initEmail();
     await app?.close();
-    await pool.end();
+    // The pool is ended by the last suite in this file.
   });
 
   const emails = async () =>
@@ -403,5 +405,65 @@ describe('email wiring: events, routes, preferences, unsubscribe', dbTest, () =>
       assert.deepEqual(await prefsOf(a.id), { shipment_updates: false });
       assert.deepEqual(await prefsOf(b.id), {}, 'only the token owner is affected');
     });
+  });
+});
+
+// Regression: the real server must let the unsubscribe page's own form post through. Browsers send `Origin: null`
+// (the page uses Referrer-Policy: no-referrer) and the app-wide CORS check used to turn that into a 500.
+describe('unsubscribe through the real server (CORS order)', dbTest, () => {
+  const PORT = 5197;
+  const secret = 'real-server-link-secret-'.padEnd(48, 'z');
+  let child: ReturnType<typeof spawn> | null = null;
+
+  before(async () => {
+    await resetDatabase();
+    const backend = path.join(__dirname, '..');
+    const env = {
+      ...process.env,
+      NODE_ENV: 'development',
+      PORT: String(PORT),
+      DATABASE_URL: process.env.TEST_DATABASE_URL,
+      EMAIL_LINK_SECRET: secret,
+      API_PUBLIC_URL: `http://localhost:${PORT}`,
+    } as NodeJS.ProcessEnv;
+    // cwd test/ has no .env, so the real apps/backend/.env is never loaded.
+    child = spawn(process.execPath, [path.join(backend, 'node_modules/tsx/dist/cli.mjs'), path.join(backend, 'src/index.ts')], { cwd: __dirname, env, stdio: 'ignore' });
+    const end = Date.now() + 60_000;
+    for (;;) {
+      try {
+        if ((await fetch(`http://localhost:${PORT}/api/health`)).ok) break;
+      } catch {
+        // not up yet
+      }
+      if (Date.now() > end) throw new Error('server did not start');
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  });
+  after(async () => {
+    if (child?.pid) {
+      if (process.platform === 'win32') spawnSync('taskkill', ['/PID', String(child.pid), '/T', '/F']);
+      else child.kill('SIGTERM');
+    }
+    await pool.end().catch(() => {});
+  });
+
+  test('form POST with Origin: null, a foreign Origin, and a provider one-click with no Origin all work (never 500)', async () => {
+    const url = (t: string) => `http://localhost:${PORT}/api/email/unsubscribe?token=${encodeURIComponent(t)}`;
+    const cases: Array<[string, Record<string, string>, string | undefined]> = [
+      ['browser form (Origin: null)', { Origin: 'null', 'Content-Type': 'application/x-www-form-urlencoded' }, ''],
+      ['foreign origin', { Origin: 'https://evil.example', 'Content-Type': 'application/x-www-form-urlencoded' }, ''],
+      ['provider one-click (no Origin)', { 'Content-Type': 'application/x-www-form-urlencoded' }, 'List-Unsubscribe=One-Click'],
+    ];
+    for (const [label, headers, body] of cases) {
+      const c = await insertCustomer({ isActive: true });
+      const token = createUnsubscribeToken({ customerId: c.id, prefKey: 'shipment_updates', issuedAt: new Date() }, secret);
+      const get = await fetch(url(token), { headers: { Origin: 'null' } });
+      assert.equal(get.status, 200, `${label}: GET`);
+      const res = await fetch(url(token), { method: 'POST', headers, body });
+      assert.equal(res.status, 200, `${label}: POST`);
+      assert.match(await res.text(), /You're unsubscribed/);
+      const prefs = (await pool.query('SELECT notification_prefs FROM customers WHERE id = $1', [c.id])).rows[0].notification_prefs;
+      assert.deepEqual(prefs, { shipment_updates: false }, label);
+    }
   });
 });

@@ -64,6 +64,11 @@ app.use((req, _res, next) => {
   next();
 });
 
+// Email links (unsubscribe pages and their form/one-click POSTs) are plain HTML pages authorised by a signed token, with no
+// cookies or credentials, so they are mounted BEFORE the CORS check: browsers post the confirmation form with
+// `Origin: null` (the page sends Referrer-Policy: no-referrer), and mail providers post with no Origin at all.
+app.use('/api/email', emailRoutes);
+
 app.use(cors({
   origin: (origin, callback) => {
     
@@ -107,7 +112,6 @@ app.use('/api/realtime', realtimeRoutes);
 app.use('/api/admin/notifications', adminNotificationsRoutes);
 app.use('/api/client/notifications', clientNotificationsRoutes);
 app.use('/api/client/notification-preferences', clientPreferencesRoutes);
-app.use('/api/email', emailRoutes);
 
 
 app.get('/api/health', (_req, res) => {

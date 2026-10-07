@@ -1,6 +1,6 @@
 // /api/email/unsubscribe: GET shows a confirmation page and NEVER changes anything (mail security scanners prefetch links);
 // POST (the page's button, or a provider's RFC 8058 one-click request) turns the preference off. Idempotent.
-import { Router, Response } from 'express';
+import express, { Router, Response } from 'express';
 import pool from '../../config/db';
 import { emailConfig } from '.';
 import { verifyUnsubscribeToken } from './unsubscribeToken';
@@ -11,6 +11,8 @@ import { insertAuditEvent } from '../../utils/audit';
 import { normaliseCustomerPrefs } from './preferences';
 
 const router = Router();
+// Mounted before the app-wide body parsers (see src/index.ts), so it parses its own form bodies (token field, RFC 8058 body).
+router.use(express.urlencoded({ extended: false, limit: '4kb' }));
 
 function sendPage(res: Response, status: number, markup: string) {
   res
