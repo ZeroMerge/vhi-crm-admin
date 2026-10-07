@@ -132,7 +132,7 @@ describe('notificationCache.planPushUpdate (admin copy)', () => {
 });
 
 describe('client copies are byte-identical to the admin copies', () => {
-  for (const file of ['sseParser.ts', 'notificationCache.ts', 'notificationStream.ts']) {
+  for (const file of ['sseParser.ts', 'notificationCache.ts', 'notificationStream.ts', 'threadSync.ts']) {
     test(file, (t) => {
       const adminFile = path.join(ADMIN_LIB, file);
       const clientFile = path.join(CLIENT_LIB, file);

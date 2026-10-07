@@ -85,6 +85,20 @@ describe('notificationStream retry policy (pure)', () => {
     assert.equal(ns.toPushEvent('read', 'not json'), null);
     assert.equal(ns.toPushEvent('mystery', '{}'), null);
   });
+
+  test('toPushEvent maps the communications events (ids only) and drops malformed ones', () => {
+    assert.deepEqual(ns.toPushEvent('message_created', '{"customerId":"c1","messageId":"m1","senderType":"admin"}'), {
+      type: 'message_created',
+      customerId: 'c1',
+      messageId: 'm1',
+      senderType: 'admin',
+    });
+    assert.deepEqual(ns.toPushEvent('thread_read', '{"customerId":"c1","side":"customer"}'), { type: 'thread_read', customerId: 'c1', side: 'customer' });
+    assert.equal(ns.toPushEvent('message_created', '{"customerId":"c1","messageId":"m1","senderType":"robot"}'), null);
+    assert.equal(ns.toPushEvent('message_created', '{"customerId":"c1"}'), null);
+    assert.equal(ns.toPushEvent('thread_read', '{"customerId":"c1","side":"both"}'), null);
+    assert.equal(ns.toPushEvent('thread_read', '{"customerId":7,"side":"admin"}'), null);
+  });
 });
 
 // Minimal in-process Web Locks (exclusive, FIFO, abortable while waiting) to run several "tabs" in one process.

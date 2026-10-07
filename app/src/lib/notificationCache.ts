@@ -24,7 +24,10 @@ export type PushEvent =
   | { type: 'notification'; notification: PushedNotification }
   | { type: 'read'; ids: string[] }
   | { type: 'read_all'; ids: string[] }
-  | { type: 'replaced'; removedIds: string[]; addedIds: string[] };
+  | { type: 'replaced'; removedIds: string[]; addedIds: string[] }
+  // Communications (Phase 5): ids only. They don't touch the bell's caches; pages react to them (see threadSync.ts).
+  | { type: 'message_created'; customerId: string; messageId: string; senderType: 'admin' | 'customer' }
+  | { type: 'thread_read'; customerId: string; side: 'admin' | 'customer' };
 
 export interface ListItem {
   id: string;
@@ -82,6 +85,8 @@ export function planPushUpdate<T extends ListItem>(
   now: string
 ): CachePlan<T> {
   const plan: CachePlan<T> = { invalidateList: false, invalidateCount: false };
+  // Thread events change nothing in the bell (a new message's bell row arrives as its own `notification` event).
+  if (event.type === 'message_created' || event.type === 'thread_read') return plan;
 
   // ---- list
   if (state.list) {

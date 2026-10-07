@@ -84,6 +84,16 @@ export function toPushEvent(event: string, data: string): PushEvent | null {
   if (event === 'read' || event === 'read_all') {
     return isStringArray(body.ids) ? { type: event, ids: body.ids } : null;
   }
+  if (event === 'message_created') {
+    return typeof body.customerId === 'string' && typeof body.messageId === 'string' && (body.senderType === 'admin' || body.senderType === 'customer')
+      ? { type: 'message_created', customerId: body.customerId, messageId: body.messageId, senderType: body.senderType }
+      : null;
+  }
+  if (event === 'thread_read') {
+    return typeof body.customerId === 'string' && (body.side === 'admin' || body.side === 'customer')
+      ? { type: 'thread_read', customerId: body.customerId, side: body.side }
+      : null;
+  }
   if (event === 'replaced') {
     return isStringArray(body.removedIds) && isStringArray(body.addedIds)
       ? { type: 'replaced', removedIds: body.removedIds, addedIds: body.addedIds }
