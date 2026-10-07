@@ -13,18 +13,6 @@ export const dbTest = hasTestDb ? {} : { skip: 'TEST_DATABASE_URL not set' };
 
 const MIGRATIONS_DIR = path.join(__dirname, '../../src/db/migrations');
 
-// Minimal stand-ins for the Supabase objects referenced by migrations 019 and 021,
-// so the real migration files run unchanged on vanilla Postgres. Never used outside tests.
-const SUPABASE_STUBS = `
-  CREATE SCHEMA auth;
-  CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
-    $$ SELECT NULLIF(current_setting('request.jwt.claims', true)::jsonb ->> 'sub', '')::uuid $$;
-  CREATE SCHEMA realtime;
-  CREATE TABLE realtime.messages (id BIGSERIAL PRIMARY KEY, topic TEXT);
-  CREATE FUNCTION realtime.topic() RETURNS text LANGUAGE sql STABLE AS
-    $$ SELECT current_setting('realtime.topic', true) $$;
-`;
-
 async function withClient<T>(fn: (client: Client) => Promise<T>): Promise<T> {
   const client = new Client({ connectionString: process.env.TEST_DATABASE_URL });
   await client.connect();
@@ -36,6 +24,8 @@ async function withClient<T>(fn: (client: Client) => Promise<T>): Promise<T> {
 }
 
 // Drops everything and applies every migration in filename order, exactly like src/db/migrate.ts.
+// Plain PostgreSQL only: no Supabase stand-ins (Phase 5). Migrations 019/021 are guarded and no-op without Supabase's objects.
+// The auth/realtime schema drops only clear leftovers from before Phase 5 in an existing test database.
 export async function resetDatabase() {
   await withClient(async (client) => {
     await client.query(`
@@ -44,7 +34,6 @@ export async function resetDatabase() {
       DROP SCHEMA IF EXISTS public CASCADE;
       CREATE SCHEMA public;
     `);
-    await client.query(SUPABASE_STUBS);
 
     const files = fs.readdirSync(MIGRATIONS_DIR).sort().filter((f) => f.endsWith('.sql'));
     for (const file of files) {
