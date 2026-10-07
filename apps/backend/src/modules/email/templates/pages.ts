@@ -1,12 +1,14 @@
 // Unsubscribe web pages served by GET/POST /api/email/unsubscribe. Same look as the emails; plain HTML, no scripts.
 import { html, rawHtml, SafeHtml } from './html';
+import { Brand, DEFAULT_BRAND } from './brand';
 
-const BRAND = '#7B2D8B';
 const TEXT = '#1A1A1A';
 const MUTED = '#6B6470';
 const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
-function page(title: string, body: SafeHtml): string {
+function page(title: string, body: SafeHtml, brand: Brand = DEFAULT_BRAND): string {
+  const BRAND = brand.color;
+  const header = brand.logoUrl ? html`<img src="${brand.logoUrl}" alt="VHI" style="display:block;height:32px;width:auto;max-width:200px;">` : html`VHI`;
   return html`<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -31,7 +33,7 @@ function page(title: string, body: SafeHtml): string {
 <body>
 <main>
 <div class="card">
-<div class="brand">VHI</div>
+<div class="brand">${header}</div>
 <div class="content">${body}</div>
 </div>
 </main>
@@ -40,31 +42,34 @@ function page(title: string, body: SafeHtml): string {
 }
 
 /** GET: asks for confirmation and changes nothing (mail scanners prefetch links). */
-export function unsubscribeConfirmPage(opts: { maskedEmail: string; actionUrl: string; settingsUrl: string }): string {
+export function unsubscribeConfirmPage(opts: { maskedEmail: string; actionUrl: string; settingsUrl: string; brand?: Brand }): string {
   return page(
     'Unsubscribe',
     html`<h1>Unsubscribe from shipment update emails?</h1>
 <p>You'll stop getting emails about new shipments, status changes and tracking numbers for <strong>${opts.maskedEmail}</strong>.</p>
 <p class="muted">You'll still see these updates in your VHI dashboard, and account and message emails still arrive.</p>
 <form method="post" action="${opts.actionUrl}"><button type="submit">Unsubscribe</button></form>
-<p class="muted" style="margin-top:20px;">Changed your mind? Just close this page. You can also <a href="${opts.settingsUrl}">manage your email settings</a>.</p>`
+<p class="muted" style="margin-top:20px;">Changed your mind? Just close this page. You can also <a href="${opts.settingsUrl}">manage your email settings</a>.</p>`,
+    opts.brand
   );
 }
 
-export function unsubscribeDonePage(opts: { settingsUrl: string }): string {
+export function unsubscribeDonePage(opts: { settingsUrl: string; brand?: Brand }): string {
   return page(
     'Unsubscribed',
     html`<h1>You're unsubscribed</h1>
 <p>You won't get shipment update emails any more.</p>
-<p class="muted">You can turn them back on in your <a href="${opts.settingsUrl}">email settings</a>.</p>`
+<p class="muted">You can turn them back on in your <a href="${opts.settingsUrl}">email settings</a>.</p>`,
+    opts.brand
   );
 }
 
-export function unsubscribeInvalidPage(opts: { settingsUrl: string }): string {
+export function unsubscribeInvalidPage(opts: { settingsUrl: string; brand?: Brand }): string {
   return page(
     'Link not valid',
     html`<h1>This link isn't valid</h1>
 <p>This unsubscribe link is invalid or has expired.</p>
-<p class="muted">You can change your email settings in your <a href="${opts.settingsUrl}">VHI dashboard</a>.</p>`
+<p class="muted">You can change your email settings in your <a href="${opts.settingsUrl}">VHI dashboard</a>.</p>`,
+    opts.brand
   );
 }

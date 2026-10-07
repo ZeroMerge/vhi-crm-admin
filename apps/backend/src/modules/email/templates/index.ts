@@ -43,7 +43,7 @@ export const isEmailKind = (kind: string): kind is EmailKind => Object.prototype
 
 export function renderTemplate<K extends EmailKind>(kind: K, params: EmailParams<K>, ctx: TemplateContext): RenderedEmail {
   const template = EMAIL_TEMPLATES[kind] as TemplateDef<EmailParams<K>>;
-  return renderEmail(template.render(params, ctx));
+  return renderEmail(template.render(params, ctx), ctx.brand);
 }
 
 export { templateContext } from './context';

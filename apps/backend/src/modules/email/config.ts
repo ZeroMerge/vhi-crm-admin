@@ -1,6 +1,7 @@
 // Email configuration, read once at startup (startEmail in ./index.ts). Never read or validated at import time.
 import crypto from 'crypto';
 import { LinkBases, normaliseBase } from './templates/urls';
+import { Brand, brandFromEnv } from './templates/brand';
 
 export type EmailProviderName = 'resend' | 'console';
 
@@ -16,6 +17,8 @@ export interface EmailConfig {
   bases: LinkBases;
   messageBatchMs: number;
   concurrency: number;
+  /** EMAIL_BRAND_COLOR / EMAIL_LOGO_URL / EMAIL_COMPANY_ADDRESS (invalid values warn and fall back). */
+  brand: Brand;
   warnings: string[];
 }
 
@@ -108,6 +111,8 @@ export function emailConfigFromEnv(env: NodeJS.ProcessEnv = process.env): EmailC
   const messageBatchMs = intEnv(env, 'EMAIL_MESSAGE_BATCH_MS', 120_000, 0, 3_600_000, problems);
   const concurrency = intEnv(env, 'EMAIL_WORKER_CONCURRENCY', 2, 1, 10, problems);
 
+  const brand = brandFromEnv(env, production, warnings);
+
   if (problems.length) throw new EmailConfigError(problems);
-  return { provider, resendApiKey, from, replyTo, supportInbox, linkSecret, bases, messageBatchMs, concurrency, warnings };
+  return { provider, resendApiKey, from, replyTo, supportInbox, linkSecret, bases, messageBatchMs, concurrency, brand, warnings };
 }

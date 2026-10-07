@@ -1,6 +1,7 @@
 // Shared email layout. Templates describe an email as blocks; this file renders the same blocks to HTML and to plain text,
 // so the two versions always carry the same content. Templates never write markup themselves.
 import { cleanSubject, html, rawHtml, SafeHtml } from './html';
+import { Brand, DEFAULT_BRAND } from './brand';
 
 export type Block =
   | { kind: 'p'; text: string }
@@ -32,7 +33,6 @@ export interface RenderedEmail {
   text: string;
 }
 
-const BRAND = '#7B2D8B';
 const TEXT = '#1A1A1A';
 const MUTED = '#6B6470';
 const BORDER = '#E7E1EA';
@@ -41,7 +41,7 @@ const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, 
 
 const lines = (text: string) => text.replace(/\r\n?/g, '\n').split('\n');
 
-function blockHtml(block: Block): SafeHtml {
+function blockHtml(block: Block, brand: Brand): SafeHtml {
   switch (block.kind) {
     case 'p':
       return html`<p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:${TEXT};">${block.text}</p>`;
@@ -49,7 +49,7 @@ function blockHtml(block: Block): SafeHtml {
       return html`<p style="margin:0 0 6px;font-size:13px;line-height:1.4;color:${MUTED};">${block.text}</p>`;
     case 'quote': {
       const body = lines(block.text).map((line, i) => (i === 0 ? html`${line}` : html`<br>${line}`));
-      return html`<div style="margin:0 0 20px;padding:12px 16px;border-left:3px solid ${BRAND};background:#FAF7FB;font-size:15px;line-height:1.55;color:${TEXT};word-break:break-word;">${body}</div>`;
+      return html`<div style="margin:0 0 20px;padding:12px 16px;border-left:3px solid ${brand.color};background:#FAF7FB;font-size:15px;line-height:1.55;color:${TEXT};word-break:break-word;">${body}</div>`;
     }
     case 'details':
       return html`<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 20px;border-collapse:collapse;">${block.rows.map(
@@ -57,27 +57,30 @@ function blockHtml(block: Block): SafeHtml {
           html`<tr><td style="padding:4px 16px 4px 0;font-size:14px;color:${MUTED};white-space:nowrap;vertical-align:top;">${label}</td><td style="padding:4px 0;font-size:14px;font-weight:600;color:${TEXT};word-break:break-word;overflow-wrap:anywhere;">${value}</td></tr>`
       )}</table>`;
     case 'button':
-      return html`<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 ${block.showUrl ? '12px' : '24px'};"><tr><td style="border-radius:6px;background:${BRAND};"><a href="${block.url}" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:600;color:#FFFFFF;text-decoration:none;border-radius:6px;">${block.label}</a></td></tr></table>${
+      return html`<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 ${block.showUrl ? '12px' : '24px'};"><tr><td style="border-radius:6px;background:${brand.color};"><a href="${block.url}" style="display:inline-block;padding:12px 22px;font-size:15px;font-weight:600;color:#FFFFFF;text-decoration:none;border-radius:6px;">${block.label}</a></td></tr></table>${
         block.showUrl
-          ? html`<p style="margin:0 0 24px;font-size:13px;line-height:1.5;color:${MUTED};word-break:break-all;">Or copy this link into your browser:<br><a href="${block.url}" style="color:${BRAND};">${block.url}</a></p>`
+          ? html`<p style="margin:0 0 24px;font-size:13px;line-height:1.5;color:${MUTED};word-break:break-all;">Or copy this link into your browser:<br><a href="${block.url}" style="color:${brand.color};">${block.url}</a></p>`
           : ''
       }`;
   }
 }
 
-function footerHtml(footer: Footer): SafeHtml {
+function footerHtml(footer: Footer, brand: Brand): SafeHtml {
   const p = (content: SafeHtml) => html`<p style="margin:0 0 6px;font-size:12px;line-height:1.5;color:${MUTED};">${content}</p>`;
+  const address = brand.companyAddress.length
+    ? p(html`${brand.companyAddress.map((line, i) => (i === 0 ? html`${line}` : html`<br>${line}`))}`)
+    : '';
   switch (footer.kind) {
     case 'service':
-      return p(html`This is a service email about your VHI account.`);
+      return html`${p(html`This is a service email about your VHI account.`)}${address}`;
     case 'preference':
       return html`${p(html`You're receiving this because shipment update emails are on.`)}${p(
         html`<a href="${footer.unsubscribeUrl}" style="color:${MUTED};">Unsubscribe</a> · <a href="${footer.settingsUrl}" style="color:${MUTED};">Manage email settings</a>`
-      )}`;
+      )}${address}`;
     case 'staff':
       return html`${p(html`Automated message from VHI CRM.`)}${
         footer.settingsUrl ? p(html`Turn these emails off in <a href="${footer.settingsUrl}" style="color:${MUTED};">Settings → Notifications</a>.`) : ''
-      }`;
+      }${address}`;
   }
 }
 
@@ -97,18 +100,27 @@ function blockText(block: Block): string {
   }
 }
 
-function footerText(footer: Footer): string {
+function footerText(footer: Footer, brand: Brand): string {
+  const address = brand.companyAddress.length ? `\n${brand.companyAddress.join('\n')}` : '';
   switch (footer.kind) {
     case 'service':
-      return 'This is a service email about your VHI account.';
+      return `This is a service email about your VHI account.${address}`;
     case 'preference':
-      return `You're receiving this because shipment update emails are on.\nUnsubscribe: ${footer.unsubscribeUrl}\nManage email settings: ${footer.settingsUrl}`;
+      return `You're receiving this because shipment update emails are on.\nUnsubscribe: ${footer.unsubscribeUrl}\nManage email settings: ${footer.settingsUrl}${address}`;
     case 'staff':
-      return `Automated message from VHI CRM.${footer.settingsUrl ? `\nTurn these emails off in Settings → Notifications: ${footer.settingsUrl}` : ''}`;
+      return `Automated message from VHI CRM.${footer.settingsUrl ? `\nTurn these emails off in Settings → Notifications: ${footer.settingsUrl}` : ''}${address}`;
   }
 }
 
-export function renderEmail(doc: EmailDoc): RenderedEmail {
+/** Header: the logo image when EMAIL_LOGO_URL is set (alt text "VHI"), else the "VHI" wordmark. */
+function headerHtml(brand: Brand): SafeHtml {
+  const content = brand.logoUrl
+    ? html`<img src="${brand.logoUrl}" alt="VHI" height="32" style="display:block;height:32px;width:auto;max-width:200px;border:0;">`
+    : html`VHI`;
+  return html`<tr><td style="padding:18px 28px;border-bottom:3px solid ${brand.color};font-size:20px;font-weight:700;letter-spacing:0.5px;color:${brand.color};">${content}</td></tr>`;
+}
+
+export function renderEmail(doc: EmailDoc, brand: Brand = DEFAULT_BRAND): RenderedEmail {
   const subject = cleanSubject(doc.subject);
   const content = [...(doc.greeting ? [{ kind: 'p', text: doc.greeting } as Block] : []), ...doc.blocks];
 
@@ -126,17 +138,17 @@ export function renderEmail(doc: EmailDoc): RenderedEmail {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${PAGE_BG};">
 <tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#FFFFFF;border:1px solid ${BORDER};border-radius:8px;">
-<tr><td style="padding:18px 28px;border-bottom:3px solid ${BRAND};font-size:20px;font-weight:700;letter-spacing:0.5px;color:${BRAND};">VHI</td></tr>
-<tr><td style="padding:28px 28px 8px;font-family:${rawHtml(FONT)};">${content.map(blockHtml)}</td></tr>
+${headerHtml(brand)}
+<tr><td style="padding:28px 28px 8px;font-family:${rawHtml(FONT)};">${content.map((b) => blockHtml(b, brand))}</td></tr>
 </table>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;">
-<tr><td style="padding:16px 28px;font-family:${rawHtml(FONT)};">${footerHtml(doc.footer)}</td></tr>
+<tr><td style="padding:16px 28px;font-family:${rawHtml(FONT)};">${footerHtml(doc.footer, brand)}</td></tr>
 </table>
 </td></tr>
 </table>
 </body>
 </html>`;
 
-  const text = [...content.map(blockText), '--', footerText(doc.footer)].join('\n\n') + '\n';
+  const text = [...content.map(blockText), '--', footerText(doc.footer, brand)].join('\n\n') + '\n';
   return { subject, html: body.value, text };
 }

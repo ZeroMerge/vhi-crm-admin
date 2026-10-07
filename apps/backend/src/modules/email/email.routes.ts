@@ -36,12 +36,12 @@ router.get('/unsubscribe', async (req, res, next) => {
     const settingsUrl = links(cfg.bases).clientSettings();
     const token = tokenFrom(req.query.token);
     const claim = verifyUnsubscribeToken(token, cfg.linkSecret);
-    if (!claim) return sendPage(res, 400, unsubscribeInvalidPage({ settingsUrl }));
+    if (!claim) return sendPage(res, 400, unsubscribeInvalidPage({ settingsUrl, brand: cfg.brand }));
     const { rows } = await pool.query('SELECT email FROM customers WHERE id = $1', [claim.customerId]);
-    if (!rows[0]) return sendPage(res, 400, unsubscribeInvalidPage({ settingsUrl }));
+    if (!rows[0]) return sendPage(res, 400, unsubscribeInvalidPage({ settingsUrl, brand: cfg.brand }));
     // Relative action: the page is served by this API, whatever host name it was reached on.
     const actionUrl = `/api/email/unsubscribe?token=${encodeURIComponent(token!)}`;
-    sendPage(res, 200, unsubscribeConfirmPage({ maskedEmail: maskEmail(rows[0].email), actionUrl, settingsUrl }));
+    sendPage(res, 200, unsubscribeConfirmPage({ maskedEmail: maskEmail(rows[0].email), actionUrl, settingsUrl, brand: cfg.brand }));
   } catch (err) {
     next(err);
   }
@@ -53,14 +53,14 @@ router.post('/unsubscribe', async (req, res, next) => {
     const settingsUrl = links(cfg.bases).clientSettings();
     const token = tokenFrom(req.query.token) ?? tokenFrom(req.body?.token);
     const claim = verifyUnsubscribeToken(token, cfg.linkSecret);
-    if (!claim) return sendPage(res, 400, unsubscribeInvalidPage({ settingsUrl }));
+    if (!claim) return sendPage(res, 400, unsubscribeInvalidPage({ settingsUrl, brand: cfg.brand }));
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       const current = await client.query('SELECT notification_prefs FROM customers WHERE id = $1 FOR UPDATE', [claim.customerId]);
       if (current.rows.length === 0) {
         await client.query('ROLLBACK');
-        return sendPage(res, 400, unsubscribeInvalidPage({ settingsUrl }));
+        return sendPage(res, 400, unsubscribeInvalidPage({ settingsUrl, brand: cfg.brand }));
       }
       // Idempotent: a second POST (or a provider retry) finds the preference already off and changes nothing.
       if (normaliseCustomerPrefs(current.rows[0].notification_prefs)[claim.prefKey]) {
@@ -77,7 +77,7 @@ router.post('/unsubscribe', async (req, res, next) => {
     } finally {
       client.release();
     }
-    sendPage(res, 200, unsubscribeDonePage({ settingsUrl }));
+    sendPage(res, 200, unsubscribeDonePage({ settingsUrl, brand: cfg.brand }));
   } catch (err) {
     next(err);
   }

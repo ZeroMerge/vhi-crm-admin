@@ -37,6 +37,20 @@ function main() {
 </section>`);
   }
 
+  // Branded example (EMAIL_BRAND_COLOR / EMAIL_LOGO_URL / EMAIL_COMPANY_ADDRESS). The logo is an inline SVG so the preview works offline;
+  // real config only accepts https URLs.
+  const demoLogo = 'data:image/svg+xml;base64,' + Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="96" height="32"><rect width="96" height="32" rx="6" fill="#0B5394"/><text x="48" y="22" font-family="Arial" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">VHI</text></svg>').toString('base64');
+  const brand = { color: '#0B5394', logoUrl: demoLogo, companyAddress: ['VHI Logistics Ltd', '12 Example Street, Lagos, Nigeria'] };
+  for (const id of ['c5-delivered', 'c7-message-grouped-3']) {
+    const s = SAMPLES.find((x) => x.id === id)!;
+    const email = renderTemplate(s.kind, s.params as never, templateContext({ bases: BASES, supportReplyTo: false, unsubscribeToken: 'SAMPLE.TOKEN', brand }));
+    write(`branded-${id}.html`, email.html);
+    write(`branded-${id}.txt`, email.text);
+    rows.push(`<section><h2>branded-${id} <small>EMAIL_BRAND_COLOR=#0B5394, logo, company address</small></h2><p class="meta"><b>Subject:</b> ${escapeHtml(email.subject)}<br><a href="branded-${id}.html" target="_blank">Open HTML</a> · <a href="branded-${id}.txt" target="_blank">Open text</a></p>
+<div class="frames"><figure><figcaption>Desktop (600px)</figcaption><iframe src="branded-${id}.html" width="600" height="620" loading="lazy" sandbox></iframe></figure>
+<figure><figcaption>Mobile (375px)</figcaption><iframe src="branded-${id}.html" width="375" height="620" loading="lazy" sandbox></iframe></figure></div></section>`);
+  }
+
   const l = links(BASES);
   const action = l.unsubscribe('SAMPLE.TOKEN');
   const pages: Array<[string, string]> = [
