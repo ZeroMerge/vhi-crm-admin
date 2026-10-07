@@ -53,7 +53,7 @@ async function main() {
   const unsubscribeToken = preference
     ? createUnsubscribeToken({ customerId: TEST_CUSTOMER_ID, prefKey: 'shipment_updates', issuedAt: new Date() }, config.linkSecret)
     : null;
-  const ctx = templateContext({ bases: config.bases, supportReplyTo: Boolean(config.replyTo), unsubscribeToken, brand: config.brand });
+  const ctx = templateContext({ bases: config.bases, supportReplyTo: Boolean(config.replyTo), unsubscribeToken, brand: config.brand, timezone: config.timezone });
   const email = renderTemplate(sample.kind, sample.params as never, ctx);
   const headers: Record<string, string> = unsubscribeToken
     ? { 'List-Unsubscribe': `<${links(config.bases).unsubscribe(unsubscribeToken)}>`, 'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click' }

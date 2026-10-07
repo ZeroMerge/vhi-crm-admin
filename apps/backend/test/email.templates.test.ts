@@ -2,6 +2,7 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { EMAIL_TEMPLATES, EmailKind, renderTemplate, templateContext } from '../src/modules/email/templates';
 import { SAMPLES, XSS, CAPPED_MESSAGES } from '../src/modules/email/templates/samples';
+import { emailConfigFromEnv } from '../src/modules/email/config';
 import { formatSentAt, selectMessages, MESSAGE_GROUP_MAX } from '../src/modules/email/templates/messages';
 import { cleanSubject, escapeHtml, html, maskEmail, rawHtml, SUBJECT_MAX } from '../src/modules/email/templates/html';
 import { buildUrl, normaliseBase } from '../src/modules/email/templates/urls';
@@ -170,14 +171,14 @@ describe('email templates', () => {
         const at = email.text.indexOf(`> ${firstLine}`);
         assert.ok(at > last, `${id}: "${firstLine}" present and after the previous message`);
         last = at;
-        assert.ok(email.text.includes(`Sent ${formatSentAt(m.sentAt)}`), `${id}: sent time shown`);
+        assert.ok(email.text.includes(`Sent ${formatSentAt(m.sentAt, 'Africa/Lagos')}`), `${id}: sent time shown`);
         assert.ok(email.html.includes(escapeHtml(firstLine)));
       }
       assert.ok(!email.text.includes('earlier message'), 'no cap note for a small group');
     }
     assert.equal(renderSample('c7-message-grouped-3').subject, '3 new messages from VHI');
-    assert.equal(formatSentAt('2026-10-06T14:05:00.000Z'), '6 Oct 2026, 14:05 UTC');
-    assert.equal(formatSentAt('not a date'), '');
+    assert.equal(formatSentAt('2026-10-06T14:05:00.000Z', 'Africa/Lagos'), '6 Oct 2026, 15:05 WAT');
+    assert.equal(formatSentAt('not a date', 'Africa/Lagos'), '');
   });
 
   test('grouped messages: the cap keeps the newest that fit 10 messages / 10,000 characters and says how many earlier ones are left out', () => {
@@ -200,6 +201,27 @@ describe('email templates', () => {
     assert.ok(customer.text.indexOf('Update 9') < customer.text.indexOf('Update 14'), 'oldest shown first');
     const support = renderSample('s1-support-capped');
     assert.ok(support.text.includes('+8 earlier messages. Open the conversation in the admin portal to see them.'));
+  });
+
+  test('APP_TIMEZONE: sent times use the configured zone with its abbreviation, across midnight, never the server zone', () => {
+    const late = { firstname: 'Ada', count: 2, hasPortal: true, messages: [
+      { sentAt: '2026-10-06T22:50:00.000Z', subject: 'A', body: 'before midnight WAT' },
+      { sentAt: '2026-10-06T23:30:00.000Z', subject: 'B', body: 'after midnight WAT' },
+    ] };
+    const lagos = renderTemplate('customer.message', late as never, templateContext({ bases: BASES, supportReplyTo: false, timezone: 'Africa/Lagos' }));
+    assert.ok(lagos.text.includes('Sent 6 Oct 2026, 23:50 WAT · Subject: A'));
+    assert.ok(lagos.text.includes('Sent 7 Oct 2026, 00:30 WAT · Subject: B'), '23:30 UTC is already the next day in Lagos');
+    const utc = renderTemplate('customer.message', late as never, templateContext({ bases: BASES, supportReplyTo: false, timezone: 'UTC' }));
+    assert.ok(utc.text.includes('Sent 6 Oct 2026, 23:30 UTC · Subject: B'));
+    const again = renderTemplate('customer.message', late as never, templateContext({ bases: BASES, supportReplyTo: false, timezone: 'Africa/Lagos' }));
+    assert.equal(again.html, lagos.html, 'same row + same zone → byte-identical');
+    assert.equal(again.text, lagos.text);
+    assert.equal(templateContext({ bases: BASES, supportReplyTo: false }).timezone, 'Africa/Lagos', 'default zone');
+    assert.throws(
+      () => emailConfigFromEnv({ NODE_ENV: 'development', APP_TIMEZONE: 'Mars/Olympus' }),
+      (err: Error) => err.message.includes('APP_TIMEZONE "Mars/Olympus" is not a valid IANA time zone')
+    );
+    assert.equal(emailConfigFromEnv({ NODE_ENV: 'development' }).timezone, 'Africa/Lagos');
   });
 
   test('"View conversation" only for customers with a portal account; leads get no portal button', () => {

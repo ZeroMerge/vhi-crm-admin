@@ -292,7 +292,7 @@ describe('email outbox and worker', dbTest, () => {
     const positions = ['> body 1', '> body 2', '> body 3'].map((line) => email.text.indexOf(line));
     assert.ok(positions.every((p) => p >= 0), 'all three messages in the email');
     assert.ok(positions[0] < positions[1] && positions[1] < positions[2], 'oldest first');
-    for (const n of [1, 2, 3]) assert.ok(email.text.includes(`Sent 6 Oct 2026, 14:0${n} UTC · Subject: S${n}`), `sent time of message ${n}`);
+    for (const n of [1, 2, 3]) assert.ok(email.text.includes(`Sent 6 Oct 2026, 15:0${n} WAT · Subject: S${n}`), `sent time of message ${n} in APP_TIMEZONE`);
     assert.ok(!('messages' in (await rowsOf())[0].params), 'messages wiped after sending');
 
     const after = await send(4);

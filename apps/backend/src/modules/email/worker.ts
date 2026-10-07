@@ -36,7 +36,7 @@ type Outcome =
 export interface EmailWorkerDeps {
   pool: Pool;
   provider: EmailProvider;
-  config: Pick<EmailConfig, 'from' | 'replyTo' | 'linkSecret' | 'bases' | 'concurrency'> & Partial<Pick<EmailConfig, 'brand'>>;
+  config: Pick<EmailConfig, 'from' | 'replyTo' | 'linkSecret' | 'bases' | 'concurrency'> & Partial<Pick<EmailConfig, 'brand' | 'timezone'>>;
   /** Subscribe to wake-ups (LISTEN vhi_email); returns an unsubscribe function. */
   onWake?: (wake: () => void) => () => void;
   log?: Pick<Console, 'info' | 'warn' | 'error'>;
@@ -207,7 +207,7 @@ export class EmailWorker {
     }
 
     // ---- render (params were frozen at enqueue; with the same row this output is identical on every attempt)
-    const ctx = templateContext({ bases: this.deps.config.bases, supportReplyTo: Boolean(this.deps.config.replyTo), unsubscribeToken, brand: this.deps.config.brand });
+    const ctx = templateContext({ bases: this.deps.config.bases, supportReplyTo: Boolean(this.deps.config.replyTo), unsubscribeToken, brand: this.deps.config.brand, timezone: this.deps.config.timezone });
     const email = renderTemplate(kind, row.params as never, ctx);
     const headers: Record<string, string> = {};
     if (unsubscribeToken) {

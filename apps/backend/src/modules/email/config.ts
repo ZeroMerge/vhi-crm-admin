@@ -2,6 +2,7 @@
 import crypto from 'crypto';
 import { LinkBases, normaliseBase } from './templates/urls';
 import { Brand, brandFromEnv } from './templates/brand';
+import { DEFAULT_TIMEZONE, assertTimezone } from '../../utils/appTime';
 
 export type EmailProviderName = 'resend' | 'console';
 
@@ -19,6 +20,8 @@ export interface EmailConfig {
   concurrency: number;
   /** EMAIL_BRAND_COLOR / EMAIL_LOGO_URL / EMAIL_COMPANY_ADDRESS (invalid values warn and fall back). */
   brand: Brand;
+  /** APP_TIMEZONE (default Africa/Lagos): times shown in emails; the scheduler uses the same setting. */
+  timezone: string;
   warnings: string[];
 }
 
@@ -113,6 +116,14 @@ export function emailConfigFromEnv(env: NodeJS.ProcessEnv = process.env): EmailC
 
   const brand = brandFromEnv(env, production, warnings);
 
+  let timezone = env.APP_TIMEZONE?.trim() || DEFAULT_TIMEZONE;
+  try {
+    assertTimezone(timezone);
+  } catch {
+    problems.push(`APP_TIMEZONE "${timezone}" is not a valid IANA time zone (e.g. Africa/Lagos)`);
+    timezone = DEFAULT_TIMEZONE;
+  }
+
   if (problems.length) throw new EmailConfigError(problems);
-  return { provider, resendApiKey, from, replyTo, supportInbox, linkSecret, bases, messageBatchMs, concurrency, brand, warnings };
+  return { provider, resendApiKey, from, replyTo, supportInbox, linkSecret, bases, messageBatchMs, concurrency, brand, timezone, warnings };
 }

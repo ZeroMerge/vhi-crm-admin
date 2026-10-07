@@ -1,4 +1,5 @@
 // Grouped message emails: which of the stored messages are shown, and how their times are written.
+import { formatDateTime } from '../../../utils/appTime';
 
 export interface MessageEntry {
   /** ISO timestamp taken when the message was queued. */
@@ -29,18 +30,7 @@ export function selectMessages(messages: MessageEntry[], total: number): { shown
   return { shown, earlier: Math.max(0, Math.max(total, messages.length) - shown.length) };
 }
 
-const FORMAT = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'short',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-  timeZone: 'UTC',
-});
-
-/** "6 Oct 2026, 14:05 UTC": fixed time zone, so the same row always renders the same text (idempotent retries). */
-export function formatSentAt(iso: string): string {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '' : `${FORMAT.format(date)} UTC`;
+/** "6 Oct 2026, 15:05 WAT": in APP_TIMEZONE, deterministic, so the same row always renders the same text (idempotent retries). */
+export function formatSentAt(iso: string, timezone: string): string {
+  return formatDateTime(iso, timezone);
 }

@@ -115,10 +115,10 @@ export interface SupportMessageParams {
 }
 
 /** One meta line + quote per message, oldest first. */
-function messageBlocks(shown: MessageEntry[]): EmailDoc['blocks'] {
+function messageBlocks(shown: MessageEntry[], timezone: string): EmailDoc['blocks'] {
   return shown.flatMap((m) => {
     const subject = oneLine(m.subject);
-    const when = formatSentAt(m.sentAt);
+    const when = formatSentAt(m.sentAt, timezone);
     const meta = [when && `Sent ${when}`, subject && `Subject: ${subject}`].filter(Boolean).join(' · ');
     return [...(meta ? [{ kind: 'meta' as const, text: meta }] : []), { kind: 'quote' as const, text: m.body }];
   });
@@ -139,7 +139,7 @@ export function supportMessage(p: SupportMessageParams, ctx: TemplateContext): E
       ...(earlier > 0
         ? [{ kind: 'p' as const, text: `+${earlier} earlier message${earlier === 1 ? '' : 's'}. Open the conversation in the admin portal to see ${earlier === 1 ? 'it' : 'them'}.` }]
         : []),
-      ...messageBlocks(shown),
+      ...messageBlocks(shown, ctx.timezone),
       { kind: 'button', label: 'View and reply in the admin portal', url: ctx.links.adminCommunications(p.customerId) },
     ],
     footer: { kind: 'staff' },
