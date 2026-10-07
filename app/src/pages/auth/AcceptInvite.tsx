@@ -133,7 +133,8 @@ export default function AcceptInvite() {
         )}
 
         {state.kind === 'invalid' && notice("This link can't be used", state.message, 'If you already set your password, sign in instead.')}
-        {state.kind === 'expired' && notice('This invitation has expired', state.message, 'Ask your super admin to resend the invitation.')}
+        {/* The server's message already says to ask a super admin for a new one. */}
+        {state.kind === 'expired' && notice('This invitation has expired', state.message)}
         {state.kind === 'error' && notice("We couldn't check your invitation", state.message)}
 
         {(state.kind === 'invalid' || state.kind === 'expired') && (
