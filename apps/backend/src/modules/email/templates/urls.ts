@@ -39,6 +39,8 @@ export function links(bases: LinkBases) {
     clientSettings: () => buildUrl(bases.client, ['dashboard', 'settings']),
     // Admin app routes (admin/app/src/router/index.tsx)
     adminShipment: (shipmentId: string) => buildUrl(bases.admin, ['admin', 'shipments', shipmentId]),
+    adminInvoices: () => buildUrl(bases.admin, ['admin', 'invoices']),
+    adminCustomers: () => buildUrl(bases.admin, ['admin', 'customers']),
     adminCommunications: (customerId: string) => buildUrl(bases.admin, ['admin', 'communications'], { selected: customerId }),
     adminLogin: () => buildUrl(bases.admin, ['admin', 'login']),
     adminNotificationSettings: () => buildUrl(bases.admin, ['admin', 'settings'], { tab: 'notifications' }),

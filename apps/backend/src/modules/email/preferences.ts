@@ -21,7 +21,8 @@ export const ADMIN_PREF_DEFAULTS = {
 export type AdminPrefKey = keyof typeof ADMIN_PREF_DEFAULTS;
 export type AdminPrefs = Record<AdminPrefKey, boolean>;
 /** Admin keys that currently gate an email. The others are stored for later phases and do nothing yet. */
-export const ADMIN_EMAIL_PREF_KEYS: AdminPrefKey[] = ['shipment_created'];
+export const ADMIN_EMAIL_PREF_KEYS: AdminPrefKey[] = ['shipment_created', 'overdue_alert', 'registration'];
+export const isAdminEmailPref = (key: string | null): key is AdminPrefKey => ADMIN_EMAIL_PREF_KEYS.includes(key as AdminPrefKey);
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 

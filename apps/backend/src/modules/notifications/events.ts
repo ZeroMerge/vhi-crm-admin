@@ -35,7 +35,27 @@ export type NotificationEvent =
       isReopen: boolean;
     })
   | (Base & { type: 'shipment.tracking_assigned'; shipment: ShipmentRef; awbNumber: string | null; bolNumber: string | null })
-  | (Base & { type: 'message.received'; customerId: string; direction: 'to_admins' | 'to_customer'; text: string; subject?: string });
+  | (Base & { type: 'message.received'; customerId: string; direction: 'to_admins' | 'to_customer'; text: string; subject?: string })
+  // ---- Phase 4: scheduled jobs and email bounces (actor: system). Dates arrive already formatted in APP_TIMEZONE.
+  | (Base & {
+      type: 'shipment.stuck';
+      shipment: ShipmentRef;
+      status: string;
+      days: number;
+      thresholdHours: number;
+      /** Formatted date of the last status change. */
+      since: string;
+      /** 0 = first alert of this stuck period, n = n-th reminder. */
+      reminder: number;
+    })
+  | (Base & {
+      type: 'invoice.overdue';
+      invoice: { id: string; number: string; customerId: string; amount: string; currency: string; dueDate: string };
+      daysOverdue: number;
+      reminder: number;
+    })
+  | (Base & { type: 'customer.registered'; customer: { id: string; email: string } })
+  | (Base & { type: 'email.bounced'; customerId: string; email: string });
 
 export type NotificationType = NotificationEvent['type'];
 type EventOf<T extends NotificationType> = Extract<NotificationEvent, { type: T }>;
@@ -58,7 +78,7 @@ export interface CatalogEntry<T extends NotificationType> {
   module?: string;
   // Narrower admin recipient roles; must be a subset of rolesWithModule(module) (unit-tested).
   roles?: string[];
-  entity: (e: EventOf<T>) => { type: 'shipment' | 'customer_thread'; id: string };
+  entity: (e: EventOf<T>) => { type: 'shipment' | 'customer_thread' | 'invoice' | 'customer'; id: string };
   // Customer-facing recipient (owner of the entity).
   customerId: (e: EventOf<T>) => string;
   shouldNotify?: (e: EventOf<T>) => boolean;
@@ -84,6 +104,20 @@ const humanize = (value: string) => value.charAt(0).toUpperCase() + value.slice(
 
 const fullName = (c: RenderContext['customer']) => `${c.firstname} ${c.lastname}`.trim();
 
+/** "1500.5" → "1,500.50" (string arithmetic only: DECIMAL(15,2) values never pass through a float). */
+export function formatAmount(amount: string): string {
+  const [whole, fraction = ''] = String(amount).trim().split('.');
+  const negative = whole.startsWith('-');
+  const digits = negative ? whole.slice(1) : whole;
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${negative ? '-' : ''}${grouped}.${fraction.padEnd(2, '0').slice(0, 2)}`;
+}
+
+/** "48 hours" → "2 days"; thresholds that aren't whole days stay in hours. */
+export const durationLabel = (hours: number) =>
+  hours % 24 === 0 ? `${hours / 24} day${hours === 24 ? '' : 's'}` : `${hours} hour${hours === 1 ? '' : 's'}`;
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
 // Excerpt by grapheme cluster (never splits emoji or combined characters), whitespace collapsed.
 export function excerpt(text: string, max = 120): string {
   const collapsed = text.replace(/\s+/g, ' ').trim();
@@ -107,7 +141,11 @@ const STATUS_COPY: Record<string, (orderId: string, e: EventOf<'shipment.status_
 
 const shipmentEntity = (e: { shipment: ShipmentRef }) => ({ type: 'shipment' as const, id: e.shipment.id });
 const shipmentOwner = (e: { shipment: ShipmentRef }) => e.shipment.customerId;
-const SHIPMENT_OPERATIONS_ROLES = ['super_admin', 'manager', 'logistics_officer'];
+export const SHIPMENT_OPERATIONS_ROLES = ['super_admin', 'manager', 'logistics_officer'];
+/** Who hears about new customers (in-app and the registration digest). */
+export const CUSTOMER_GROWTH_ROLES = ['super_admin', 'manager', 'crm_officer'];
+/** Who can fix a customer's email address. */
+export const CUSTOMER_CONTACT_ROLES = ['super_admin', 'manager', 'crm_officer', 'support_staff'];
 
 export const CATALOG: { [T in NotificationType]: CatalogEntry<T> } = {
   'shipment.created': {
@@ -191,5 +229,62 @@ export const CATALOG: { [T in NotificationType]: CatalogEntry<T> } = {
         data: { customerId: e.customerId, count: ctx.count },
       };
     },
+  },
+
+  'shipment.stuck': {
+    audience: () => 'admins',
+    module: 'shipments',
+    roles: SHIPMENT_OPERATIONS_ROLES,
+    entity: shipmentEntity,
+    customerId: shipmentOwner,
+    render: (e) => {
+      const stuck = `Shipment ${e.shipment.orderId} stuck in ${humanize(e.status)} for ${plural(e.days, 'day')}`;
+      return {
+        title: e.reminder > 0 ? `Still stuck: ${stuck}` : stuck,
+        body: `No status change since ${e.since}. Threshold: ${durationLabel(e.thresholdHours)}.`,
+        data: { orderId: e.shipment.orderId, status: e.status, days: e.days, reminder: e.reminder },
+      };
+    },
+  },
+
+  'invoice.overdue': {
+    audience: () => 'admins',
+    module: 'invoices',
+    entity: (e) => ({ type: 'invoice', id: e.invoice.id }),
+    customerId: (e) => e.invoice.customerId,
+    render: (e, ctx) => ({
+      title:
+        e.reminder > 0
+          ? `Invoice ${e.invoice.number} is still overdue (${plural(e.daysOverdue, 'day')})`
+          : `Invoice ${e.invoice.number} is overdue`,
+      body: `${fullName(ctx.customer) || 'Customer'}: ${formatAmount(e.invoice.amount)} ${e.invoice.currency}, due ${e.invoice.dueDate}.`,
+      data: { invoiceNumber: e.invoice.number, daysOverdue: e.daysOverdue, reminder: e.reminder },
+    }),
+  },
+
+  'customer.registered': {
+    audience: () => 'admins',
+    module: 'customers',
+    roles: CUSTOMER_GROWTH_ROLES,
+    entity: (e) => ({ type: 'customer', id: e.customer.id }),
+    customerId: (e) => e.customer.id,
+    render: (e, ctx) => ({
+      title: `New customer ${fullName(ctx.customer) || e.customer.email}`,
+      body: `${e.customer.email} verified their account.`,
+      data: {},
+    }),
+  },
+
+  'email.bounced': {
+    audience: () => 'admins',
+    module: 'customers',
+    roles: CUSTOMER_CONTACT_ROLES,
+    entity: (e) => ({ type: 'customer', id: e.customerId }),
+    customerId: (e) => e.customerId,
+    render: (e, ctx) => ({
+      title: `Email to ${fullName(ctx.customer) || e.email} bounced`,
+      body: `${e.email} rejected our email. Update the address so they get account and shipment emails.`,
+      data: {},
+    }),
   },
 };

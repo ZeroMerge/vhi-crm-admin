@@ -4,7 +4,7 @@ import type { Pool } from 'pg';
 import type { EmailConfig } from './config';
 import { EmailProvider, EmailSendError } from './provider';
 import { EMAIL_TEMPLATES, EmailKind, isEmailKind, renderTemplate, templateContext } from './templates';
-import { normaliseAdminPrefs, normaliseCustomerPrefs } from './preferences';
+import { isAdminEmailPref, normaliseAdminPrefs, normaliseCustomerPrefs } from './preferences';
 import { createUnsubscribeToken } from './unsubscribeToken';
 import { links } from './templates/urls';
 import { SENSITIVE_PARAMS } from './outbox';
@@ -42,6 +42,12 @@ export interface EmailWorkerDeps {
   log?: Pick<Console, 'info' | 'warn' | 'error'>;
   pollMs?: number;
 }
+
+const ADMIN_PREF_REASONS: Record<string, string> = {
+  shipment_created: 'new shipment',
+  overdue_alert: 'overdue invoice',
+  registration: 'registration digest',
+};
 
 const truncate = (s: string, max = 1000) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
 const SECRET_KEYS_SQL = `ARRAY[${SENSITIVE_PARAMS.map((k) => `'${k}'`).join(', ')}]::text[]`;
@@ -197,11 +203,11 @@ export class EmailWorker {
       const { rows } = await this.deps.pool.query('SELECT is_active, deleted_at, notification_prefs FROM admins WHERE id = $1', [row.admin_id]);
       const admin = rows[0];
       if (!admin) return { status: 'cancelled', reason: 'admin deleted' };
-      if (template.preference === 'shipment_created') {
+      if (isAdminEmailPref(template.preference)) {
         // Operational emails only for working accounts; account notices (roles, deactivation, passwords) always go out.
         if (admin.is_active === false || admin.deleted_at) return { status: 'cancelled', reason: 'admin is not active' };
-        if (!normaliseAdminPrefs(admin.notification_prefs).shipment_created) {
-          return { status: 'cancelled', reason: 'admin turned off new shipment emails' };
+        if (!normaliseAdminPrefs(admin.notification_prefs)[template.preference]) {
+          return { status: 'cancelled', reason: `admin turned off ${ADMIN_PREF_REASONS[template.preference]} emails` };
         }
       }
     }

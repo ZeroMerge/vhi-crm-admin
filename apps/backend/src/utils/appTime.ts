@@ -53,6 +53,14 @@ export function formatDateTime(value: string | Date, tz: string): string {
   return `${p.day} ${MONTHS[p.month - 1]} ${p.year}, ${pad(p.hour)}:${pad(p.minute)} ${zoneLabel(date, tz)}`;
 }
 
+/** "15:05 WAT" in tz; '' for an invalid date. */
+export function formatTime(value: string | Date, tz: string): string {
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const p = zonedParts(date, tz);
+  return `${pad(p.hour)}:${pad(p.minute)} ${zoneLabel(date, tz)}`;
+}
+
 /** Calendar date "YYYY-MM-DD" of an instant in tz. */
 export function localDate(date: Date, tz: string): string {
   const p = zonedParts(date, tz);

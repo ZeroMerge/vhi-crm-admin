@@ -27,6 +27,7 @@ import { getRealtime, startRealtime, stopRealtime } from './modules/notification
 import emailRoutes from './modules/email/email.routes';
 import clientPreferencesRoutes from './modules/client/client.preferences.routes';
 import { initEmail, startEmailWorker, stopEmailWorker } from './modules/email';
+import { initScheduler, startScheduler, stopScheduler } from './modules/scheduler';
 
 dotenv.config();
 
@@ -38,6 +39,13 @@ try {
   for (const warning of emailConfig.warnings) console.warn(`[email] WARNING: ${warning}`);
 } catch (err) {
   console.error(`[email] ${(err as Error).message}`);
+  process.exit(1);
+}
+// Scheduler settings (SCHEDULER_ENABLED, APP_TIMEZONE, STUCK_*, OVERDUE_*, RETENTION_*): invalid values stop the server here too.
+try {
+  initScheduler();
+} catch (err) {
+  console.error(`[scheduler] ${(err as Error).message}`);
   process.exit(1);
 }
 
@@ -127,6 +135,8 @@ const server = app.listen(PORT, () => {
   startRealtime().catch((err) => console.error('[realtime] failed to start', err));
   // Email outbox worker: woken by NOTIFY on the realtime bus's LISTEN connection, plus a 30s poll.
   startEmailWorker((channel, handler) => getRealtime().bus.listenTo(channel, () => handler()));
+  // Scheduled jobs (stuck shipments, overdue invoices, registration digest, cleanup). Safe with several instances (advisory locks).
+  startScheduler();
 });
 
 // Graceful shutdown: end every SSE stream (clients reconnect to the next instance), stop LISTEN, stop accepting requests.
@@ -137,7 +147,10 @@ const shutdown = (signal: string) => {
   console.log(`[${signal}] shutting down`);
   const force = setTimeout(() => process.exit(1), 10_000);
   force.unref();
-  stopEmailWorker()
+  // The scheduler stops first (waits for a running job, whose emails then still get sent), then the email worker, then realtime.
+  stopScheduler()
+    .catch((err) => console.error('[scheduler] failed to stop cleanly', err))
+    .then(() => stopEmailWorker())
     .catch((err) => console.error('[email] worker failed to stop cleanly', err))
     .then(() => stopRealtime())
     .catch((err) => console.error('[realtime] failed to stop cleanly', err))

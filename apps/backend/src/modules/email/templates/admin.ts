@@ -1,6 +1,7 @@
 // Staff-facing emails (individual admins and the support inbox). Copy approved in docs/PLAN-P3-EMAIL.md §4.
 import { oneLine } from './html';
 import { formatSentAt, MessageEntry, selectMessages } from './messages';
+import { formatTime } from '../../../utils/appTime';
 import type { EmailDoc } from './layout';
 import type { TemplateContext } from './context';
 
@@ -112,6 +113,96 @@ export interface SupportMessageParams {
   messages: MessageEntry[];
   /** Total messages in the group (may exceed messages.length). */
   count: number;
+}
+
+// ---- Phase 4 digests (one email per admin per day; rows capped at DIGEST_MAX_ROWS by the jobs, `total` counts all)
+
+const formatAmount = (amount: string) => {
+  const [whole, fraction = ''] = oneLine(amount).split('.');
+  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}.${fraction.padEnd(2, '0').slice(0, 2)}`;
+};
+const moreLine = (total: number, shown: number): EmailDoc['blocks'] =>
+  total > shown ? [{ kind: 'p', text: `+${total - shown} more in the admin portal.` }] : [];
+
+export interface OverdueDigestInvoice {
+  invoiceId: string;
+  number: string;
+  customerName: string;
+  /** Outstanding balance (DECIMAL as a string). */
+  amount: string;
+  currency: string;
+  /** Already formatted ("6 Oct 2026"). */
+  dueDate: string;
+}
+export interface AdminOverdueDigestParams {
+  adminName: string;
+  /** The run date, formatted. */
+  date: string;
+  invoices: OverdueDigestInvoice[];
+  total: number;
+}
+export function adminOverdueDigest(p: AdminOverdueDigestParams, ctx: TemplateContext): EmailDoc {
+  const total = Math.max(p.total, p.invoices.length);
+  const first = p.invoices[0];
+  const one = total === 1 && first;
+  return {
+    subject: one ? `Invoice ${oneLine(first.number)} is overdue` : `${total} invoices became overdue`,
+    preheader: one
+      ? `${oneLine(first.customerName) || 'A customer'} · ${oneLine(first.currency)} ${formatAmount(first.amount)} · due ${oneLine(first.dueDate)}`
+      : `${total} invoices passed their due date.`,
+    greeting: greeting(p.adminName),
+    blocks: [
+      { kind: 'p', text: one ? `This invoice became overdue today (${oneLine(p.date)}):` : `These invoices became overdue today (${oneLine(p.date)}):` },
+      {
+        kind: 'details',
+        rows: p.invoices.map((i): [string, string] => [
+          oneLine(i.number),
+          `${oneLine(i.customerName) || 'Customer'} · ${oneLine(i.currency)} ${formatAmount(i.amount)} · due ${oneLine(i.dueDate)}`,
+        ]),
+      },
+      ...moreLine(total, p.invoices.length),
+      { kind: 'button', label: 'Open invoices', url: ctx.links.adminInvoices() },
+    ],
+    footer: { kind: 'staff', settingsUrl: ctx.links.adminNotificationSettings() },
+  };
+}
+
+export interface RegistrationDigestCustomer {
+  customerId: string;
+  name: string;
+  email: string;
+  industry: string | null;
+  /** ISO timestamp; shown as a time in APP_TIMEZONE. */
+  verifiedAt: string;
+}
+export interface AdminRegistrationDigestParams {
+  adminName: string;
+  /** The day covered (yesterday), formatted. */
+  date: string;
+  customers: RegistrationDigestCustomer[];
+  total: number;
+}
+export function adminRegistrationDigest(p: AdminRegistrationDigestParams, ctx: TemplateContext): EmailDoc {
+  const total = Math.max(p.total, p.customers.length);
+  const one = total === 1;
+  return {
+    subject: one ? '1 new customer registered yesterday' : `${total} new customers registered yesterday`,
+    preheader: `New customer accounts verified on ${oneLine(p.date)}.`,
+    greeting: greeting(p.adminName),
+    blocks: [
+      { kind: 'p', text: one ? `This customer verified their account on ${oneLine(p.date)}:` : `These customers verified their accounts on ${oneLine(p.date)}:` },
+      {
+        kind: 'details',
+        rows: p.customers.map((c): [string, string] => [
+          oneLine(c.name) || oneLine(c.email),
+          [oneLine(c.email), c.industry ? modeLabel(c.industry) : 'no industry', formatTime(c.verifiedAt, ctx.timezone)].filter(Boolean).join(' · '),
+        ]),
+      },
+      ...moreLine(total, p.customers.length),
+      { kind: 'button', label: 'Open customers', url: ctx.links.adminCustomers() },
+    ],
+    footer: { kind: 'staff', settingsUrl: ctx.links.adminNotificationSettings() },
+  };
 }
 
 /** One meta line + quote per message, oldest first. */

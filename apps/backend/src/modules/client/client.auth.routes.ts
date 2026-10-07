@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import pool from '../../config/db';
 import { enqueueEmail } from '../email/outbox';
+import { emit } from '../notifications/notification.service';
 
 const router = Router();
 
@@ -49,7 +50,10 @@ router.post('/register', async (req, res, next) => {
       );
       customer = insertResult.rows[0];
 
-      if (!isDev) {
+      if (isDev) {
+        // D7: without verification, signup is when the account becomes active, so staff hear about it now.
+        await emit({ type: 'customer.registered', actor: { type: 'customer', id: customer.id }, sourceId: customer.id, customer: { id: customer.id, email: customer.email } }, client);
+      } else {
         const rawToken = crypto.randomBytes(32).toString('hex');
         const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
         await client.query(
@@ -95,25 +99,41 @@ router.get('/verify-email', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Token is required' });
     }
 
-    const tokenResult = await pool.query(
-      'SELECT * FROM email_verification_tokens WHERE token = $1',
-      [token]
-    );
-
-    if (tokenResult.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Invalid or already used token' });
+    // One transaction: activate, stamp verified_at, consume the token and notify staff (customer.registered), or none of it.
+    // The token row is locked, so two clicks on the same link cannot both verify.
+    const client = await pool.connect();
+    let outcome: 'invalid' | 'expired' | 'verified';
+    try {
+      await client.query('BEGIN');
+      const tokenResult = await client.query('SELECT * FROM email_verification_tokens WHERE token = $1 FOR UPDATE', [token]);
+      const record = tokenResult.rows[0];
+      if (!record) {
+        outcome = 'invalid';
+      } else if (new Date() > new Date(record.expires_at)) {
+        await client.query('DELETE FROM email_verification_tokens WHERE id = $1', [record.id]);
+        outcome = 'expired';
+      } else {
+        const updated = await client.query(
+          `UPDATE customers SET is_active = true, verified_at = COALESCE(verified_at, NOW()), updated_at = NOW()
+            WHERE id = $1 RETURNING id, email`,
+          [record.customer_id]
+        );
+        await client.query('DELETE FROM email_verification_tokens WHERE id = $1', [record.id]);
+        const c = updated.rows[0];
+        // sourceId = the customer: one alert per account, however many times verification happens.
+        if (c) await emit({ type: 'customer.registered', actor: { type: 'customer', id: c.id }, sourceId: c.id, customer: { id: c.id, email: c.email } }, client);
+        outcome = 'verified';
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
 
-    const record = tokenResult.rows[0];
-
-    if (new Date() > new Date(record.expires_at)) {
-      await pool.query('DELETE FROM email_verification_tokens WHERE id = $1', [record.id]);
-      return res.status(410).json({ success: false, message: 'Verification link has expired. Please register again.' });
-    }
-
-    await pool.query('UPDATE customers SET is_active = true, verified_at = COALESCE(verified_at, NOW()), updated_at = NOW() WHERE id = $1', [record.customer_id]);
-    await pool.query('DELETE FROM email_verification_tokens WHERE id = $1', [record.id]);
-
+    if (outcome === 'invalid') return res.status(404).json({ success: false, message: 'Invalid or already used token' });
+    if (outcome === 'expired') return res.status(410).json({ success: false, message: 'Verification link has expired. Please register again.' });
     res.json({ success: true, message: 'Email verified successfully. You can now log in.' });
   } catch (err) {
     next(err);

@@ -6,7 +6,7 @@ import { renderEmail, RenderedEmail, EmailDoc } from './layout';
 
 export type EmailAudience = 'customer' | 'admin' | 'support';
 /** Preference keys that can switch an email off. Emails without one are service emails (no opt-out, no unsubscribe link). */
-export type EmailPreference = 'shipment_updates' | 'shipment_created';
+export type EmailPreference = 'shipment_updates' | 'shipment_created' | 'overdue_alert' | 'registration';
 
 interface TemplateDef<P> {
   audience: EmailAudience;
@@ -30,6 +30,8 @@ export const EMAIL_TEMPLATES = {
   'customer.message': def('customer', null, customer.customerMessage),
   'support.message': def('support', null, admin.supportMessage),
   'admin.shipment_created': def('admin', 'shipment_created', admin.adminShipmentCreated),
+  'admin.overdue_digest': def('admin', 'overdue_alert', admin.adminOverdueDigest),
+  'admin.registration_digest': def('admin', 'registration', admin.adminRegistrationDigest),
   'admin.roles_changed': def('admin', null, admin.adminRolesChanged),
   'admin.deactivated': def('admin', null, admin.adminDeactivated),
   'admin.password_reset_by_admin': def('admin', null, admin.adminPasswordResetByAdmin),

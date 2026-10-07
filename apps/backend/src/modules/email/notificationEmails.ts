@@ -139,6 +139,10 @@ export async function enqueueEventEmails(
     }
 
     case 'shipment.cancelled_by_client':
+    case 'shipment.stuck':
+    case 'invoice.overdue': // the overdue digest is queued by the job, once per admin per day
+    case 'customer.registered': // the registration digest is queued by its job
+    case 'email.bounced':
       return 0; // in-app only
   }
 }

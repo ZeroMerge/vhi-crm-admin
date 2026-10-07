@@ -335,7 +335,7 @@ describe('email wiring: events, routes, preferences, unsubscribe', dbTest, () =>
       assert.equal(first.status, 200);
       assert.equal(first.body.data.prefs.shipment_created, true);
       assert.equal(first.body.data.prefs.newsletter_sent, false);
-      assert.deepEqual(first.body.data.emailKeys, ['shipment_created']);
+      assert.deepEqual(first.body.data.emailKeys, ['shipment_created', 'overdue_alert', 'registration']);
       assert.equal((await put({ shipment_created: false, nonsense: true })).status, 400);
       assert.equal((await put({ shipment_created: 'off' })).status, 400);
       const legacy = { registration: false, shipment_created: true, status_updated: true, invoice_created: true, payment_received: true, overdue_alert: true, newsletter_sent: false };

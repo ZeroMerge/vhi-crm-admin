@@ -35,3 +35,7 @@ CREATE INDEX IF NOT EXISTS customers_verified_at_idx ON customers (verified_at) 
 -- Cleanup scans by age.
 CREATE INDEX IF NOT EXISTS notifications_created_idx ON notifications (created_at);
 CREATE INDEX IF NOT EXISTS email_deliveries_finished_idx ON email_deliveries (created_at) WHERE status IN ('sent', 'failed', 'cancelled');
+
+-- Job lookups: "already alerted?" (stuck/overdue pre-filter) and "digest already queued for this date?" (any status).
+CREATE INDEX IF NOT EXISTS notifications_dedupe_idx ON notifications (dedupe_key);
+CREATE INDEX IF NOT EXISTS email_deliveries_group_key_idx ON email_deliveries (group_key) WHERE group_key IS NOT NULL;

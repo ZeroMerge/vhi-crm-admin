@@ -106,6 +106,61 @@ export const SAMPLES: Sample[] = [
   sample({ id: 'a3-deactivated', kind: 'admin.deactivated', note: 'Service (status → inactive only)', params: { adminName: 'Tunde' } }),
   sample({ id: 'a4-reset-by-admin', kind: 'admin.password_reset_by_admin', note: 'Service; never includes the temporary password', params: { adminName: 'Tunde' } }),
   sample({ id: 'a5-password-changed', kind: 'admin.password_changed', note: 'Service', params: { adminName: 'Tunde' } }),
+  sample({
+    id: 'a7-overdue-one',
+    kind: 'admin.overdue_digest',
+    note: 'Overdue digest, one invoice (preference overdue_alert)',
+    params: {
+      adminName: 'Funmi',
+      date: '7 Oct 2026',
+      total: 1,
+      invoices: [{ invoiceId: '7d3c0000-0000-4000-8000-000000000001', number: 'INV-2026-0142', customerName: 'Ada Obi', amount: '1250000.00', currency: 'NGN', dueDate: '6 Oct 2026' }],
+    },
+  }),
+  sample({
+    id: 'a7-overdue-many',
+    kind: 'admin.overdue_digest',
+    note: 'Overdue digest, 53 invoices: 50 rows and "+3 more"',
+    params: {
+      adminName: 'Funmi',
+      date: '7 Oct 2026',
+      total: 53,
+      invoices: Array.from({ length: 50 }, (_, i) => ({
+        invoiceId: `7d3c0000-0000-4000-8000-${String(i + 1).padStart(12, '0')}`,
+        number: `INV-2026-${String(200 + i).padStart(4, '0')}`,
+        customerName: i % 3 === 0 ? 'Chinedu Okafor' : 'Ada Obi',
+        amount: i % 2 ? '45000.5' : '980000.00',
+        currency: i % 5 === 0 ? 'USD' : 'NGN',
+        dueDate: '6 Oct 2026',
+      })),
+    },
+  }),
+  sample({
+    id: 'a8-registrations-one',
+    kind: 'admin.registration_digest',
+    note: 'Registration digest, one customer (preference registration); time in APP_TIMEZONE',
+    params: {
+      adminName: 'Tunde',
+      date: '6 Oct 2026',
+      total: 1,
+      customers: [{ customerId: '0b7c1f9e-0000-4000-8000-000000000001', name: 'Ada Obi', email: 'ada@example.com', industry: 'medical_pharma', verifiedAt: at(5) }],
+    },
+  }),
+  sample({
+    id: 'a8-registrations-many',
+    kind: 'admin.registration_digest',
+    note: 'Registration digest, 3 customers: the first verified 23:15 UTC on 5 Oct, which is 00:15 WAT on 6 Oct; one has no industry, one no name',
+    params: {
+      adminName: 'Tunde',
+      date: '6 Oct 2026',
+      total: 3,
+      customers: [
+        { customerId: '0b7c1f9e-0000-4000-8000-000000000001', name: 'Ada Obi', email: 'ada@example.com', industry: 'medical_pharma', verifiedAt: new Date(Date.UTC(2026, 9, 5, 23, 15)).toISOString() },
+        { customerId: '0b7c1f9e-0000-4000-8000-000000000002', name: 'Chinedu Okafor', email: 'chinedu@example.com', industry: null, verifiedAt: at(5) },
+        { customerId: '0b7c1f9e-0000-4000-8000-000000000003', name: '', email: 'no-name@example.com', industry: 'oil_gas', verifiedAt: new Date(Date.UTC(2026, 9, 6, 22, 45)).toISOString() },
+      ],
+    },
+  }),
   // ---- hostile samples: everything below must render as plain text
   sample({
     id: 'x1-message-payload',
@@ -123,6 +178,28 @@ export const SAMPLES: Sample[] = [
     kind: 'customer.shipment_status',
     note: 'ESCAPING: markup in cancel reason and order id',
     params: { firstname: 'Ada', orderId: '"><img src=x onerror=alert(4)>', to: 'cancelled', reason: XSS },
+  }),
+  sample({
+    id: 'x4-digest-payload',
+    kind: 'admin.registration_digest',
+    note: 'ESCAPING: markup in customer names, emails and industry',
+    params: {
+      adminName: XSS,
+      date: XSS,
+      total: 1,
+      customers: [{ customerId: XSS, name: XSS, email: '"onmouseover=alert(7)"@example.com', industry: XSS, verifiedAt: '"><img src=x onerror=alert(8)>' }],
+    },
+  }),
+  sample({
+    id: 'x5-overdue-payload',
+    kind: 'admin.overdue_digest',
+    note: 'ESCAPING: markup in invoice number, customer name, currency and amount',
+    params: {
+      adminName: 'Funmi',
+      date: '7 Oct 2026',
+      total: 1,
+      invoices: [{ invoiceId: XSS, number: XSS, customerName: XSS, amount: XSS, currency: '<b>NGN</b>', dueDate: XSS }],
+    },
   }),
   sample({
     id: 'x3-support-payload',
