@@ -7,6 +7,11 @@ export function notificationLink(n: Pick<AppNotification, 'entityType' | 'entity
       return `/admin/shipments/${n.entityId}`;
     case 'customer_thread':
       return `/admin/communications?selected=${encodeURIComponent(n.entityId)}`;
+    // Phase 4: invoice.overdue → the invoice; customer.registered and email.bounced → the customer.
+    case 'invoice':
+      return `/admin/invoices/${encodeURIComponent(n.entityId)}`;
+    case 'customer':
+      return `/admin/customers/${encodeURIComponent(n.entityId)}`;
     default:
       return null;
   }

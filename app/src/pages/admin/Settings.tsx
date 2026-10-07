@@ -17,6 +17,28 @@ const ALL_ROLES = [
   { value: 'support_staff', label: 'Support Staff', color: '#C62828' }
 ];
 
+// Optional emails; all default on (the server's defaults). Times are in the business time zone (WAT).
+const EMAIL_PREFS: Array<{ key: string; label: string; description: string; roles: string[] }> = [
+  {
+    key: 'shipment_created',
+    label: 'Email me about new shipments',
+    description: 'An email each time a customer creates a shipment in the customer portal.',
+    roles: ['super_admin', 'manager', 'logistics_officer'],
+  },
+  {
+    key: 'registration',
+    label: 'Daily email: new customer registrations',
+    description: "At 08:00, a list of the customers who verified their accounts the day before. Nothing is sent when there are none.",
+    roles: ['super_admin', 'manager', 'crm_officer'],
+  },
+  {
+    key: 'overdue_alert',
+    label: 'Email me when invoices become overdue',
+    description: 'At 07:00, one email listing the invoices that became overdue that day.',
+    roles: ['super_admin', 'manager', 'finance_officer'],
+  },
+];
+
 export default function Settings() {
   const { admin, setAdmin } = useAuthStore();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -40,8 +62,11 @@ export default function Settings() {
   const [prefs, setPrefs] = useState<Record<string, boolean> | null>(null);
   const [prefsError, setPrefsError] = useState<string | null>(null);
   const [savingPref, setSavingPref] = useState<string | null>(null);
-  // "New shipment" emails go to these roles (backend: SHIPMENT_OPERATIONS_ROLES in modules/notifications/events.ts).
-  const getsShipmentEmails = (admin?.assignedRoles ?? []).some((r) => ['super_admin', 'manager', 'logistics_officer'].includes(r));
+  // Email preferences that send something, each shown only to the roles that receive it (backend recipients:
+  // shipment_created → SHIPMENT_OPERATIONS_ROLES, registration → CUSTOMER_GROWTH_ROLES in modules/notifications/events.ts,
+  // overdue_alert → roles with the invoices module in middleware/permissions.ts).
+  const myRoles = admin?.assignedRoles ?? [];
+  const emailPrefs = EMAIL_PREFS.filter((p) => myRoles.some((r) => p.roles.includes(r)));
 
   useEffect(() => {
     if (activeTab !== 'notifications') return;
@@ -99,9 +124,10 @@ export default function Settings() {
       setNewPassword('');
       setConfirmPassword('');
       alert('Password changed successfully.');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to update password. Verify current password.');
+      // The server explains a refused password (wrong current password, or the rule: 8–72 characters, not your email).
+      alert(err.response?.data?.message || 'Failed to update password. Verify current password.');
     } finally {
       setChangingPassword(false);
     }
@@ -330,7 +356,7 @@ export default function Settings() {
                       type={showPassword ? 'text' : 'password'}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter new password (min. 8 characters)..."
+                      placeholder="8–72 characters, not your email"
                     />
                     <button
                       type="button"
@@ -445,22 +471,22 @@ export default function Settings() {
                 <div role="alert" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-status-pending-text)' }}>{prefsError}</div>
               ) : prefs === null ? (
                 <div role="status" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>Loading your notification settings…</div>
-              ) : getsShipmentEmails ? (
+              ) : emailPrefs.length > 0 ? (
                 // Only email preferences that currently send something are shown (others are kept for later phases).
-                <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: 16, borderBottom: '1.5px solid var(--color-border)', gap: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
-                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>Email me about new shipments</div>
-                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>
-                      An email each time a customer creates a shipment in the customer portal.
+                emailPrefs.map((p) => (
+                  <label key={p.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: 16, borderBottom: '1.5px solid var(--color-border)', gap: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
+                      <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{p.label}</div>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>{p.description}</div>
                     </div>
-                  </div>
-                  <Switch
-                    checked={prefs.shipment_created ?? true}
-                    disabled={savingPref !== null}
-                    onCheckedChange={() => handleTogglePref('shipment_created')}
-                    aria-label="Email me about new shipments"
-                  />
-                </label>
+                    <Switch
+                      checked={prefs[p.key] ?? true}
+                      disabled={savingPref !== null}
+                      onCheckedChange={() => handleTogglePref(p.key)}
+                      aria-label={p.label}
+                    />
+                  </label>
+                ))
               ) : (
                 <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
                   None of your roles receives optional notification emails yet.
