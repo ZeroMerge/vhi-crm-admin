@@ -7,6 +7,12 @@ interface LoginData {
   selectedRole?: AdminRole;
 }
 
+export interface NotificationPrefsResponse {
+  prefs: Record<string, boolean>;
+  /** Keys that currently send email (the others are saved for later). */
+  emailKeys: string[];
+}
+
 interface LoginResponse {
   token?: string;
   admin?: Admin;
@@ -58,8 +64,16 @@ export const authService = {
     await api.put('/api/auth/admin/profile', data);
   },
 
-  updateNotificationPrefs: async (notificationPrefs: any): Promise<void> => {
-    await api.put('/api/auth/admin/notification-preferences', { notificationPrefs });
+  // Saved email preferences (normalised by the server) and the keys that currently send email.
+  getNotificationPrefs: async (): Promise<NotificationPrefsResponse> => {
+    const res = await api.get<ApiResponse<NotificationPrefsResponse>>('/api/auth/admin/notification-preferences');
+    return res.data.data;
+  },
+
+  // Partial update: only the keys given change; the server merges and returns the saved preferences.
+  updateNotificationPrefs: async (notificationPrefs: Record<string, boolean>): Promise<NotificationPrefsResponse> => {
+    const res = await api.put<ApiResponse<NotificationPrefsResponse>>('/api/auth/admin/notification-preferences', { notificationPrefs });
+    return res.data.data;
   },
 };
 export default authService;
