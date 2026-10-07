@@ -96,8 +96,11 @@ describe('row-level security on the Phase 1–4 tables (migration 027)', dbTest,
     try {
       await client.query('BEGIN');
       await seedOneRowEach(client);
-      // Grant SELECT so the result is decided by RLS, not by a permission error. Everything here is rolled back.
-      for (const table of [...TABLES, 'customers']) await client.query(`GRANT SELECT ON ${table} TO ${PROBE_ROLE}`);
+      // Grant what Supabase's anon/authenticated roles have (USAGE on public, SELECT/INSERT on tables), so the result is decided by
+      // RLS, not by a permission error. The test schema is recreated by the test user, so nobody else has USAGE on it by default.
+      // Everything here is rolled back.
+      await client.query(`GRANT USAGE ON SCHEMA public TO ${PROBE_ROLE}`);
+      for (const table of [...TABLES, 'customers']) await client.query(`GRANT SELECT, INSERT ON ${table} TO ${PROBE_ROLE}`);
       await client.query(`SET LOCAL ROLE ${PROBE_ROLE}`);
       for (const table of TABLES) {
         const { rows } = await client.query(`SELECT count(*)::int AS n FROM ${table}`);
@@ -106,10 +109,11 @@ describe('row-level security on the Phase 1–4 tables (migration 027)', dbTest,
       // Control: a table without RLS (customers) is readable by the same role, so the zeros above come from RLS.
       const control = await client.query('SELECT count(*)::int AS n FROM customers');
       assert.ok(control.rows[0].n >= 1, 'control table readable');
-      // Writes are refused too (no policy allows them).
+      // Writes are refused by RLS (INSERT is granted, so this is not a plain permission error). It's the last statement:
+      // the error aborts the transaction, which is rolled back below.
       await assert.rejects(
         client.query(`INSERT INTO processed_webhooks (id, provider) VALUES ('probe-write', 'x')`),
-        (err: { code?: string }) => err.code === '42501' // insufficient_privilege / RLS violation
+        (err: { code?: string; message?: string }) => err.code === '42501' && /row-level security/i.test(err.message ?? '')
       );
     } finally {
       await client.query('ROLLBACK');
