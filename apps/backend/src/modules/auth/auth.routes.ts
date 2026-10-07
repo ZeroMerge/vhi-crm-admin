@@ -4,7 +4,9 @@ import jwt from 'jsonwebtoken';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { requireActiveAdmin } from '../../middleware/permissions';
-import { logAuditEvent } from '../../utils/audit';
+import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
+import { enqueueEmail } from '../email/outbox';
+import { ADMIN_EMAIL_PREF_KEYS, adminPrefsUpdateSchema, normaliseAdminPrefs } from '../email/preferences';
 
 const router = Router();
 
@@ -231,10 +233,23 @@ router.put('/admin/change-password', adminMiddleware, requireActiveAdmin, async 
     }
 
     const hash = await bcrypt.hash(newPassword, 10);
-    await pool.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hash, adminId]);
-
-    
-    await logAuditEvent(adminId, 'admin', activeRole, 'CHANGE_PASSWORD', 'admin', adminId);
+    // One transaction: new hash, audit row and the "password changed" notice (outbox).
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hash, adminId]);
+      await insertAuditEvent(client, adminId, 'admin', activeRole, 'CHANGE_PASSWORD', 'admin', adminId);
+      const me = result.rows[0];
+      if (me.email) {
+        await enqueueEmail(client, { kind: 'admin.password_changed', to: me.email, adminId, params: { adminName: me.name ?? '' } });
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
 
     res.json({ success: true, message: 'Password updated' });
   } catch (err) {
@@ -261,17 +276,46 @@ router.put('/admin/profile', adminMiddleware, requireActiveAdmin, async (req, re
 });
 
 
-router.put('/admin/notification-preferences', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
+// Saved email preferences, normalised (unreadable values fall back to the defaults the Settings page has always shown).
+// emailKeys = the keys that currently gate an email; the others are stored for later phases.
+router.get('/admin/notification-preferences', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
-    const { notificationPrefs } = req.body;
-    const adminId = req.admin!.id;
-    const activeRole = req.admin!.activeRole;
-
-    await pool.query('UPDATE admins SET notification_prefs = $1 WHERE id = $2', [JSON.stringify(notificationPrefs), adminId]);
-
-    res.json({ success: true, message: 'Notification preferences updated successfully' });
+    const { rows } = await pool.query('SELECT notification_prefs FROM admins WHERE id = $1', [req.admin!.id]);
+    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Admin not found' });
+    res.json({ success: true, data: { prefs: normaliseAdminPrefs(rows[0].notification_prefs), emailKeys: ADMIN_EMAIL_PREF_KEYS } });
   } catch (err) {
     next(err);
+  }
+});
+
+// Body { notificationPrefs: { <known key>: boolean, ... } }. Unknown keys or non-boolean values → 400.
+// Merged into the saved preferences (a partial update never resets the other keys).
+router.put('/admin/notification-preferences', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
+  const parsed = adminPrefsUpdateSchema.safeParse(req.body?.notificationPrefs);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: 'Invalid notification preferences', errors: parsed.error.flatten() });
+  }
+  const client = await pool.connect().catch((err) => {
+    next(err);
+    return null;
+  });
+  if (!client) return;
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query('SELECT notification_prefs FROM admins WHERE id = $1 FOR UPDATE', [req.admin!.id]);
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Admin not found' });
+    }
+    const prefs = { ...normaliseAdminPrefs(rows[0].notification_prefs), ...parsed.data };
+    await client.query('UPDATE admins SET notification_prefs = $1 WHERE id = $2', [JSON.stringify(prefs), req.admin!.id]);
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Notification preferences updated successfully', data: { prefs, emailKeys: ADMIN_EMAIL_PREF_KEYS } });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally {
+    client.release();
   }
 });
 

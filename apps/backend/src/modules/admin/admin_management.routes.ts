@@ -3,7 +3,8 @@ import bcrypt from 'bcryptjs';
 import pool from '../../config/db';
 import { adminMiddleware, requireActiveRole } from '../../middleware/adminMiddleware';
 import { requireActiveAdmin } from '../../middleware/permissions';
-import { logAuditEvent } from '../../utils/audit';
+import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
+import { enqueueEmail } from '../email/outbox';
 
 const router = Router();
 
@@ -87,30 +88,42 @@ router.put('/:id/roles', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Assigned roles array is required' });
     }
 
-    const result = await pool.query(
-      `UPDATE admins
-       SET assigned_roles = $1
-       WHERE id = $2 AND deleted_at IS NULL
-       RETURNING id, name, email, assigned_roles, is_active;`,
-      [assignedRoles, id]
-    );
+    // One transaction: role change, audit row and the "access updated" email (outbox).
+    const client = await pool.connect();
+    let updatedAdmin;
+    try {
+      await client.query('BEGIN');
+      const before = await client.query('SELECT assigned_roles FROM admins WHERE id = $1 AND deleted_at IS NULL FOR UPDATE', [id]);
+      if (before.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, message: 'Admin not found' });
+      }
+      const result = await client.query(
+        `UPDATE admins
+         SET assigned_roles = $1
+         WHERE id = $2 AND deleted_at IS NULL
+         RETURNING id, name, email, assigned_roles, is_active;`,
+        [assignedRoles, id]
+      );
+      updatedAdmin = result.rows[0];
+      await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'UPDATE_ADMIN_ROLES', 'admin', id, { newRoles: assignedRoles });
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Admin not found' });
+      const sameSet = (a: string[], b: string[]) => a.length === b.length && [...a].sort().every((r, i) => r === [...b].sort()[i]);
+      if (updatedAdmin.email && !sameSet(before.rows[0].assigned_roles ?? [], updatedAdmin.assigned_roles ?? [])) {
+        await enqueueEmail(client, {
+          kind: 'admin.roles_changed',
+          to: updatedAdmin.email,
+          adminId: updatedAdmin.id,
+          params: { adminName: updatedAdmin.name ?? '', roles: updatedAdmin.assigned_roles ?? [] },
+        });
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-
-    const updatedAdmin = result.rows[0];
-
-    
-    await logAuditEvent(
-      req.admin!.id,
-      'admin',
-      req.admin!.activeRole,
-      'UPDATE_ADMIN_ROLES',
-      'admin',
-      id,
-      { newRoles: assignedRoles }
-    );
 
     res.json({ success: true, data: updatedAdmin });
   } catch (err) {
@@ -132,30 +145,42 @@ router.put('/:id/status', async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'You cannot deactivate your own account' });
     }
 
-    const result = await pool.query(
-      `UPDATE admins
-       SET is_active = $1
-       WHERE id = $2 AND deleted_at IS NULL
-       RETURNING id, name, email, assigned_roles, is_active;`,
-      [isActive, id]
-    );
+    // One transaction: status change, audit row and (on deactivation only) the email (outbox).
+    const client = await pool.connect();
+    let updatedAdmin;
+    try {
+      await client.query('BEGIN');
+      const before = await client.query('SELECT is_active FROM admins WHERE id = $1 AND deleted_at IS NULL FOR UPDATE', [id]);
+      if (before.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ success: false, message: 'Admin not found' });
+      }
+      const result = await client.query(
+        `UPDATE admins
+         SET is_active = $1
+         WHERE id = $2 AND deleted_at IS NULL
+         RETURNING id, name, email, assigned_roles, is_active;`,
+        [isActive, id]
+      );
+      updatedAdmin = result.rows[0];
+      await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'TOGGLE_ADMIN_STATUS', 'admin', id, { isActive });
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Admin not found' });
+      const wasActive = before.rows[0].is_active !== false;
+      if (wasActive && isActive === false && updatedAdmin.email) {
+        await enqueueEmail(client, {
+          kind: 'admin.deactivated',
+          to: updatedAdmin.email,
+          adminId: updatedAdmin.id,
+          params: { adminName: updatedAdmin.name ?? '' },
+        });
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
-
-    const updatedAdmin = result.rows[0];
-
-    
-    await logAuditEvent(
-      req.admin!.id,
-      'admin',
-      req.admin!.activeRole,
-      'TOGGLE_ADMIN_STATUS',
-      'admin',
-      id,
-      { isActive }
-    );
 
     res.json({ success: true, data: updatedAdmin });
   } catch (err) {
@@ -216,20 +241,28 @@ router.post('/:id/reset-password', async (req, res, next) => {
     const tempPassword = newPassword || (Math.random().toString(36).slice(-10) + 'A@1');
     const passwordHash = await bcrypt.hash(tempPassword, 10);
 
-    await pool.query(
-      'UPDATE admins SET password_hash = $1 WHERE id = $2',
-      [passwordHash, id]
-    );
-
-    
-    await logAuditEvent(
-      req.admin!.id,
-      'admin',
-      req.admin!.activeRole,
-      'RESET_ADMIN_PASSWORD',
-      'admin',
-      id
-    );
+    // One transaction: new hash, audit row and the notice email (outbox). The email never contains the password.
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const updated = await client.query('UPDATE admins SET password_hash = $1 WHERE id = $2 RETURNING id, name, email', [passwordHash, id]);
+      await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'RESET_ADMIN_PASSWORD', 'admin', id);
+      const target = updated.rows[0];
+      if (target?.email) {
+        await enqueueEmail(client, {
+          kind: 'admin.password_reset_by_admin',
+          to: target.email,
+          adminId: target.id,
+          params: { adminName: target.name ?? '' },
+        });
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
 
     res.json({ 
       success: true, 

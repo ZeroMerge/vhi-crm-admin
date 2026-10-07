@@ -13,6 +13,7 @@ import { adminTrackingRoutes } from '../src/modules/tracking/tracking.routes';
 import clientTrackingRoutes from '../src/modules/client/client.tracking.routes';
 import communicationsRoutes from '../src/modules/communications/communications.routes';
 import clientCommunicationsRoutes from '../src/modules/client/client.communications.routes';
+import { initEmail } from '../src/modules/email';
 
 // Resend calls go through global fetch: count them and never hit the network. Other fetches pass through.
 const realFetch = globalThis.fetch;
@@ -357,25 +358,30 @@ describe('notification events', dbTest, () => {
       assert.equal(rs[0].module, null);
     });
 
-    test('email is sent only after COMMIT; a forced rollback sends nothing', async () => {
+    // Phase 3: message emails go through the outbox in the same transaction (no direct provider call from routes).
+    test('message emails are queued in the same transaction; a forced rollback leaves no email row', async () => {
       process.env.SUPPORT_EMAIL = 'support@test.local';
+      initEmail(); // re-read env (config is cached)
       try {
         const c = await insertCustomer();
         assert.equal((await clientSend(c, 'committed')).status, 201);
         await settle();
-        assert.equal(resendCalls, 1, 'support email after a committed client message');
+        const queued = (await pool.query(`SELECT kind, to_address, status FROM email_deliveries ORDER BY id`)).rows;
+        assert.deepEqual(queued, [{ kind: 'support.message', to_address: 'support@test.local', status: 'queued' }]);
+        assert.equal(resendCalls, 0, 'routes never call the provider directly');
 
-        resendCalls = 0;
+        await pool.query('DELETE FROM email_deliveries');
         const failedClient = await withCommitFailure(() => clientSend(c, 'rolled back'));
         const failedAdmin = await withCommitFailure(() => adminSend(c, 'rolled back'));
         await settle();
         assert.equal(failedClient.status, 500);
         assert.equal(failedAdmin.status, 500);
-        assert.equal(resendCalls, 0, 'no email attempted for rolled-back messages');
+        assert.equal((await pool.query('SELECT COUNT(*)::int AS n FROM email_deliveries')).rows[0].n, 0, 'no email row for rolled-back messages');
         const kept = (await pool.query(`SELECT COUNT(*)::int AS n FROM communications WHERE body = 'rolled back'`)).rows[0].n;
         assert.equal(kept, 0, 'messages rolled back');
       } finally {
         delete process.env.SUPPORT_EMAIL;
+        initEmail();
       }
     });
   });

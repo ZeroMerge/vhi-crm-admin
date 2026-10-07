@@ -35,7 +35,7 @@ export type NotificationEvent =
       isReopen: boolean;
     })
   | (Base & { type: 'shipment.tracking_assigned'; shipment: ShipmentRef; awbNumber: string | null; bolNumber: string | null })
-  | (Base & { type: 'message.received'; customerId: string; direction: 'to_admins' | 'to_customer'; text: string });
+  | (Base & { type: 'message.received'; customerId: string; direction: 'to_admins' | 'to_customer'; text: string; subject?: string });
 
 export type NotificationType = NotificationEvent['type'];
 type EventOf<T extends NotificationType> = Extract<NotificationEvent, { type: T }>;

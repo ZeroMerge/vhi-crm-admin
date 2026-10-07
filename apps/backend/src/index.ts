@@ -23,9 +23,23 @@ import { customerMiddleware } from './middleware/customerMiddleware';
 import clientCommunicationsRoutes from './modules/client/client.communications.routes';
 import realtimeRoutes from './modules/realtime/realtime.routes';
 import { adminNotificationsRoutes, clientNotificationsRoutes } from './modules/notifications/notifications.routes';
-import { startRealtime, stopRealtime } from './modules/notifications/realtime';
+import { getRealtime, startRealtime, stopRealtime } from './modules/notifications/realtime';
+import emailRoutes from './modules/email/email.routes';
+import clientPreferencesRoutes from './modules/client/client.preferences.routes';
+import { initEmail, startEmailWorker, stopEmailWorker } from './modules/email';
 
 dotenv.config();
+
+// Email configuration is checked here, at startup, never at import time (RISKS R-01). In production a missing
+// RESEND_API_KEY (with the resend provider), EMAIL_LINK_SECRET, API_PUBLIC_URL, CLIENT_FRONTEND_URL or
+// ADMIN_FRONTEND_URL stops the server with a clear message instead of sending broken or no email.
+try {
+  const emailConfig = initEmail();
+  for (const warning of emailConfig.warnings) console.warn(`[email] WARNING: ${warning}`);
+} catch (err) {
+  console.error(`[email] ${(err as Error).message}`);
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -92,6 +106,8 @@ app.use('/api/client/communications', clientCommunicationsRoutes);
 app.use('/api/realtime', realtimeRoutes);
 app.use('/api/admin/notifications', adminNotificationsRoutes);
 app.use('/api/client/notifications', clientNotificationsRoutes);
+app.use('/api/client/notification-preferences', clientPreferencesRoutes);
+app.use('/api/email', emailRoutes);
 
 
 app.get('/api/health', (_req, res) => {
@@ -105,6 +121,8 @@ const server = app.listen(PORT, () => {
   console.log(`VHI CRM Server running on port ${PORT}`);
   // Realtime push (SSE). If LISTEN cannot connect it keeps retrying; REST is unaffected and clients poll.
   startRealtime().catch((err) => console.error('[realtime] failed to start', err));
+  // Email outbox worker: woken by NOTIFY on the realtime bus's LISTEN connection, plus a 30s poll.
+  startEmailWorker((channel, handler) => getRealtime().bus.listenTo(channel, () => handler()));
 });
 
 // Graceful shutdown: end every SSE stream (clients reconnect to the next instance), stop LISTEN, stop accepting requests.
@@ -115,7 +133,9 @@ const shutdown = (signal: string) => {
   console.log(`[${signal}] shutting down`);
   const force = setTimeout(() => process.exit(1), 10_000);
   force.unref();
-  stopRealtime()
+  stopEmailWorker()
+    .catch((err) => console.error('[email] worker failed to stop cleanly', err))
+    .then(() => stopRealtime())
     .catch((err) => console.error('[realtime] failed to stop cleanly', err))
     .finally(() => server.close(() => process.exit(0)));
 };

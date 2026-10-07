@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { z } from 'zod';
 import pool from '../../config/db';
-import { sendEmail } from '../../utils/sendEmail';
+import { enqueueEmail } from '../email/outbox';
 
 const router = Router();
 
@@ -35,33 +35,39 @@ router.post('/register', async (req, res, next) => {
 
     const isDev = process.env.NODE_ENV !== 'production';
 
-    const insertResult = await pool.query(
-      `INSERT INTO customers (user_id, firstname, lastname, email, phone, industry, password_hash, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, user_id, firstname, lastname, email`,
-      [userId, firstname, lastname, email, phone || null, industry || null, passwordHash, isDev]
-    );
-
-    const customer = insertResult.rows[0];
-
-    if (!isDev) {
-      const rawToken = crypto.randomBytes(32).toString('hex');
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-      await pool.query(
-        'INSERT INTO email_verification_tokens (customer_id, token, expires_at) VALUES ($1, $2, $3)',
-        [customer.id, rawToken, expiresAt]
+    // One transaction: the account, its verification token and the verification email (outbox) exist together or not at all.
+    const client = await pool.connect();
+    let customer;
+    try {
+      await client.query('BEGIN');
+      const insertResult = await client.query(
+        `INSERT INTO customers (user_id, firstname, lastname, email, phone, industry, password_hash, is_active)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING id, user_id, firstname, lastname, email`,
+        [userId, firstname, lastname, email, phone || null, industry || null, passwordHash, isDev]
       );
+      customer = insertResult.rows[0];
 
-      const verifyUrl = `${process.env.CLIENT_FRONTEND_URL || 'http://localhost:5173'}/verify-email?token=${rawToken}`;
-
-      await sendEmail(
-        email,
-        'Verify your VHI account',
-        `<p>Hi ${firstname},</p>
-         <p>Click the link below to verify your email address. This link expires in 24 hours.</p>
-         <p><a href="${verifyUrl}">${verifyUrl}</a></p>`
-      );
+      if (!isDev) {
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        await client.query(
+          'INSERT INTO email_verification_tokens (customer_id, token, expires_at) VALUES ($1, $2, $3)',
+          [customer.id, rawToken, expiresAt]
+        );
+        await enqueueEmail(client, {
+          kind: 'customer.verify_email',
+          to: email,
+          customerId: customer.id,
+          params: { firstname, token: rawToken },
+        });
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
     }
 
     res.status(201).json({
@@ -184,20 +190,30 @@ router.post('/forgot-password', async (req, res, next) => {
         const rawToken = crypto.randomBytes(32).toString('hex');
         const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
 
-        await pool.query(
-          'INSERT INTO email_verification_tokens (customer_id, token, expires_at, type) VALUES ($1, $2, $3, $4)',
-          [customer.id, rawToken, expiresAt, 'password_reset']
-        );
-
-        const resetUrl = `${process.env.CLIENT_FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${rawToken}`;
-
-        await sendEmail(
-          email,
-          'Reset your password',
-          `<p>Hi ${customer.firstname},</p>
-           <p>Click the link below to reset your password. This link expires in 1 hour.</p>
-           <p><a href="${resetUrl}">${resetUrl}</a></p>`
-        );
+        const client = await pool.connect();
+        try {
+          await client.query('BEGIN');
+          // Only the newest reset link works: older unused reset tokens for this customer are invalidated.
+          await client.query(`DELETE FROM email_verification_tokens WHERE customer_id = $1 AND type = 'password_reset'`, [customer.id]);
+          await client.query(
+            'INSERT INTO email_verification_tokens (customer_id, token, expires_at, type) VALUES ($1, $2, $3, $4)',
+            [customer.id, rawToken, expiresAt, 'password_reset']
+          );
+          // Repeated requests while an email is still queued update that email (newest token) instead of adding more.
+          await enqueueEmail(client, {
+            kind: 'customer.password_reset',
+            to: email,
+            customerId: customer.id,
+            groupKey: `pwreset:${customer.id}`,
+            params: { firstname: customer.firstname ?? '', token: rawToken },
+          });
+          await client.query('COMMIT');
+        } catch (err) {
+          await client.query('ROLLBACK');
+          throw err;
+        } finally {
+          client.release();
+        }
       }
     }
 
@@ -236,8 +252,30 @@ router.post('/reset-password', async (req, res, next) => {
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    await pool.query('UPDATE customers SET password_hash = $1, updated_at = NOW() WHERE id = $2', [passwordHash, record.customer_id]);
-    await pool.query('DELETE FROM email_verification_tokens WHERE id = $1', [record.id]);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const updated = await client.query(
+        'UPDATE customers SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING id, email, firstname',
+        [passwordHash, record.customer_id]
+      );
+      await client.query('DELETE FROM email_verification_tokens WHERE id = $1', [record.id]);
+      const changed = updated.rows[0];
+      if (changed?.email) {
+        await enqueueEmail(client, {
+          kind: 'customer.password_changed',
+          to: changed.email,
+          customerId: changed.id,
+          params: { firstname: changed.firstname ?? '' },
+        });
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
 
     res.json({ success: true, message: 'Password reset successfully. You can now log in.' });
   } catch (err) {

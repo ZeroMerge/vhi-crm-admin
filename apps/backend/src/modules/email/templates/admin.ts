@@ -121,7 +121,7 @@ export function supportMessage(p: SupportMessageParams, ctx: TemplateContext): E
     preheader: Array.from(oneLine(p.body)).slice(0, 120).join(''),
     blocks: [
       { kind: 'p', text: many ? `${who} sent ${p.count} messages in the customer portal. The latest:` : `${who} sent a message in the customer portal:` },
-      { kind: 'details', rows: [['Subject', oneLine(p.subject)]] },
+      ...(oneLine(p.subject) ? [{ kind: 'details' as const, rows: [['Subject', oneLine(p.subject)]] as Array<[string, string]> }] : []),
       { kind: 'quote', text: p.body },
       { kind: 'button', label: 'View and reply in the admin portal', url: ctx.links.adminCommunications(p.customerId) },
     ],

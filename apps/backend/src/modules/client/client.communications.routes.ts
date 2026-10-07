@@ -2,7 +2,6 @@ import { Router } from 'express';
 import { z } from 'zod';
 import pool from '../../config/db';
 import { customerMiddleware } from '../../middleware/customerMiddleware';
-import { sendEmail } from '../../utils/sendEmail';
 import { emit } from '../notifications/notification.service';
 import { publishRealtime } from '../notifications/realtime';
 
@@ -97,7 +96,7 @@ router.post('/send', customerMiddleware, async (req, res, next) => {
     message = result.rows[0];
 
     await emit(
-      { type: 'message.received', actor: { type: 'customer', id: customerId }, sourceId: message.id, customerId, direction: 'to_admins', text: body },
+      { type: 'message.received', actor: { type: 'customer', id: customerId }, sourceId: message.id, customerId, direction: 'to_admins', text: body, subject },
       client
     );
     await client.query('COMMIT');
@@ -108,23 +107,7 @@ router.post('/send', customerMiddleware, async (req, res, next) => {
     client.release();
   }
 
-  // Email only after the message is committed (never from inside the transaction).
-  const supportEmail = process.env.SUPPORT_EMAIL || process.env.SMTP_USER;
-  if (supportEmail) {
-    const emailHtml = `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-        <h2>New Message from Customer</h2>
-        <p><strong>Customer:</strong> ${customer.firstname} ${customer.lastname} (${customer.email})</p>
-        <p>You have received a new message in the CRM communications channel.</p>
-        <blockquote style="border-left: 4px solid #eee; padding-left: 10px; margin-left: 0;">
-          ${body.replace(/\n/g, '<br>')}
-        </blockquote>
-        <p><a href="${process.env.ADMIN_FRONTEND_URL}/admin/communications?selected=${customerId}" style="display: inline-block; padding: 10px 20px; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px;">View and Reply in Admin Portal</a></p>
-      </div>
-    `;
-    sendEmail(supportEmail, `New Message from ${customer.firstname} ${customer.lastname}`, emailHtml).catch(console.error);
-  }
-
+  // The support-inbox email was enqueued by emit() in the same transaction (email outbox, Phase 3).
   res.status(201).json({ success: true, data: message });
 });
 

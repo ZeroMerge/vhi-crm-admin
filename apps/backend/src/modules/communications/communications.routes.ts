@@ -6,7 +6,6 @@ import { CROSS_READS, moduleGuard, roleHasModule, requireActiveAdmin } from '../
 import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
 import { emit } from '../notifications/notification.service';
 import { publishRealtime } from '../notifications/realtime';
-import { sendEmail } from '../../utils/sendEmail';
 
 const router = Router();
 
@@ -133,7 +132,7 @@ router.post('/send', adminMiddleware, async (req, res, next) => {
 
     await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'SEND_COMMUNICATION', 'communication', comm.id, { customerId, subject });
     await emit(
-      { type: 'message.received', actor: { type: 'admin', id: req.admin!.id }, sourceId: comm.id, customerId, direction: 'to_customer', text: body },
+      { type: 'message.received', actor: { type: 'admin', id: req.admin!.id }, sourceId: comm.id, customerId, direction: 'to_customer', text: body, subject },
       client
     );
     await client.query('COMMIT');
@@ -144,20 +143,7 @@ router.post('/send', adminMiddleware, async (req, res, next) => {
     client.release();
   }
 
-  // Email only after the message is committed (never from inside the transaction).
-  const emailHtml = `
-      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; color: #333;">
-        <h2>New Message from VHI</h2>
-        <p>Hello ${customer.firstname},</p>
-        <p>You have received a new message from our support team.</p>
-        <blockquote style="border-left: 4px solid #eee; padding-left: 10px; margin-left: 0;">
-          ${body.replace(/\n/g, '<br>')}
-        </blockquote>
-        <p><a href="${process.env.CLIENT_FRONTEND_URL}/messages" style="display: inline-block; padding: 10px 20px; background: #007bff; color: #fff; text-decoration: none; border-radius: 5px;">View and Reply in Portal</a></p>
-      </div>
-    `;
-  sendEmail(customer.email, subject || 'New Message from VHI Support', emailHtml).catch(console.error);
-
+  // The customer email was enqueued by emit() in the same transaction (email outbox, Phase 3).
   res.status(201).json({ success: true, data: comm });
 });
 

@@ -117,12 +117,12 @@ export interface CustomerMessageParams { firstname: string; count: number; subje
 export function customerMessage(p: CustomerMessageParams, ctx: TemplateContext): EmailDoc {
   const many = p.count > 1;
   return {
-    subject: many ? `${p.count} new messages from VHI` : `New message from VHI: ${oneLine(p.subject)}`,
+    subject: many ? `${p.count} new messages from VHI` : oneLine(p.subject) ? `New message from VHI: ${oneLine(p.subject)}` : 'New message from VHI',
     preheader: Array.from(oneLine(p.body)).slice(0, 120).join(''),
     greeting: greeting(p.firstname),
     blocks: [
       { kind: 'p', text: many ? `You have ${p.count} new messages from VHI Support. The latest:` : 'You have a new message from VHI Support:' },
-      { kind: 'details', rows: [['Subject', oneLine(p.subject)]] },
+      ...(oneLine(p.subject) ? [{ kind: 'details' as const, rows: [['Subject', oneLine(p.subject)]] as Array<[string, string]> }] : []),
       { kind: 'quote', text: p.body },
       { kind: 'button', label: 'Read and reply', url: ctx.links.clientMail() },
     ],

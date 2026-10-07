@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg';
 import { rolesWithModule } from '../../middleware/permissions';
 import { CATALOG, CatalogEntry, NotificationEvent, NotificationType, RenderContext } from './events';
 import { publishRealtime, RealtimeEvent } from './realtime';
+import { enqueueEventEmails, InsertedNotification } from '../email/notificationEmails';
 
 // Recipient roles for an admin-audience entry: the entry's narrower `roles`, else everyone who can see its module.
 export function recipientRoles(entry: Pick<CatalogEntry<NotificationType>, 'module' | 'roles'>): string[] {
@@ -16,7 +17,8 @@ interface Recipient {
 
 /**
  * Writes the notifications for one event using the CALLER'S transaction client, so they only exist if the
- * caller commits. Must be called inside BEGIN/COMMIT. Returns the number of rows inserted.
+ * caller commits. Must be called inside BEGIN/COMMIT. Also enqueues the event's emails (Phase 3) on the same
+ * transaction. Returns the number of in-app rows inserted.
  */
 export async function emit(event: NotificationEvent, client: PoolClient): Promise<number> {
   const entry = CATALOG[event.type] as CatalogEntry<NotificationType>;
@@ -24,13 +26,26 @@ export async function emit(event: NotificationEvent, client: PoolClient): Promis
   if (entry.shouldNotify && !entry.shouldNotify(e)) return 0;
 
   const customerId = entry.customerId(e);
+  const customerRow = await client.query('SELECT id, firstname, lastname, email, user_id FROM customers WHERE id = $1', [customerId]);
+  if (customerRow.rows.length === 0) return 0;
+  const c = customerRow.rows[0];
+
+  const inserted = await insertInApp(event, entry, { firstname: c.firstname ?? '', lastname: c.lastname ?? '' }, client);
+  await enqueueEventEmails(event, c, inserted, client);
+  return inserted.length;
+}
+
+async function insertInApp(
+  event: NotificationEvent,
+  entry: CatalogEntry<NotificationType>,
+  customer: RenderContext['customer'],
+  client: PoolClient
+): Promise<InsertedNotification[]> {
+  const e = event as never;
+  const customerId = entry.customerId(e);
   const entity = entry.entity(e);
   const audience = entry.audience(e);
   const actorId = event.actor.id;
-
-  const customerRow = await client.query('SELECT firstname, lastname FROM customers WHERE id = $1', [customerId]);
-  if (customerRow.rows.length === 0) return 0;
-  const customer = { firstname: customerRow.rows[0].firstname ?? '', lastname: customerRow.rows[0].lastname ?? '' };
 
   let recipients: Recipient[];
   if (audience === 'customer') {
@@ -46,7 +61,7 @@ export async function emit(event: NotificationEvent, client: PoolClient): Promis
     );
     recipients = rows.map((r) => ({ adminId: r.id, customerId: null }));
   }
-  if (recipients.length === 0) return 0;
+  if (recipients.length === 0) return [];
 
   // Dedupe before grouping: a recipient who already has a row for this source event gets nothing new
   // (otherwise grouping would delete it and re-insert it with a higher count). ON CONFLICT still guards races.
@@ -59,7 +74,7 @@ export async function emit(event: NotificationEvent, client: PoolClient): Promis
   );
   const done = new Set(existing.rows.map((r) => r.recipient_id));
   recipients = recipients.filter((r) => !done.has(r.adminId ?? r.customerId));
-  if (recipients.length === 0) return 0;
+  if (recipients.length === 0) return [];
 
   // Grouping (message.received): replace each recipient's UNREAD notification for the same entity with a new row
   // (new id → top of the feed) carrying an incremented count. Read rows are never touched.
@@ -138,5 +153,5 @@ export async function emit(event: NotificationEvent, client: PoolClient): Promis
   }
   await publishRealtime(events, client);
 
-  return result.rowCount ?? 0;
+  return result.rows.map((row) => ({ id: String(row.id), admin_id: row.admin_id, customer_id: row.customer_id }));
 }

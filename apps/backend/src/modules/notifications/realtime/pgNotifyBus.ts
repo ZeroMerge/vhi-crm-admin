@@ -59,6 +59,8 @@ export interface PgNotifyBusOptions {
 
 export class PgNotifyBus implements RealtimeBus {
   private handlers = new Set<RealtimeHandler>();
+  // Extra channels LISTENed on the same connection (e.g. the email worker's wake-ups), re-applied on every reconnect.
+  private channelHandlers = new Map<string, Set<(payload: string) => void>>();
   private client: Client | null = null;
   private listening = false;
   private stopped = true;
@@ -85,6 +87,27 @@ export class PgNotifyBus implements RealtimeBus {
     this.handlers.add(handler);
     return () => {
       this.handlers.delete(handler);
+    };
+  }
+
+  /**
+   * LISTENs to another channel on this bus's connection. Delivery is best effort (nothing while disconnected),
+   * so listeners must also poll. Returns an unsubscribe function (the LISTEN itself stays until reconnect/stop).
+   */
+  listenTo(channel: string, handler: (payload: string) => void): () => void {
+    if (!/^[a-z_][a-z0-9_]{0,62}$/.test(channel) || channel === NOTIFY_CHANNEL) throw new Error(`invalid LISTEN channel: ${channel}`);
+    let set = this.channelHandlers.get(channel);
+    if (!set) {
+      set = new Set();
+      this.channelHandlers.set(channel, set);
+      const client = this.client;
+      if (client && this.listening) {
+        client.query(`LISTEN ${channel}`).catch((err) => this.log.error(`[realtime] LISTEN ${channel} failed`, err));
+      }
+    }
+    set.add(handler);
+    return () => {
+      set!.delete(handler);
     };
   }
 
@@ -142,7 +165,17 @@ export class PgNotifyBus implements RealtimeBus {
     client.on('error', onDown);
     client.on('end', () => onDown('connection ended'));
     client.on('notification', (msg) => {
-      if (msg.channel !== NOTIFY_CHANNEL || !msg.payload) return;
+      if (msg.channel !== NOTIFY_CHANNEL) {
+        for (const handler of this.channelHandlers.get(msg.channel) ?? []) {
+          try {
+            handler(msg.payload ?? '');
+          } catch (err) {
+            this.log.error(`[realtime] ${msg.channel} handler failed`, err);
+          }
+        }
+        return;
+      }
+      if (!msg.payload) return;
       let events: RealtimeEvent[];
       try {
         events = JSON.parse(msg.payload);
@@ -161,6 +194,7 @@ export class PgNotifyBus implements RealtimeBus {
     try {
       await client.connect();
       await client.query(`LISTEN ${NOTIFY_CHANNEL}`);
+      for (const channel of this.channelHandlers.keys()) await client.query(`LISTEN ${channel}`);
       if (this.client !== client || this.stopped) return;
       this.listening = true;
       this.attempt = 0;
