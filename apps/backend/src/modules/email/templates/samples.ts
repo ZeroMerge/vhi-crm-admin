@@ -12,6 +12,19 @@ export interface Sample<K extends EmailKind = EmailKind> {
 }
 const sample = <K extends EmailKind>(s: Sample<K>) => s as unknown as Sample;
 
+// A conversation thread for grouped samples: one message per minute from 14:00 UTC on 6 Oct 2026.
+const at = (minute: number) => new Date(Date.UTC(2026, 9, 6, 14, minute)).toISOString();
+const msg = (minute: number, subject: string, body: string) => ({ sentAt: at(minute), subject, body });
+const customer = { customerName: 'Ada Obi', customerEmail: 'ada@example.com', userId: 'VHI-3F9A21C0', customerId: '0b7c1f9e-0000-4000-8000-000000000001' };
+
+// Capped group: 14 messages arrived and storage keeps the newest 10 (updates 5–14). Updates 8 and 11 are ~5,400 characters each,
+// so the 10,000-character cap stops before update 8: updates 9–14 are shown and "+8 earlier messages" is said.
+const longText = (n: number) => `Long update ${n}: ${'Customs paperwork details. '.repeat(200).trim()}`;
+export const CAPPED_MESSAGES = Array.from({ length: 10 }, (_, i) => {
+  const n = 5 + i;
+  return msg(4 + i, `Update ${n}`, n === 8 || n === 11 ? longText(n) : `Short update ${n}.`);
+});
+
 const multiLine = 'Hello Ada,\n\nYour pickup is booked for Friday between 9am and 12pm.\nPlease have the commercial invoice ready.\n\nThanks,\nVHI Support';
 
 export const SAMPLES: Sample[] = [
@@ -33,19 +46,55 @@ export const SAMPLES: Sample[] = [
   sample({ id: 'c5-reopened', kind: 'customer.shipment_status', note: 'Cancelled → pending (reopen)', params: { firstname: 'Ada', orderId: 'VHI-AF-104233', to: 'pending' } }),
   sample({ id: 'c6-tracking-both', kind: 'customer.tracking_assigned', note: 'AWB and BOL', params: { firstname: 'Ada', orderId: 'VHI-SF-200871', awbNumber: '176-12345675', bolNumber: 'MSCU1234567890123-LONG-REFERENCE' } }),
   sample({ id: 'c6-tracking-awb', kind: 'customer.tracking_assigned', note: 'AWB only', params: { firstname: 'Ada', orderId: 'VHI-AF-104233', awbNumber: '176-12345675' } }),
-  sample({ id: 'c7-message', kind: 'customer.message', note: 'One message, full text', params: { firstname: 'Ada', count: 1, subject: 'Pickup booked', body: multiLine } }),
-  sample({ id: 'c7-message-grouped', kind: 'customer.message', note: '3 messages within the batch window (latest shown in full)', params: { firstname: 'Ada', count: 3, subject: 'Re: documents', body: 'We have received the documents, thank you.' } }),
+  sample({ id: 'c7-message', kind: 'customer.message', note: 'One message, full text', params: { firstname: 'Ada', count: 1, hasPortal: true, messages: [msg(0, 'Pickup booked', multiLine)] } }),
+  sample({
+    id: 'c7-message-grouped-3',
+    kind: 'customer.message',
+    note: '3 messages in the batch window: all shown, oldest first, with times',
+    params: {
+      firstname: 'Ada',
+      count: 3,
+      hasPortal: true,
+      messages: [
+        msg(0, 'Documents needed', 'Please send the commercial invoice and packing list.'),
+        msg(1, 'Re: Documents needed', 'Also the export permit, if you have it.'),
+        msg(2, 'Re: Documents needed', 'We have received the documents, thank you.\nYour shipment is now being processed.'),
+      ],
+    },
+  }),
+  sample({
+    id: 'c7-message-capped',
+    kind: 'customer.message',
+    note: 'CAP: 14 messages, 10 stored; the newest that fit 10,000 characters are shown, plus a "+N earlier" line',
+    params: { firstname: 'Ada', count: 14, hasPortal: true, messages: CAPPED_MESSAGES },
+  }),
+  sample({
+    id: 'c7-message-lead',
+    kind: 'customer.message',
+    note: 'CRM lead (no portal account): no "View conversation" button',
+    params: { firstname: 'Ada', count: 1, hasPortal: false, messages: [msg(0, 'Your quote', 'Thanks for your enquiry. Reply to this email and we will prepare a quote.')] },
+  }),
   sample({
     id: 's1-support',
     kind: 'support.message',
     note: 'To SUPPORT_EMAIL inbox',
-    params: { customerName: 'Ada Obi', customerEmail: 'ada@example.com', userId: 'VHI-3F9A21C0', customerId: '0b7c1f9e-0000-4000-8000-000000000001', count: 1, subject: 'Question about my invoice', body: 'Hi, could you tell me when the invoice for VHI-AF-104233 will be ready?\nThanks' },
+    params: { ...customer, count: 1, messages: [msg(0, 'Question about my invoice', 'Hi, could you tell me when the invoice for VHI-AF-104233 will be ready?\nThanks')] },
   }),
   sample({
-    id: 's1-support-grouped',
+    id: 's1-support-grouped-3',
     kind: 'support.message',
-    note: '3 messages grouped',
-    params: { customerName: 'Ada Obi', customerEmail: 'ada@example.com', userId: 'VHI-3F9A21C0', customerId: '0b7c1f9e-0000-4000-8000-000000000001', count: 3, subject: 'Re: invoice', body: 'Never mind, found it.' },
+    note: '3 messages grouped: all shown, oldest first',
+    params: {
+      ...customer,
+      count: 3,
+      messages: [msg(0, 'Invoice', 'When will the invoice be ready?'), msg(1, 'Re: Invoice', 'It is for VHI-AF-104233.'), msg(2, 'Re: Invoice', 'Never mind, found it.')],
+    },
+  }),
+  sample({
+    id: 's1-support-capped',
+    kind: 'support.message',
+    note: 'CAP for the support inbox ("Open the conversation in the admin portal")',
+    params: { ...customer, count: 14, messages: CAPPED_MESSAGES },
   }),
   sample({
     id: 'a1-shipment-created',
@@ -62,7 +111,12 @@ export const SAMPLES: Sample[] = [
     id: 'x1-message-payload',
     kind: 'customer.message',
     note: 'ESCAPING: markup in name, subject and body; CR/LF in subject',
-    params: { firstname: XSS, count: 1, subject: 'Hello\r\nBcc: victim@example.com\r\nX-Injected: 1', body: `${XSS}\n<a href="javascript:alert(3)">click</a>` },
+    params: {
+      firstname: XSS,
+      count: 1,
+      hasPortal: true,
+      messages: [msg(0, 'Hello\r\nBcc: victim@example.com\r\nX-Injected: 1', `${XSS}\n<a href="javascript:alert(3)">click</a>`)],
+    },
   }),
   sample({
     id: 'x2-reason-payload',
@@ -73,7 +127,14 @@ export const SAMPLES: Sample[] = [
   sample({
     id: 'x3-support-payload',
     kind: 'support.message',
-    note: 'ESCAPING: markup in customer name, email and body; 150-char subject cap',
-    params: { customerName: `${XSS} ${'Very Long Name '.repeat(12)}`, customerEmail: '"onmouseover=alert(5)"@example.com', userId: '<b>VHI</b>', customerId: '../../etc/passwd?x=1#y', count: 1, subject: XSS, body: XSS },
+    note: 'ESCAPING: markup in customer name, email, subjects, bodies and a broken sent time; 150-char subject cap',
+    params: {
+      customerName: `${XSS} ${'Very Long Name '.repeat(12)}`,
+      customerEmail: '"onmouseover=alert(5)"@example.com',
+      userId: '<b>VHI</b>',
+      customerId: '../../etc/passwd?x=1#y',
+      count: 2,
+      messages: [msg(0, XSS, XSS), { sentAt: '"><img src=x onerror=alert(6)>', subject: XSS, body: XSS }],
+    },
   }),
 ];

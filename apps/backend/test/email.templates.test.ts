@@ -1,7 +1,8 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { EMAIL_TEMPLATES, EmailKind, renderTemplate, templateContext } from '../src/modules/email/templates';
-import { SAMPLES, XSS } from '../src/modules/email/templates/samples';
+import { SAMPLES, XSS, CAPPED_MESSAGES } from '../src/modules/email/templates/samples';
+import { formatSentAt, selectMessages, MESSAGE_GROUP_MAX } from '../src/modules/email/templates/messages';
 import { cleanSubject, escapeHtml, html, maskEmail, rawHtml, SUBJECT_MAX } from '../src/modules/email/templates/html';
 import { buildUrl, normaliseBase } from '../src/modules/email/templates/urls';
 import { unsubscribeConfirmPage, unsubscribeInvalidPage } from '../src/modules/email/templates/pages';
@@ -109,14 +110,14 @@ describe('email templates', () => {
 
   test('message emails keep the FULL message, line by line (HTML <br>, text "> " quote)', () => {
     const email = renderSample('c7-message');
-    const body = (sampleById('c7-message').params as { body: string }).body;
+    const body = (sampleById('c7-message').params as { messages: Array<{ body: string }> }).messages[0].body;
     for (const line of body.split('\n').filter(Boolean)) {
       assert.ok(email.html.includes(escapeHtml(line)), `html missing ${line}`);
       assert.ok(email.text.includes(`> ${line}`), `text missing ${line}`);
     }
     assert.ok(email.html.includes('<br>Your pickup is booked'), 'line breaks kept');
     const long = 'word '.repeat(2000).trim();
-    const big = render('customer.message', { firstname: 'Ada', count: 1, subject: 's', body: long });
+    const big = render('customer.message', { firstname: 'Ada', count: 1, hasPortal: true, messages: [{ sentAt: '2026-10-06T14:00:00.000Z', subject: 's', body: long }] });
     assert.ok(big.text.includes(long), 'no truncation');
   });
 
@@ -157,6 +158,55 @@ describe('email templates', () => {
     assert.ok(!renderSample('c3-password-changed-no-support').text.includes('replying'));
     const a4 = renderSample('a4-reset-by-admin');
     assert.ok(a4.text.includes('temporary password') && !/password:\s*\S/i.test(a4.text));
+  });
+
+  test('grouped messages: every message shown, oldest first, each with its sent time (customer and support inbox)', () => {
+    for (const id of ['c7-message-grouped-3', 's1-support-grouped-3']) {
+      const email = renderSample(id);
+      const msgs = (sampleById(id).params as { messages: Array<{ body: string; sentAt: string }> }).messages;
+      let last = -1;
+      for (const m of msgs) {
+        const firstLine = m.body.split(String.fromCharCode(10))[0];
+        const at = email.text.indexOf(`> ${firstLine}`);
+        assert.ok(at > last, `${id}: "${firstLine}" present and after the previous message`);
+        last = at;
+        assert.ok(email.text.includes(`Sent ${formatSentAt(m.sentAt)}`), `${id}: sent time shown`);
+        assert.ok(email.html.includes(escapeHtml(firstLine)));
+      }
+      assert.ok(!email.text.includes('earlier message'), 'no cap note for a small group');
+    }
+    assert.equal(renderSample('c7-message-grouped-3').subject, '3 new messages from VHI');
+    assert.equal(formatSentAt('2026-10-06T14:05:00.000Z'), '6 Oct 2026, 14:05 UTC');
+    assert.equal(formatSentAt('not a date'), '');
+  });
+
+  test('grouped messages: the cap keeps the newest that fit 10 messages / 10,000 characters and says how many earlier ones are left out', () => {
+    const { shown, earlier } = selectMessages(CAPPED_MESSAGES, 14);
+    assert.deepEqual(shown.map((m) => m.subject), ['Update 9', 'Update 10', 'Update 11', 'Update 12', 'Update 13', 'Update 14']);
+    assert.equal(earlier, 8);
+    assert.ok(shown.reduce((n, m) => n + m.body.length, 0) <= 10_000);
+    const tiny = Array.from({ length: 12 }, (_, i) => ({ sentAt: '2026-10-06T14:00:00.000Z', subject: `s${i}`, body: `b${i}` }));
+    const capped = selectMessages(tiny, 12);
+    assert.equal(capped.shown.length, MESSAGE_GROUP_MAX);
+    assert.equal(capped.shown[0].subject, 's2', 'newest 10, oldest first');
+    assert.equal(capped.earlier, 2);
+    const huge = [{ sentAt: '2026-10-06T14:00:00.000Z', subject: 'x', body: 'y'.repeat(10_000) }];
+    assert.equal(selectMessages(huge, 1).shown.length, 1, 'the newest message is always shown');
+
+    const customer = renderSample('c7-message-capped');
+    assert.ok(customer.text.includes('+8 earlier messages. Reply to this email or contact support to see them.'));
+    assert.equal(customer.subject, '14 new messages from VHI');
+    assert.ok(!customer.text.includes('> Short update 7.') && customer.text.includes('> Short update 14.'));
+    assert.ok(customer.text.indexOf('Update 9') < customer.text.indexOf('Update 14'), 'oldest shown first');
+    const support = renderSample('s1-support-capped');
+    assert.ok(support.text.includes('+8 earlier messages. Open the conversation in the admin portal to see them.'));
+  });
+
+  test('"View conversation" only for customers with a portal account; leads get no portal button', () => {
+    const active = renderSample('c7-message-grouped-3');
+    assert.ok(active.text.includes('View conversation: https://client.example.test/dashboard/mail'));
+    const lead = renderSample('c7-message-lead');
+    assert.ok(!lead.text.includes('View conversation') && !hrefs(lead.html).some((u) => u.includes('/dashboard/')));
   });
 
   test('unsubscribe pages: GET confirmation is a POST form with no auto-submit; invalid page leaks nothing', () => {

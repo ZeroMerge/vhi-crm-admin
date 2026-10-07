@@ -4,6 +4,8 @@ import { cleanSubject, html, rawHtml, SafeHtml } from './html';
 
 export type Block =
   | { kind: 'p'; text: string }
+  /** Small muted line (e.g. a message's sent time and subject). */
+  | { kind: 'meta'; text: string }
   /** User-written text (messages, reasons). Line breaks are kept. */
   | { kind: 'quote'; text: string }
   | { kind: 'details'; rows: Array<[label: string, value: string]> }
@@ -43,6 +45,8 @@ function blockHtml(block: Block): SafeHtml {
   switch (block.kind) {
     case 'p':
       return html`<p style="margin:0 0 16px;font-size:15px;line-height:1.55;color:${TEXT};">${block.text}</p>`;
+    case 'meta':
+      return html`<p style="margin:0 0 6px;font-size:13px;line-height:1.4;color:${MUTED};">${block.text}</p>`;
     case 'quote': {
       const body = lines(block.text).map((line, i) => (i === 0 ? html`${line}` : html`<br>${line}`));
       return html`<div style="margin:0 0 20px;padding:12px 16px;border-left:3px solid ${BRAND};background:#FAF7FB;font-size:15px;line-height:1.55;color:${TEXT};word-break:break-word;">${body}</div>`;
@@ -80,6 +84,7 @@ function footerHtml(footer: Footer): SafeHtml {
 function blockText(block: Block): string {
   switch (block.kind) {
     case 'p':
+    case 'meta':
       return block.text;
     case 'quote':
       return lines(block.text)

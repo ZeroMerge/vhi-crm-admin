@@ -1,5 +1,6 @@
 // Staff-facing emails (individual admins and the support inbox). Copy approved in docs/PLAN-P3-EMAIL.md §4.
 import { oneLine } from './html';
+import { formatSentAt, MessageEntry, selectMessages } from './messages';
 import type { EmailDoc } from './layout';
 import type { TemplateContext } from './context';
 
@@ -107,22 +108,38 @@ export interface SupportMessageParams {
   customerEmail: string;
   userId: string;
   customerId: string;
+  /** Messages in this email, oldest first (the group keeps the newest MESSAGE_GROUP_MAX). */
+  messages: MessageEntry[];
+  /** Total messages in the group (may exceed messages.length). */
   count: number;
-  subject: string;
-  body: string;
 }
+
+/** One meta line + quote per message, oldest first. */
+function messageBlocks(shown: MessageEntry[]): EmailDoc['blocks'] {
+  return shown.flatMap((m) => {
+    const subject = oneLine(m.subject);
+    const when = formatSentAt(m.sentAt);
+    const meta = [when && `Sent ${when}`, subject && `Subject: ${subject}`].filter(Boolean).join(' · ');
+    return [...(meta ? [{ kind: 'meta' as const, text: meta }] : []), { kind: 'quote' as const, text: m.body }];
+  });
+}
+
 /** To the shared support inbox (SUPPORT_EMAIL, else SMTP_USER), as today. */
 export function supportMessage(p: SupportMessageParams, ctx: TemplateContext): EmailDoc {
   const name = oneLine(p.customerName) || 'A customer';
-  const many = p.count > 1;
+  const total = Math.max(p.count, p.messages.length);
+  const { shown, earlier } = selectMessages(p.messages, total);
+  const many = total > 1;
   const who = `${name} (${oneLine(p.customerEmail)}, ${oneLine(p.userId)})`;
   return {
-    subject: many ? `${p.count} new messages from ${name}` : `New message from ${name}`,
-    preheader: Array.from(oneLine(p.body)).slice(0, 120).join(''),
+    subject: many ? `${total} new messages from ${name}` : `New message from ${name}`,
+    preheader: Array.from(oneLine(shown[shown.length - 1]?.body ?? '')).slice(0, 120).join(''),
     blocks: [
-      { kind: 'p', text: many ? `${who} sent ${p.count} messages in the customer portal. The latest:` : `${who} sent a message in the customer portal:` },
-      ...(oneLine(p.subject) ? [{ kind: 'details' as const, rows: [['Subject', oneLine(p.subject)]] as Array<[string, string]> }] : []),
-      { kind: 'quote', text: p.body },
+      { kind: 'p', text: many ? `${who} sent ${total} messages in the customer portal:` : `${who} sent a message in the customer portal:` },
+      ...(earlier > 0
+        ? [{ kind: 'p' as const, text: `+${earlier} earlier message${earlier === 1 ? '' : 's'}. Open the conversation in the admin portal to see ${earlier === 1 ? 'it' : 'them'}.` }]
+        : []),
+      ...messageBlocks(shown),
       { kind: 'button', label: 'View and reply in the admin portal', url: ctx.links.adminCommunications(p.customerId) },
     ],
     footer: { kind: 'staff' },

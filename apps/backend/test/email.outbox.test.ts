@@ -127,7 +127,7 @@ describe('email outbox and worker', dbTest, () => {
   test('retryable failures back off 1m, 5m, 30m, 2h, 6h, then the row fails; retries render identically with the same key', async () => {
     const customer = await insertCustomer({ isActive: true });
     await inTx((c) =>
-      enqueueEmail(c, { kind: 'customer.message', to: customer.email, customerId: customer.id, params: { firstname: 'Ada', count: 1, subject: 'S', body: 'Full body\nline 2' } })
+      enqueueEmail(c, { kind: 'customer.message', to: customer.email, customerId: customer.id, params: { firstname: 'Ada', count: 1, hasPortal: true, messages: [{ sentAt: '2026-10-06T14:00:00.000Z', subject: 'S', body: 'Full body\nline 2' }] } })
     );
     const provider = new FakeProvider();
     for (let i = 0; i < MAX_ATTEMPTS; i++) {
@@ -144,12 +144,12 @@ describe('email outbox and worker', dbTest, () => {
         assert.equal(row.status, 'queued', `attempt ${attempt}`);
         const delay = new Date(row.next_attempt_at).getTime() - before;
         assert.ok(Math.abs(delay - RETRY_DELAYS_MS[attempt - 1]) < 5000, `attempt ${attempt}: next try in ~${RETRY_DELAYS_MS[attempt - 1]}ms (got ${delay})`);
-        assert.equal(row.params.body, 'Full body\nline 2', 'body kept while the row is still pending');
+        assert.equal(row.params.messages[0].body, 'Full body\nline 2', 'message kept while the row is still pending');
         await makeDue();
       } else {
         assert.equal(row.status, 'failed');
         assert.match(row.last_error, /gave up after 6 attempts/);
-        assert.ok(!('body' in row.params), 'body wiped when failed');
+        assert.ok(!('messages' in row.params), 'messages wiped when failed');
       }
     }
     assert.equal(provider.sent.length, MAX_ATTEMPTS);
@@ -209,7 +209,7 @@ describe('email outbox and worker', dbTest, () => {
       await enqueueEmail(c, { kind: 'customer.shipment_created', to: active.email, customerId: active.id, params: { firstname: 'A', orderId: 'O1', status: 'pending' } });
       await enqueueEmail(c, { kind: 'customer.shipment_created', to: lead.email, customerId: lead.id, params: { firstname: 'L', orderId: 'O2', status: 'pending' } });
       await enqueueEmail(c, { kind: 'customer.password_changed', to: lead.email, customerId: lead.id, params: { firstname: 'L' } });
-      await enqueueEmail(c, { kind: 'customer.message', to: lead.email, customerId: lead.id, params: { firstname: 'L', count: 1, subject: 'Hi', body: 'Body for a lead' } });
+      await enqueueEmail(c, { kind: 'customer.message', to: lead.email, customerId: lead.id, params: { firstname: 'L', count: 1, hasPortal: false, messages: [{ sentAt: '2026-10-06T14:00:00.000Z', subject: 'Hi', body: 'Body for a lead' }] } });
       await enqueueEmail(c, { kind: 'customer.verify_email', to: active.email, customerId: active.id, params: { firstname: 'A', token: 't' } });
     });
     // The customer opts out AFTER the email was queued.
@@ -228,7 +228,7 @@ describe('email outbox and worker', dbTest, () => {
       ]
     );
     assert.equal(provider.sent.length, 1);
-    assert.ok(rows.every((r) => !('body' in r.params) && !('token' in r.params)), 'body/token wiped on cancelled and sent rows');
+    assert.ok(rows.every((r) => !('messages' in r.params) && !('token' in r.params)), 'messages/token wiped on cancelled and sent rows');
   });
 
   test('deleted recipient → cancelled; admin operational email respects deactivation and the shipment_created preference', async () => {
@@ -256,19 +256,18 @@ describe('email outbox and worker', dbTest, () => {
     );
   });
 
-  test('grouping: 3 messages in the window → one row with count 3 and the latest body; once claimed, the next message starts a new row', async () => {
+  const messageInput = (customer: { id: string; email: string }, n: number) => ({
+    kind: 'customer.message' as const,
+    to: customer.email,
+    customerId: customer.id,
+    groupKey: `msg:to_customer:${customer.id}`,
+    delayMs: 120_000,
+    params: { firstname: 'Ada', count: 1, hasPortal: true, messages: [{ sentAt: new Date(Date.UTC(2026, 9, 6, 14, n)).toISOString(), subject: `S${n}`, body: `body ${n}` }] },
+  });
+
+  test('grouping: 3 messages in the window → ONE email containing all 3 in order; once claimed, the next message starts a new row', async () => {
     const customer = await insertCustomer({ isActive: true });
-    const send = (n: number) =>
-      inTx((c) =>
-        enqueueEmail(c, {
-          kind: 'customer.message',
-          to: customer.email,
-          customerId: customer.id,
-          groupKey: `msg:to_customer:${customer.id}`,
-          delayMs: 120_000,
-          params: { firstname: 'Ada', count: 1, subject: `S${n}`, body: `body ${n}` },
-        })
-      );
+    const send = (n: number) => inTx((c) => enqueueEmail(c, messageInput(customer, n)));
     const first = await send(1);
     const second = await send(2);
     const third = await send(3);
@@ -278,8 +277,7 @@ describe('email outbox and worker', dbTest, () => {
     let rows = await rowsOf();
     assert.equal(rows.length, 1);
     assert.equal(rows[0].params.count, 3);
-    assert.equal(rows[0].params.body, 'body 3');
-    assert.equal(rows[0].params.subject, 'S3');
+    assert.deepEqual(rows[0].params.messages.map((m: { body: string }) => m.body), ['body 1', 'body 2', 'body 3'], 'appended, oldest first');
     const window = new Date(rows[0].send_after).getTime() - Date.now();
     assert.ok(window > 100_000, 'send_after kept at the first message + 120s');
 
@@ -289,13 +287,78 @@ describe('email outbox and worker', dbTest, () => {
     await makeDue();
     await worker(provider).drain();
     assert.equal(provider.sent.length, 1);
-    assert.equal(provider.sent[0].subject, '3 new messages from VHI');
-    assert.match(provider.sent[0].text, /> body 3/);
+    const email = provider.sent[0];
+    assert.equal(email.subject, '3 new messages from VHI');
+    const positions = ['> body 1', '> body 2', '> body 3'].map((line) => email.text.indexOf(line));
+    assert.ok(positions.every((p) => p >= 0), 'all three messages in the email');
+    assert.ok(positions[0] < positions[1] && positions[1] < positions[2], 'oldest first');
+    for (const n of [1, 2, 3]) assert.ok(email.text.includes(`Sent 6 Oct 2026, 14:0${n} UTC · Subject: S${n}`), `sent time of message ${n}`);
+    assert.ok(!('messages' in (await rowsOf())[0].params), 'messages wiped after sending');
+
     const after = await send(4);
     assert.notEqual(after.id, first.id, 'a new row after the grouped email was sent');
     rows = await rowsOf();
     assert.equal(rows.length, 2);
     assert.equal(rows[1].params.count, 1);
+    assert.deepEqual(rows[1].params.messages.map((m: { body: string }) => m.body), ['body 4']);
+  });
+
+  test('grouping keeps only the newest 10 stored messages but counts all of them', async () => {
+    const customer = await insertCustomer({ isActive: true });
+    for (let n = 1; n <= 14; n++) await inTx((c) => enqueueEmail(c, messageInput(customer, n)));
+    const [row] = await rowsOf();
+    assert.equal(row.params.count, 14);
+    assert.deepEqual(row.params.messages.map((m: { body: string }) => m.body), Array.from({ length: 10 }, (_, i) => `body ${i + 5}`));
+    await makeDue();
+    const provider = new FakeProvider();
+    await worker(provider).drain();
+    assert.ok(provider.sent[0].text.includes('+4 earlier messages. Reply to this email or contact support to see them.'));
+  });
+
+  test('two messages arriving at the same moment are both appended (no lost update)', async () => {
+    const customer = await insertCustomer({ isActive: true });
+    await inTx((c) => enqueueEmail(c, messageInput(customer, 1)));
+    // Two transactions enqueue concurrently; the second blocks on the row lock and must still append, not overwrite.
+    const a = await pool.connect();
+    const b = await pool.connect();
+    try {
+      await a.query('BEGIN');
+      await b.query('BEGIN');
+      await enqueueEmail(a, messageInput(customer, 2));
+      const pending = enqueueEmail(b, messageInput(customer, 3)); // waits for a's row lock
+      await new Promise((r) => setTimeout(r, 150));
+      await a.query('COMMIT');
+      await pending;
+      await b.query('COMMIT');
+    } finally {
+      a.release();
+      b.release();
+    }
+    // And a burst of parallel transactions.
+    await Promise.all([4, 5, 6, 7].map((n) => inTx((c) => enqueueEmail(c, messageInput(customer, n)))));
+    const rows = await rowsOf();
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].params.count, 7);
+    const bodies = rows[0].params.messages.map((m: { body: string }) => m.body);
+    assert.deepEqual([...bodies].sort(), ['body 1', 'body 2', 'body 3', 'body 4', 'body 5', 'body 6', 'body 7']);
+    assert.deepEqual(bodies.slice(0, 3), ['body 1', 'body 2', 'body 3'], 'commit order kept');
+  });
+
+  test('message texts are wiped after sent, failed and cancelled', async () => {
+    const sentTo = await insertCustomer({ isActive: true });
+    const failTo = await insertCustomer({ isActive: true });
+    const cancelTo = await insertCustomer({ isActive: true });
+    for (const c of [sentTo, failTo, cancelTo]) await inTx((tx) => enqueueEmail(tx, { ...messageInput(c, 1), delayMs: 0 }));
+    await pool.query('DELETE FROM customers WHERE id = $1', [cancelTo.id]);
+    const provider = new FakeProvider();
+    provider.script.push(() => {}); // first claimed row: sent
+    provider.script.push(() => {
+      throw new EmailSendError('permanent', 'rejected');
+    });
+    await worker(provider, { concurrency: 1 }).drain();
+    const rows = await rowsOf();
+    assert.deepEqual(rows.map((r) => r.status), ['sent', 'failed', 'cancelled']);
+    for (const r of rows) assert.ok(!('messages' in r.params) && !('body' in r.params), `${r.status}: message text wiped`);
   });
 
   test('preference emails carry RFC 8058 List-Unsubscribe headers; service emails do not', async () => {

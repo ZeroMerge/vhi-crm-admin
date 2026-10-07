@@ -26,7 +26,7 @@ export async function emit(event: NotificationEvent, client: PoolClient): Promis
   if (entry.shouldNotify && !entry.shouldNotify(e)) return 0;
 
   const customerId = entry.customerId(e);
-  const customerRow = await client.query('SELECT id, firstname, lastname, email, user_id FROM customers WHERE id = $1', [customerId]);
+  const customerRow = await client.query('SELECT id, firstname, lastname, email, user_id, is_active FROM customers WHERE id = $1', [customerId]);
   if (customerRow.rows.length === 0) return 0;
   const c = customerRow.rows[0];
 

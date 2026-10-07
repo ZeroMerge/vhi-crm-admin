@@ -1,6 +1,7 @@
 // Customer-facing emails. Copy approved in docs/PLAN-P3-EMAIL.md §4. Never include internal data (correction reasons, notes, staff names).
 import { customerStatusLabel } from '../../notifications/events';
 import { oneLine } from './html';
+import { formatSentAt, MessageEntry, selectMessages } from './messages';
 import type { EmailDoc } from './layout';
 import type { TemplateContext } from './context';
 
@@ -113,18 +114,43 @@ export function trackingAssigned(p: TrackingAssignedParams, ctx: TemplateContext
   };
 }
 
-export interface CustomerMessageParams { firstname: string; count: number; subject: string; body: string }
+export interface CustomerMessageParams {
+  firstname: string;
+  /** Messages in this email, oldest first (the group keeps the newest MESSAGE_GROUP_MAX). */
+  messages: MessageEntry[];
+  /** Total messages in the group (may exceed messages.length). */
+  count: number;
+  /** Active customers can open the portal; CRM leads (no account) get no portal button. Frozen at enqueue. */
+  hasPortal: boolean;
+}
+
+/** One meta line + quote per message, oldest first. */
+function messageBlocks(shown: MessageEntry[]): EmailDoc['blocks'] {
+  return shown.flatMap((m) => {
+    const subject = oneLine(m.subject);
+    const when = formatSentAt(m.sentAt);
+    const meta = [when && `Sent ${when}`, subject && `Subject: ${subject}`].filter(Boolean).join(' · ');
+    return [...(meta ? [{ kind: 'meta' as const, text: meta }] : []), { kind: 'quote' as const, text: m.body }];
+  });
+}
+
 export function customerMessage(p: CustomerMessageParams, ctx: TemplateContext): EmailDoc {
-  const many = p.count > 1;
+  const total = Math.max(p.count, p.messages.length);
+  const { shown, earlier } = selectMessages(p.messages, total);
+  const many = total > 1;
+  const single = shown[shown.length - 1];
+  const intro = many ? `You have ${total} new messages from VHI Support:` : 'You have a new message from VHI Support:';
   return {
-    subject: many ? `${p.count} new messages from VHI` : oneLine(p.subject) ? `New message from VHI: ${oneLine(p.subject)}` : 'New message from VHI',
-    preheader: Array.from(oneLine(p.body)).slice(0, 120).join(''),
+    subject: many ? `${total} new messages from VHI` : oneLine(single?.subject ?? '') ? `New message from VHI: ${oneLine(single.subject)}` : 'New message from VHI',
+    preheader: Array.from(oneLine(single?.body ?? '')).slice(0, 120).join(''),
     greeting: greeting(p.firstname),
     blocks: [
-      { kind: 'p', text: many ? `You have ${p.count} new messages from VHI Support. The latest:` : 'You have a new message from VHI Support:' },
-      ...(oneLine(p.subject) ? [{ kind: 'details' as const, rows: [['Subject', oneLine(p.subject)]] as Array<[string, string]> }] : []),
-      { kind: 'quote', text: p.body },
-      { kind: 'button', label: 'Read and reply', url: ctx.links.clientMail() },
+      { kind: 'p', text: intro },
+      ...(earlier > 0
+        ? [{ kind: 'p' as const, text: `+${earlier} earlier message${earlier === 1 ? '' : 's'}. Reply to this email or contact support to see ${earlier === 1 ? 'it' : 'them'}.` }]
+        : []),
+      ...messageBlocks(shown),
+      ...(p.hasPortal ? [{ kind: 'button' as const, label: 'View conversation', url: ctx.links.clientMail() }] : []),
     ],
     footer: { kind: 'service' },
   };

@@ -163,15 +163,19 @@ describe('email wiring: events, routes, preferences, unsubscribe', dbTest, () =>
         await emitTx(msg('to_customer', 'Hello lead'));
         const rows = await emails();
         assert.deepEqual(
-          rows.map((r) => [r.kind, r.to_address, r.group_key, r.params.count, r.params.body]),
+          rows.map((r) => [r.kind, r.to_address, r.group_key, r.params.count, r.params.messages.map((m: { body: string }) => m.body), r.params.hasPortal]),
           [
-            ['support.message', 'support@vhi.test', `msg:to_admins:${lead.id}`, 2, 'second'],
-            ['customer.message', lead.email, `msg:to_customer:${lead.id}`, 1, 'Hello lead'],
+            ['support.message', 'support@vhi.test', `msg:to_admins:${lead.id}`, 2, ['first', 'second'], undefined],
+            ['customer.message', lead.email, `msg:to_customer:${lead.id}`, 1, ['Hello lead'], false],
           ]
         );
         const sent = await sendAll();
         assert.equal(sent.length, 2, 'the lead receives the message email');
-        assert.ok(sent.find((e) => e.to === 'support@vhi.test')!.subject.startsWith('2 new messages from'));
+        const support = sent.find((e) => e.to === 'support@vhi.test')!;
+        assert.ok(support.subject.startsWith('2 new messages from'));
+        assert.ok(support.text.indexOf('> first') >= 0 && support.text.indexOf('> first') < support.text.indexOf('> second'), 'both messages, oldest first');
+        const toLead = sent.find((e) => e.to === lead.email)!;
+        assert.ok(!toLead.text.includes('View conversation'), 'no portal button for a lead');
       } finally {
         delete process.env.SUPPORT_EMAIL;
         initEmail();
@@ -258,7 +262,8 @@ describe('email wiring: events, routes, preferences, unsubscribe', dbTest, () =>
         assert.ok(toCustomer.html.includes('Line two &lt;b&gt;not bold&lt;/b&gt;'), 'escaped in HTML');
         assert.ok(toCustomer.html.includes('https://client.test/dashboard/mail'), 'R-25: real client mail route');
         assert.ok(toSupport.html.includes(`https://admin.test/admin/communications?selected=${c.id}`));
-        assert.ok((await emails()).every((r) => !('body' in r.params)), 'bodies wiped after sending');
+        assert.ok(toCustomer.text.includes('View conversation: https://client.test/dashboard/mail'), 'active customer gets the portal button');
+        assert.ok((await emails()).every((r) => !('messages' in r.params)), 'message texts wiped after sending');
       } finally {
         delete process.env.SUPPORT_EMAIL;
         initEmail();

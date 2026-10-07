@@ -17,6 +17,7 @@ export interface EventCustomer {
   lastname: string;
   email: string;
   user_id: string;
+  is_active: boolean | null;
 }
 
 /** Customer-visible status changes that email. `processing` stays in-app only; corrections never reach here (shouldNotify). */
@@ -103,7 +104,8 @@ export async function enqueueEventEmails(
 
     case 'message.received': {
       const cfg = emailConfig();
-      const subject = event.subject ?? '';
+      // Each grouped email lists every message (oldest first); the upsert appends this entry to a queued email for the thread.
+      const message = { sentAt: new Date().toISOString(), subject: event.subject ?? '', body: event.text };
       if (event.direction === 'to_customer') {
         // Service email: no preference; also reaches inactive customers (CRM leads), as before Phase 3.
         await enqueueEmail(client, {
@@ -113,7 +115,7 @@ export async function enqueueEventEmails(
           notificationId: forCustomer?.id ?? null,
           groupKey: `msg:to_customer:${customer.id}`,
           delayMs: cfg.messageBatchMs,
-          params: { firstname: customer.firstname ?? '', count: 1, subject, body: event.text },
+          params: { firstname: customer.firstname ?? '', count: 1, messages: [message], hasPortal: customer.is_active === true },
         });
         return 1;
       }
@@ -130,8 +132,7 @@ export async function enqueueEventEmails(
           userId: customer.user_id ?? '',
           customerId: customer.id,
           count: 1,
-          subject,
-          body: event.text,
+          messages: [message],
         },
       });
       return 1;
