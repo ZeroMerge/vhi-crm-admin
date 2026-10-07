@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import type { RealtimeBus, RealtimeEvent, RecipientType } from './types';
+import { isThreadEvent, NotificationRealtimeEvent, RealtimeBus, RealtimeEvent, RecipientType, ThreadRealtimeEvent } from './types';
 
 export interface SseHubConfig {
   heartbeatMs: number;
@@ -232,14 +232,55 @@ export class SseHub {
     }
   }
 
+  /**
+   * Communications events (ids only). A customer audience goes to that customer's streams; a module audience goes to every
+   * connected admin whose current access (re-checked now, 30s cache) includes the module. Inactive/deleted admins, or ones whose
+   * token role was removed, are ended with `reauth` instead, as for notifications.
+   */
+  private async handleThreadEvents(events: ThreadRealtimeEvent[]) {
+    const access = new Map<string, Awaited<ReturnType<SseHubDeps['adminVisibility']>>>();
+    const accessOf = async (adminId: string) => {
+      if (!access.has(adminId)) access.set(adminId, await this.deps.adminVisibility(adminId));
+      return access.get(adminId)!;
+    };
+    for (const e of events) {
+      const data =
+        e.kind === 'message_created'
+          ? { customerId: e.customerId, messageId: e.messageId, senderType: e.senderType }
+          : { customerId: e.customerId, side: e.side };
+      if ('recipientId' in e.audience) {
+        for (const c of this.connectionsFor('customer', e.audience.recipientId)) this.send(c, e.kind, data);
+        continue;
+      }
+      const module = e.audience.module;
+      const adminIds = [...this.byRecipient.values()]
+        .flatMap((set) => [...set])
+        .filter((c) => c.recipientType === 'admin')
+        .map((c) => c.recipientId);
+      for (const adminId of [...new Set(adminIds)]) {
+        const a = await accessOf(adminId);
+        const conns = this.connectionsFor('admin', adminId);
+        for (const c of conns) {
+          if (!a || (c.activeRole !== null && !a.assignedRoles.includes(c.activeRole))) this.endWith(c, 'reauth');
+        }
+        if (!a || (a.modules !== null && !a.modules.includes(module))) continue;
+        for (const c of this.connectionsFor('admin', adminId)) this.send(c, e.kind, data);
+      }
+    }
+  }
+
   private connectionsFor(type: RecipientType, id: string): Connection[] {
     return [...(this.byRecipient.get(keyOf(type, id)) ?? [])];
   }
 
-  async handleEvents(events: RealtimeEvent[]) {
+  async handleEvents(all: RealtimeEvent[]) {
+    const threadEvents = all.filter(isThreadEvent);
+    const events = all.filter((e): e is NotificationRealtimeEvent => !isThreadEvent(e));
+    if (threadEvents.length > 0) await this.handleThreadEvents(threadEvents);
+
     const created = new Map<string, { type: RecipientType; id: string; ids: string[] }>();
     // Sent after this batch's new rows, so a list never briefly loses a grouped message before its replacement lands.
-    const replaced: RealtimeEvent[] = [];
+    const replaced: NotificationRealtimeEvent[] = [];
 
     for (const e of events) {
       const conns = this.connectionsFor(e.recipientType, e.recipientId);

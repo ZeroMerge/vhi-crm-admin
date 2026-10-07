@@ -1,5 +1,5 @@
 import { Client, PoolClient } from 'pg';
-import type { RealtimeBus, RealtimeEvent, RealtimeHandler } from './types';
+import { isThreadEvent, NotificationRealtimeEvent, RealtimeBus, RealtimeEvent, RealtimeHandler } from './types';
 
 export const NOTIFY_CHANNEL = 'vhi_notifications';
 // Postgres caps a NOTIFY payload at 8000 bytes; stay well under it.
@@ -9,6 +9,12 @@ const bytes = (value: unknown) => Buffer.byteLength(JSON.stringify(value), 'utf8
 
 // Halves an event's id lists until each piece fits on its own.
 function splitEvent(event: RealtimeEvent, maxBytes: number): RealtimeEvent[] {
+  // Thread events are a few fixed-size ids: they always fit.
+  if (isThreadEvent(event) || bytes([event]) <= maxBytes) return [event];
+  return splitNotificationEvent(event, maxBytes);
+}
+
+function splitNotificationEvent(event: NotificationRealtimeEvent, maxBytes: number): NotificationRealtimeEvent[] {
   if (bytes([event]) <= maxBytes) return [event];
   const ids = event.notificationIds;
   const replaced = event.replacedIds ?? [];
@@ -18,9 +24,9 @@ function splitEvent(event: RealtimeEvent, maxBytes: number): RealtimeEvent[] {
   const half = (list: string[]) => [list.slice(0, Math.ceil(list.length / 2)), list.slice(Math.ceil(list.length / 2))];
   const [idsA, idsB] = half(ids);
   const [repA, repB] = half(replaced);
-  const a: RealtimeEvent = { ...event, notificationIds: idsA, ...(event.replacedIds ? { replacedIds: repA } : {}) };
-  const b: RealtimeEvent = { ...event, notificationIds: idsB, ...(event.replacedIds ? { replacedIds: repB } : {}) };
-  return [...splitEvent(a, maxBytes), ...splitEvent(b, maxBytes)].filter(
+  const a: NotificationRealtimeEvent = { ...event, notificationIds: idsA, ...(event.replacedIds ? { replacedIds: repA } : {}) };
+  const b: NotificationRealtimeEvent = { ...event, notificationIds: idsB, ...(event.replacedIds ? { replacedIds: repB } : {}) };
+  return [...splitNotificationEvent(a, maxBytes), ...splitNotificationEvent(b, maxBytes)].filter(
     (e) => e.notificationIds.length > 0 || (e.replacedIds?.length ?? 0) > 0
   );
 }

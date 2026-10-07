@@ -4,6 +4,7 @@ import pool from '../../config/db';
 import { customerMiddleware } from '../../middleware/customerMiddleware';
 import { emit } from '../notifications/notification.service';
 import { publishRealtime } from '../notifications/realtime';
+import { markThreadRead, marksOnGet, messageCreatedEvents, parseIdsParam, readBodySchema } from '../communications/threadRealtime';
 
 const router = Router();
 const messageSchema = z.object({
@@ -11,8 +12,24 @@ const messageSchema = z.object({
   body: z.string().trim().min(1).max(10000),
 });
 
+const THREAD_COLUMNS = `*, sender_type AS "senderType", (sender_type = 'customer') AS "sentByCustomer"`;
+
 router.get('/', customerMiddleware, async (req, res, next) => {
   const customerId = req.customer!.id;
+  const idsParam = parseIdsParam(req.query.ids);
+  if (!idsParam.ok) return res.status(400).json({ success: false, message: idsParam.message });
+  // ?ids= (Phase 5): only the caller's own messages among those ids; others are silently left out. Never marks anything.
+  // ?markRead=false: the whole thread, read-only. New UIs send one of these; the default below is the legacy mark-on-GET.
+  if (idsParam.ids || !marksOnGet(req.query.markRead)) {
+    try {
+      const result = idsParam.ids
+        ? await pool.query(`SELECT ${THREAD_COLUMNS} FROM communications WHERE customer_id = $1 AND id = ANY($2::uuid[]) ORDER BY created_at ASC, id`, [customerId, idsParam.ids])
+        : await pool.query(`SELECT ${THREAD_COLUMNS} FROM communications WHERE customer_id = $1 ORDER BY created_at ASC`, [customerId]);
+      return res.json({ success: true, data: result.rows });
+    } catch (err) {
+      return next(err);
+    }
+  }
   let client;
   try {
     client = await pool.connect();
@@ -23,7 +40,7 @@ router.get('/', customerMiddleware, async (req, res, next) => {
        FROM communications WHERE customer_id = $1 ORDER BY created_at ASC`,
       [customerId]
     );
-    // Opening Mail reads the thread: mark admin messages and their in-app notifications read together.
+    // Legacy (kept for one release, RISKS R-68): opening Mail reads the thread: mark admin messages and their in-app notifications read together.
     await client.query('BEGIN');
     await client.query(
       `UPDATE communications SET read_by_customer = true
@@ -45,6 +62,30 @@ router.get('/', customerMiddleware, async (req, res, next) => {
     }
     await client.query('COMMIT');
     res.json({ success: true, data: result.rows });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
+  }
+});
+
+// Phase 5: marks exactly the admin messages the customer has seen (the ids rendered), never by cursor or time.
+router.post('/read', customerMiddleware, async (req, res, next) => {
+  const parsed = readBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: 'Validation failed', errors: parsed.error.flatten().fieldErrors });
+  }
+  const customerId = req.customer!.id;
+  let client;
+  try {
+    client = await pool.connect();
+  } catch (err) { return next(err); }
+  try {
+    await client.query('BEGIN');
+    const result = await markThreadRead(client, { customerId, readerSide: 'customer', readerId: customerId, messageIds: parsed.data.messageIds });
+    await client.query('COMMIT');
+    res.json({ success: true, data: { updated: result.updated } });
   } catch (err) {
     await client.query('ROLLBACK');
     next(err);
@@ -99,6 +140,8 @@ router.post('/send', customerMiddleware, async (req, res, next) => {
       { type: 'message.received', actor: { type: 'customer', id: customerId }, sourceId: message.id, customerId, direction: 'to_admins', text: body, subject },
       client
     );
+    // Live chat (Phase 5): ids only, delivered on COMMIT to the customer's other tabs and to communications admins.
+    await publishRealtime(messageCreatedEvents(customerId, message.id, 'customer'), client);
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');

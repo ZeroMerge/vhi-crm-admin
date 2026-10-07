@@ -5,7 +5,7 @@ import { dbTest, resetDatabase } from './helpers/db';
 import { sleep } from './helpers/sse';
 import pool from '../src/config/db';
 import { chunkEvents, looksLikeTransactionPooler, MAX_PAYLOAD_BYTES, PgNotifyBus } from '../src/modules/notifications/realtime/pgNotifyBus';
-import type { RealtimeEvent } from '../src/modules/notifications/realtime/types';
+import type { NotificationRealtimeEvent as RealtimeEvent } from '../src/modules/notifications/realtime/types';
 
 const ev = (n: number, recipientId = 'r1'): RealtimeEvent => ({
   kind: 'created',
@@ -61,8 +61,8 @@ describe('PgNotifyBus on the test database', dbTest, () => {
     await resetDatabase();
     busA = new PgNotifyBus({ connectionString: url, minBackoffMs: 50, maxBackoffMs: 200, log: quiet });
     busB = new PgNotifyBus({ connectionString: url, minBackoffMs: 50, maxBackoffMs: 200, log: quiet });
-    busA.subscribe((events) => receivedA.push(...events));
-    busB.subscribe((events) => receivedB.push(...events));
+    busA.subscribe((events) => receivedA.push(...(events as RealtimeEvent[])));
+    busB.subscribe((events) => receivedB.push(...(events as RealtimeEvent[])));
     await busA.start();
     await busB.start();
   });

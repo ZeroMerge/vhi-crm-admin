@@ -24,6 +24,8 @@ const SUPPORT_STAFF_WRITES: Array<[string, RegExp]> = [
   ['PUT', /^\/api\/auth\/admin\/(change-password|profile|notification-preferences)$/],
   ['POST', /^\/api\/admin\/customers$/],
   ['PUT', /^\/api\/admin\/customers\/[^/]+$/],
+  // Phase 5: marking a thread read (support staff's thread view marked read via GET before; read state only).
+  ['POST', /^\/api\/admin\/communications\/[^/]+\/read$/],
 ];
 
 export function supportStaffMayWrite(method: string, fullPath: string): boolean {

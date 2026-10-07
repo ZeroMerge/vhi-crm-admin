@@ -6,6 +6,7 @@ import { CROSS_READS, moduleGuard, roleHasModule, requireActiveAdmin } from '../
 import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
 import { emit } from '../notifications/notification.service';
 import { publishRealtime } from '../notifications/realtime';
+import { markThreadRead, marksOnGet, messageCreatedEvents, parseIdsParam, readBodySchema } from './threadRealtime';
 
 const router = Router();
 
@@ -59,14 +60,24 @@ router.get('/:customerId', adminMiddleware, async (req, res, next) => {
     if (!uuidSchema.safeParse(req.params.customerId).success || !(await customerExists(req.params.customerId))) {
       return res.status(404).json({ success: false, message: 'Customer not found' });
     }
-    const result = await pool.query(
-      `SELECT *, sender_type AS "senderType", (sender_type = 'customer') AS "sentByCustomer"
-       FROM communications WHERE customer_id = $1 ORDER BY created_at ASC`,
-      [req.params.customerId]
-    );
+    const idsParam = parseIdsParam(req.query.ids);
+    if (!idsParam.ok) return res.status(400).json({ success: false, message: idsParam.message });
+    // ?ids= (Phase 5): only messages of THIS customer's thread among those ids; others are silently left out.
+    const result = idsParam.ids
+      ? await pool.query(
+          `SELECT *, sender_type AS "senderType", (sender_type = 'customer') AS "sentByCustomer"
+           FROM communications WHERE customer_id = $1 AND id = ANY($2::uuid[]) ORDER BY created_at ASC, id`,
+          [req.params.customerId, idsParam.ids]
+        )
+      : await pool.query(
+          `SELECT *, sender_type AS "senderType", (sender_type = 'customer') AS "sentByCustomer"
+           FROM communications WHERE customer_id = $1 ORDER BY created_at ASC`,
+          [req.params.customerId]
+        );
+    // Legacy mark-on-GET, kept for one release (RISKS R-68); never with ?ids= or ?markRead=false (what new UIs send).
     // Cross-module readers (e.g. finance via CustomerDetail) see the thread read-only; only roles that
     // work the communications inbox mark customer messages, and their own message notifications, as read.
-    if (roleHasModule(req.admin!.activeRole, 'communications')) {
+    if (!idsParam.ids && marksOnGet(req.query.markRead) && roleHasModule(req.admin!.activeRole, 'communications')) {
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
@@ -98,6 +109,40 @@ router.get('/:customerId', adminMiddleware, async (req, res, next) => {
     }
     res.json({ success: true, data: result.rows });
   } catch (err) { next(err); }
+});
+
+// Phase 5: marks exactly the customer messages this admin has seen (the ids rendered). Needs the communications module
+// (router guard; the cross-read exception is GET-only, so CustomerDetail readers cannot mark).
+router.post('/:customerId/read', adminMiddleware, async (req, res, next) => {
+  try {
+    if (!uuidSchema.safeParse(req.params.customerId).success || !(await customerExists(req.params.customerId))) {
+      return res.status(404).json({ success: false, message: 'Customer not found' });
+    }
+  } catch (err) { return next(err); }
+  const parsed = readBodySchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: 'Validation failed', errors: parsed.error.flatten().fieldErrors });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+  } catch (err) { return next(err); }
+  try {
+    await client.query('BEGIN');
+    const result = await markThreadRead(client, {
+      customerId: req.params.customerId,
+      readerSide: 'admin',
+      readerId: req.admin!.id,
+      messageIds: parsed.data.messageIds,
+    });
+    await client.query('COMMIT');
+    res.json({ success: true, data: { updated: result.updated } });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
+  }
 });
 
 router.post('/send', adminMiddleware, async (req, res, next) => {
@@ -135,6 +180,8 @@ router.post('/send', adminMiddleware, async (req, res, next) => {
       { type: 'message.received', actor: { type: 'admin', id: req.admin!.id }, sourceId: comm.id, customerId, direction: 'to_customer', text: body, subject },
       client
     );
+    // Live chat (Phase 5): ids only, delivered on COMMIT to the customer and to every communications admin (other admins' lists).
+    await publishRealtime(messageCreatedEvents(customerId, comm.id, 'admin'), client);
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');

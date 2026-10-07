@@ -120,6 +120,9 @@ describe('support_staff write scope (R-20)', () => {
     ['POST', '/api/auth/admin/logout', true],
     ['PUT', '/api/admin/shipments/abc/status', false],
     ['POST', '/api/admin/communications/send', false],
+    ['POST', '/api/admin/communications/abc/read', true],
+    ['POST', '/api/admin/communications/abc/read/x', false],
+    ['DELETE', '/api/admin/communications/abc', false],
     ['POST', '/api/admin/customersX', false],
     ['PUT', '/api/admin/admins/abc/roles', false],
   ];
