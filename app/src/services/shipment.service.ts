@@ -34,8 +34,15 @@ export const shipmentService = {
     const res = await api.get<ApiResponse<Shipment>>(`/api/admin/shipments/${id}`);
     return res.data.data;
   },
-  updateStatus: async (id: string, status: string, message?: string): Promise<Shipment> => {
-    const res = await api.put<ApiResponse<Shipment>>(`/api/admin/shipments/${id}/status`, { status, message });
+  // reason: required for cancels, corrections and reopens (see allowedTransitions[].requiresReason).
+  // expectedStatus: the status the user was looking at; the API answers 409 if it changed meanwhile.
+  updateStatus: async (
+    id: string,
+    status: string,
+    message?: string,
+    options: { reason?: string; expectedStatus?: string } = {}
+  ): Promise<Shipment> => {
+    const res = await api.put<ApiResponse<Shipment>>(`/api/admin/shipments/${id}/status`, { status, message, ...options });
     return res.data.data;
   },
   updateTracking: async (id: string, data: { awbNumber?: string; bolNumber?: string; uniqueId?: string }): Promise<Shipment> => {

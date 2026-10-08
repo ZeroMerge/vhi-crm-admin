@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate as useReactNavigate } from 'react-router-dom';
+import { useLocation, useNavigate as useReactNavigate } from 'react-router-dom';
 import { Send, ChevronRight, MailOpen, AlertCircle } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { newsletterService } from '@/services/communication.service';
@@ -25,6 +25,12 @@ const INDUSTRY_CONFIG: Record<string, { label: string; color: string }> = {
 };
 
 export default function Newsletter() {
+  // One-off success message passed from Compose via navigation state; cleared from history so a refresh doesn't repeat it.
+  const location = useLocation();
+  const [flash] = useState<string | null>((location.state as { flash?: string } | null)?.flash ?? null);
+  useEffect(() => {
+    if (flash) window.history.replaceState({}, '');
+  }, [flash]);
   const navigate = useReactNavigate();
   const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +117,11 @@ export default function Newsletter() {
 
   return (
     <PageWrapper title="Newsletter Broadcasts">
+      {flash && (
+        <div className="alert-banner" role="status" style={{ marginBottom: 24, background: 'var(--color-status-delivered-bg)' }}>
+          <span style={{ color: 'var(--color-status-delivered-text)', fontWeight: 500 }}>{flash}</span>
+        </div>
+      )}
       <div style={{ 
         background: 'var(--color-surface)', 
         borderRadius: '12px', 

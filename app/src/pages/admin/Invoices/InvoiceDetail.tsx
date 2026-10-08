@@ -90,9 +90,10 @@ export default function InvoiceDetail() {
       setShowPaymentModal(false);
       setPaymentAmount('');
       setPaymentNotes('');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to record payment');
+      // e.g. "Payment exceeds the outstanding balance of 40.00 NGN" or "Invoice is already fully paid"
+      alert(err?.response?.data?.message || 'Failed to record payment');
     }
   };
 

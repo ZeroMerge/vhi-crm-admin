@@ -1,12 +1,15 @@
 import { Router } from 'express';
+import { setShipmentStatus } from '../shipments/statusUpdate';
 import multer from 'multer';
 import { z } from 'zod';
 import pool from '../../config/db';
 import { customerMiddleware } from '../../middleware/customerMiddleware';
-import { logAuditEvent } from '../../utils/audit';
+import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
+import { emit } from '../notifications/notification.service';
 import { generateOrderId } from '../../utils/generateOrderId';
 import { uploadToCloudinary } from '../../utils/uploadToCloudinary';
-import { mapShipment } from '../shipments/shipments.routes';
+import { lockShipmentForUpdate, mapShipment } from '../shipments/shipments.routes';
+import { assertTransition, ShipmentTransitionError } from '../shipments/shipmentStatus';
 
 const router = Router();
 
@@ -234,6 +237,17 @@ router.post(
         );
       }
 
+      // Step 7b: notify operations staff (same transaction: no notification if anything rolls back)
+      await emit(
+        {
+          type: 'shipment.created',
+          actor: { type: 'customer', id: customerId },
+          sourceId: shipment.id,
+          shipment: { id: shipment.id, orderId: shipment.order_id, customerId, shippingMode: shipment.shipping_mode },
+        },
+        client
+      );
+
       // Step 8: COMMIT
       await client.query('COMMIT');
 
@@ -347,26 +361,59 @@ router.put('/:orderId', customerMiddleware, async (req, res, next) => {
 });
 
 router.delete('/:orderId', customerMiddleware, async (req, res, next) => {
+  const customerId = req.customer!.id;
+  let client;
   try {
-    const customerId = req.customer!.id;
-    const existing = await pool.query(
-      'SELECT * FROM shipments WHERE order_id = $1 AND customer_id = $2',
-      [req.params.orderId, customerId]
-    );
-    if (existing.rows.length === 0) {
+    client = await pool.connect();
+  } catch (err) { return next(err); }
+  let shipment;
+  let transition;
+  try {
+    await client.query('BEGIN');
+
+    shipment = await lockShipmentForUpdate(client, 'order_id = $1 AND customer_id = $2', [req.params.orderId, customerId]);
+    if (!shipment) {
+      await client.query('ROLLBACK');
       return res.status(404).json({ success: false, message: 'Shipment not found' });
     }
-    const shipment = existing.rows[0];
-    if (shipment.status !== 'pending') {
-      return res.status(403).json({ success: false, message: 'Shipment cannot be modified after processing has begun' });
+
+    try {
+      transition = assertTransition({ from: shipment.status, to: 'cancelled', actorType: 'customer' });
+    } catch (err) {
+      // Same response as before the state machine existed: customers can only cancel pending shipments.
+      if (err instanceof ShipmentTransitionError) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ success: false, message: 'Shipment cannot be modified after processing has begun' });
+      }
+      throw err;
     }
 
-    await pool.query(`UPDATE shipments SET status = 'cancelled', updated_at = NOW() WHERE id = $1`, [shipment.id]);
+    await setShipmentStatus(client, shipment.id, transition.to);
+    const auditId = await insertAuditEvent(client, customerId, 'customer', null, 'CANCEL_SHIPMENT', 'shipment', shipment.id, {
+      orderId: shipment.order_id,
+      from: transition.from,
+      to: transition.to,
+      reason: null,
+      isCorrection: transition.isCorrection,
+    });
+    await emit(
+      {
+        type: 'shipment.cancelled_by_client',
+        actor: { type: 'customer', id: customerId },
+        sourceId: auditId,
+        shipment: { id: shipment.id, orderId: shipment.order_id, customerId },
+      },
+      client
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
+  }
 
-    await logAuditEvent(customerId, 'customer', null, 'CANCEL_SHIPMENT', 'shipment', shipment.id, { orderId: shipment.order_id });
-
-    res.json({ success: true, message: 'Shipment cancelled successfully' });
-  } catch (err) { next(err); }
+  res.json({ success: true, message: 'Shipment cancelled successfully' });
 });
 
 export default router;

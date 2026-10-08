@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
+import { CROSS_READS, moduleGuard, requireActiveAdmin } from '../../middleware/permissions';
 import { logAuditEvent } from '../../utils/audit';
 
 const router = Router();
+
+router.use(adminMiddleware, requireActiveAdmin, moduleGuard('invoices', [{ method: 'GET', path: '/', anyOf: CROSS_READS.invoicesList }]));
 
 function mapInvoice(row: any) {
   if (!row) return null;
@@ -197,32 +200,132 @@ router.put('/:id/reminder', adminMiddleware, async (req, res, next) => {
 });
 
 
-router.put('/:id/payment', adminMiddleware, async (req, res, next) => {
-  try {
-    const { amount, paymentMethod, notes } = req.body;
-    const invoice = await pool.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
-    if (invoice.rows.length === 0) return res.status(404).json({ success: false, message: 'Invoice not found' });
+// Body: { amount, paymentMethod, notes? }. Money is validated as a decimal string and summed in SQL
+// NUMERIC (payments.amount / invoices.amount are DECIMAL(15,2)); no JS float arithmetic.
+const AMOUNT_RE = /^\d{1,13}(\.\d{1,2})?$/;
+const PAYMENT_METHODS = ['paystack', 'stripe', 'manual'];
+const INVOICE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    const result = await pool.query(
-      'INSERT INTO payments (invoice_id, customer_id, amount, currency, payment_method, payment_status) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [req.params.id, invoice.rows[0].customer_id, amount, invoice.rows[0].currency, paymentMethod, 'success']
+router.put('/:id/payment', adminMiddleware, async (req, res, next) => {
+  const { amount, paymentMethod, notes } = req.body;
+  const amountText = typeof amount === 'number' || typeof amount === 'string' ? String(amount).trim() : '';
+  if (!AMOUNT_RE.test(amountText) || Number(amountText) <= 0) {
+    return res.status(400).json({ success: false, message: 'amount must be a positive number with at most 2 decimal places' });
+  }
+  if (!PAYMENT_METHODS.includes(paymentMethod)) {
+    return res.status(400).json({ success: false, message: `paymentMethod must be one of: ${PAYMENT_METHODS.join(', ')}` });
+  }
+  if (!INVOICE_UUID_RE.test(req.params.id)) return res.status(404).json({ success: false, message: 'Invoice not found' });
+
+  let client;
+  try {
+    client = await pool.connect();
+  } catch (err) { return next(err); }
+  let invoice;
+  let settlement;
+  try {
+    await client.query('BEGIN');
+    // Wait at most 5s for a concurrent payment on the same invoice; longer means something is stuck (409).
+    await client.query("SET LOCAL lock_timeout = '5s'");
+
+    // Serialises payments on the same invoice: a concurrent payment waits, then sees the new total.
+    let locked;
+    try {
+      locked = await client.query('SELECT * FROM invoices WHERE id = $1 FOR UPDATE', [req.params.id]);
+    } catch (err: any) {
+      if (err.code === '55P03') {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ success: false, message: 'This invoice is being updated by someone else. Try again.' });
+      }
+      throw err;
+    }
+    if (locked.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Invoice not found' });
+    }
+    invoice = locked.rows[0];
+    if (invoice.status === 'paid') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, message: 'Invoice is already fully paid' });
+    }
+    if (invoice.status === 'draft') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ success: false, message: 'Issue the invoice before recording payments' });
+    }
+
+    const balance = await client.query(
+      `SELECT (i.amount - COALESCE(SUM(p.amount) FILTER (WHERE p.payment_status = 'success'), 0))::text AS outstanding,
+              $2::numeric > (i.amount - COALESCE(SUM(p.amount) FILTER (WHERE p.payment_status = 'success'), 0)) AS exceeds
+         FROM invoices i
+         LEFT JOIN payments p ON p.invoice_id = i.id
+        WHERE i.id = $1
+        GROUP BY i.id, i.amount`,
+      [invoice.id, amountText]
+    );
+    if (balance.rows[0].exceeds) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        success: false,
+        message: `Payment exceeds the outstanding balance of ${balance.rows[0].outstanding} ${invoice.currency}`,
+        outstanding: balance.rows[0].outstanding,
+      });
+    }
+
+    await client.query(
+      `INSERT INTO payments (invoice_id, customer_id, amount, currency, payment_method, payment_status, paid_at)
+       VALUES ($1, $2, $3::numeric, $4, $5, 'success', NOW())`,
+      [invoice.id, invoice.customer_id, amountText, invoice.currency, paymentMethod]
     );
 
-    await pool.query('UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2', ['paid', req.params.id]);
-    const updatedInvoiceResult = await pool.query('SELECT * FROM invoices WHERE id = $1', [req.params.id]);
+    const totals = await client.query(
+      `SELECT COALESCE(SUM(p.amount), 0)::text AS paid_total,
+              (i.amount - COALESCE(SUM(p.amount), 0))::text AS outstanding,
+              COALESCE(SUM(p.amount), 0) >= i.amount AS fully_paid
+         FROM invoices i
+         LEFT JOIN payments p ON p.invoice_id = i.id AND p.payment_status = 'success'
+        WHERE i.id = $1
+        GROUP BY i.id, i.amount`,
+      [invoice.id]
+    );
+    settlement = totals.rows[0];
 
-    
+    await client.query('UPDATE invoices SET status = $1, updated_at = NOW() WHERE id = $2', [
+      settlement.fully_paid ? 'paid' : 'part_paid',
+      invoice.id,
+    ]);
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
+  }
+
+  try {
+    const updatedInvoiceResult = await pool.query('SELECT * FROM invoices WHERE id = $1', [invoice.id]);
+    const updated = updatedInvoiceResult.rows[0];
+
     await logAuditEvent(
       req.admin!.id,
       'admin',
       req.admin!.activeRole,
       'RECORD_INVOICE_PAYMENT',
       'invoice',
-      req.params.id,
-      { amount, paymentMethod, notes }
+      invoice.id,
+      {
+        amount: amountText,
+        paymentMethod,
+        notes,
+        previousStatus: invoice.status,
+        newStatus: updated.status,
+        paidTotal: settlement.paid_total,
+        outstanding: settlement.outstanding,
+      }
     );
 
-    res.json({ success: true, data: updatedInvoiceResult.rows[0] });
+    // Same row as before, plus decimal strings so callers never lose precision.
+    res.json({ success: true, data: { ...updated, amountPaid: settlement.paid_total, outstanding: settlement.outstanding } });
   } catch (err) { next(err); }
 });
 

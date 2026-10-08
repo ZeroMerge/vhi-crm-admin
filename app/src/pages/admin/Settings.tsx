@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { User, Lock, Bell, Shield, Mail, Key, Check, Eye, EyeOff } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
@@ -15,6 +15,28 @@ const ALL_ROLES = [
   { value: 'finance_officer', label: 'Finance Officer', color: '#00838F' },
   { value: 'crm_officer', label: 'CRM Officer', color: '#E65100' },
   { value: 'support_staff', label: 'Support Staff', color: '#C62828' }
+];
+
+// Optional emails; all default on (the server's defaults). Times are in the business time zone (WAT).
+const EMAIL_PREFS: Array<{ key: string; label: string; description: string; roles: string[] }> = [
+  {
+    key: 'shipment_created',
+    label: 'Email me about new shipments',
+    description: 'An email each time a customer creates a shipment in the customer portal.',
+    roles: ['super_admin', 'manager', 'logistics_officer'],
+  },
+  {
+    key: 'registration',
+    label: 'Daily email: new customer registrations',
+    description: "At 08:00, a list of the customers who verified their accounts the day before. Nothing is sent when there are none.",
+    roles: ['super_admin', 'manager', 'crm_officer'],
+  },
+  {
+    key: 'overdue_alert',
+    label: 'Email me when invoices become overdue',
+    description: 'At 07:00, one email listing the invoices that became overdue that day.',
+    roles: ['super_admin', 'manager', 'finance_officer'],
+  },
 ];
 
 export default function Settings() {
@@ -36,15 +58,33 @@ export default function Settings() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   
-  const [prefs, setPrefs] = useState<Record<string, boolean>>({
-    registration: true,
-    shipment_created: true,
-    status_updated: true,
-    invoice_created: true,
-    payment_received: true,
-    overdue_alert: true,
-    newsletter_sent: false
-  });
+  // Email preferences, loaded from the server when the Notifications tab opens (null = not loaded yet).
+  const [prefs, setPrefs] = useState<Record<string, boolean> | null>(null);
+  const [prefsError, setPrefsError] = useState<string | null>(null);
+  const [savingPref, setSavingPref] = useState<string | null>(null);
+  // Email preferences that send something, each shown only to the roles that receive it (backend recipients:
+  // shipment_created → SHIPMENT_OPERATIONS_ROLES, registration → CUSTOMER_GROWTH_ROLES in modules/notifications/events.ts,
+  // overdue_alert → roles with the invoices module in middleware/permissions.ts).
+  const myRoles = admin?.assignedRoles ?? [];
+  const emailPrefs = EMAIL_PREFS.filter((p) => myRoles.some((r) => p.roles.includes(r)));
+
+  useEffect(() => {
+    if (activeTab !== 'notifications') return;
+    let active = true;
+    setPrefsError(null);
+    authService
+      .getNotificationPrefs()
+      .then((res) => {
+        if (active) setPrefs(res.prefs);
+      })
+      .catch((err) => {
+        console.error('Failed to load notification preferences:', err);
+        if (active) setPrefsError('Could not load your notification settings. Please refresh the page.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [activeTab]);
 
   const setActiveTab = (tabId: string) => {
     const newParams = new URLSearchParams(searchParams);
@@ -84,27 +124,34 @@ export default function Settings() {
       setNewPassword('');
       setConfirmPassword('');
       alert('Password changed successfully.');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to update password. Verify current password.');
+      // The server explains a refused password (wrong current password, or the rule: 8–72 characters, not your email).
+      alert(err.response?.data?.message || 'Failed to update password. Verify current password.');
     } finally {
       setChangingPassword(false);
     }
   };
 
   const handleTogglePref = async (key: string) => {
+    if (!prefs || savingPref) return;
+    const previous = prefs;
     const nextVal = !prefs[key];
-    const updatedPrefs = { ...prefs, [key]: nextVal };
-    setPrefs(updatedPrefs);
+    setPrefs({ ...prefs, [key]: nextVal });
+    setSavingPref(key);
     try {
-      await authService.updateNotificationPrefs(updatedPrefs);
+      // Send only the changed key; the server merges it into the saved preferences.
+      const saved = await authService.updateNotificationPrefs({ [key]: nextVal });
+      setPrefs(saved.prefs);
       if (admin) {
-        setAdmin({ ...admin, notificationPrefs: updatedPrefs });
+        setAdmin({ ...admin, notificationPrefs: saved.prefs });
       }
     } catch (err) {
       console.error('Failed to save notification preferences:', err);
-      setPrefs(prefs); 
+      setPrefs(previous);
       alert('Failed to save preference update');
+    } finally {
+      setSavingPref(null);
     }
   };
 
@@ -309,7 +356,7 @@ export default function Settings() {
                       type={showPassword ? 'text' : 'password'}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Enter new password (min. 8 characters)..."
+                      placeholder="8–72 characters, not your email"
                     />
                     <button
                       type="button"
@@ -415,31 +462,39 @@ export default function Settings() {
               <Bell size={20} color="var(--color-primary)" />
               <div>
                 <h3 className="card-title" style={{ marginBottom: 0 }}>Notification Preferences</h3>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Preferences are saved automatically in real-time.</div>
+                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>Changes are saved automatically.</div>
               </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              {[
-                { key: 'registration', label: 'New Customer Registrations', desc: 'Get alert when a new customer registers on the client application.' },
-                { key: 'shipment_created', label: 'New Shipments Created', desc: 'Get alert when customers draft or initialize new shipping orders.' },
-                { key: 'status_updated', label: 'Shipment Status Updates', desc: 'Receive internal updates when freight operations progress through checkpoints.' },
-                { key: 'invoice_created', label: 'Pending Invoice Alerts', desc: 'Alert when invoices are created and drafted waiting for review.' },
-                { key: 'payment_received', label: 'Payment Receipts', desc: 'Receive alerts when successful transaction logs are captured by gateways.' },
-                { key: 'overdue_alert', label: 'Overdue Invoices', desc: 'Receive immediate alerts when invoice due dates pass without settlement.' },
-                { key: 'newsletter_sent', label: 'Newsletter Broadcasts', desc: 'Receive internal confirmations when marketing campaigns are broadcast.' }
-              ].map((pref) => (
-                <label key={pref.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: 16, borderBottom: '1.5px solid var(--color-border)', gap: 12 }}>
-                  <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
-                    <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{pref.label}</div>
-                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>{pref.desc}</div>
-                  </div>
-                  <Switch
-                    checked={prefs[pref.key] ?? false}
-                    onCheckedChange={() => handleTogglePref(pref.key)}
-                  />
-                </label>
-              ))}
+              {prefsError ? (
+                <div role="alert" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-status-pending-text)' }}>{prefsError}</div>
+              ) : prefs === null ? (
+                <div role="status" style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>Loading your notification settings…</div>
+              ) : emailPrefs.length > 0 ? (
+                // Only email preferences that currently send something are shown (others are kept for later phases).
+                emailPrefs.map((p) => (
+                  <label key={p.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: 16, borderBottom: '1.5px solid var(--color-border)', gap: 12 }}>
+                    <div style={{ flex: 1, minWidth: 0, paddingRight: 8 }}>
+                      <div style={{ fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>{p.label}</div>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>{p.description}</div>
+                    </div>
+                    <Switch
+                      checked={prefs[p.key] ?? true}
+                      disabled={savingPref !== null}
+                      onCheckedChange={() => handleTogglePref(p.key)}
+                      aria-label={p.label}
+                    />
+                  </label>
+                ))
+              ) : (
+                <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                  None of your roles receives optional notification emails yet.
+                </div>
+              )}
+              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', lineHeight: 1.5 }}>
+                In-app notifications (the bell) are always on. Account emails (role changes, deactivation, password changes) are always sent.
+              </div>
             </div>
           </div>
         )}

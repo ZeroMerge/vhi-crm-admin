@@ -21,12 +21,50 @@ import clientTrackingRoutes from './modules/client/client.tracking.routes';
 import clientCargoRoutes from './modules/client/client.cargo.routes';
 import { customerMiddleware } from './middleware/customerMiddleware';
 import clientCommunicationsRoutes from './modules/client/client.communications.routes';
-import realtimeRoutes from './modules/realtime/realtime.routes';
+import { adminNotificationsRoutes, clientNotificationsRoutes } from './modules/notifications/notifications.routes';
+import { getRealtime, startRealtime, stopRealtime } from './modules/notifications/realtime';
+import emailRoutes from './modules/email/email.routes';
+import clientPreferencesRoutes from './modules/client/client.preferences.routes';
+import { initEmail, startEmailWorker, stopEmailWorker } from './modules/email';
+import { initScheduler, startScheduler, stopScheduler } from './modules/scheduler';
+import resendWebhookRoutes from './modules/webhooks/resend.routes';
+import { applyTrustProxy, trustProxyHopsFromEnv } from './config/trustProxy';
 
 dotenv.config();
 
+// Email configuration is checked here, at startup, never at import time (RISKS R-01). In production a missing
+// RESEND_API_KEY (with the resend provider), EMAIL_LINK_SECRET, API_PUBLIC_URL, CLIENT_FRONTEND_URL or
+// ADMIN_FRONTEND_URL stops the server with a clear message instead of sending broken or no email.
+try {
+  const emailConfig = initEmail();
+  for (const warning of emailConfig.warnings) console.warn(`[email] WARNING: ${warning}`);
+} catch (err) {
+  console.error(`[email] ${(err as Error).message}`);
+  process.exit(1);
+}
+// Scheduler settings (SCHEDULER_ENABLED, APP_TIMEZONE, STUCK_*, OVERDUE_*, RETENTION_*): invalid values stop the server here too.
+try {
+  initScheduler();
+} catch (err) {
+  console.error(`[scheduler] ${(err as Error).message}`);
+  process.exit(1);
+}
+
+let trustProxyHops = 0;
+try {
+  trustProxyHops = trustProxyHopsFromEnv();
+} catch (err) {
+  console.error(`[startup] ${(err as Error).message}`);
+  process.exit(1);
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
+// Before any route: req.ip (per-IP rate limits) depends on it.
+applyTrustProxy(app, trustProxyHops);
+if (process.env.NODE_ENV === 'production') {
+  console.log(`[startup] TRUST_PROXY_HOPS=${trustProxyHops}${trustProxyHops === 0 ? ' (off: req.ip is the proxy address; rate limits are shared)' : ''}`);
+}
 
 const allowedOrigins = [
   'http://localhost:3000',
@@ -47,6 +85,13 @@ app.use((req, _res, next) => {
   }
   next();
 });
+
+// Email links (unsubscribe pages and their form/one-click POSTs) are plain HTML pages authorised by a signed token, with no
+// cookies or credentials, so they are mounted BEFORE the CORS check: browsers post the confirmation form with
+// `Origin: null` (the page sends Referrer-Policy: no-referrer), and mail providers post with no Origin at all.
+app.use('/api/email', emailRoutes);
+// Provider webhooks: server-to-server, authorised by their signature over the raw body, so also before CORS and express.json().
+app.use('/api/webhooks', resendWebhookRoutes);
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -87,7 +132,9 @@ app.use('/api/client/shipments', clientShipmentsRoutes);
 app.use('/api/client/tracking', clientTrackingRoutes);
 app.use('/api/client/cargo-clearings', customerMiddleware, clientCargoRoutes);
 app.use('/api/client/communications', clientCommunicationsRoutes);
-app.use('/api/realtime', realtimeRoutes);
+app.use('/api/admin/notifications', adminNotificationsRoutes);
+app.use('/api/client/notifications', clientNotificationsRoutes);
+app.use('/api/client/notification-preferences', clientPreferencesRoutes);
 
 
 app.get('/api/health', (_req, res) => {
@@ -97,8 +144,34 @@ app.get('/api/health', (_req, res) => {
 
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`VHI CRM Server running on port ${PORT}`);
+  // Realtime push (SSE). If LISTEN cannot connect it keeps retrying; REST is unaffected and clients poll.
+  startRealtime().catch((err) => console.error('[realtime] failed to start', err));
+  // Email outbox worker: woken by NOTIFY on the realtime bus's LISTEN connection, plus a 30s poll.
+  startEmailWorker((channel, handler) => getRealtime().bus.listenTo(channel, () => handler()));
+  // Scheduled jobs (stuck shipments, overdue invoices, registration digest, cleanup). Safe with several instances (advisory locks).
+  startScheduler();
 });
+
+// Graceful shutdown: end every SSE stream (clients reconnect to the next instance), stop LISTEN, stop accepting requests.
+let shuttingDown = false;
+const shutdown = (signal: string) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`[${signal}] shutting down`);
+  const force = setTimeout(() => process.exit(1), 10_000);
+  force.unref();
+  // The scheduler stops first (waits for a running job, whose emails then still get sent), then the email worker, then realtime.
+  stopScheduler()
+    .catch((err) => console.error('[scheduler] failed to stop cleanly', err))
+    .then(() => stopEmailWorker())
+    .catch((err) => console.error('[email] worker failed to stop cleanly', err))
+    .then(() => stopRealtime())
+    .catch((err) => console.error('[realtime] failed to stop cleanly', err))
+    .finally(() => server.close(() => process.exit(0)));
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 export default app;

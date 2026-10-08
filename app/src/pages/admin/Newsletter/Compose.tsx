@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Users } from 'lucide-react';
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { newsletterService } from '@/services/communication.service';
-import { useNotificationStore } from '@/store/notificationStore';
 
 const customerStatuses = [
   { value: 'all', label: 'All Customers' },
@@ -27,7 +26,7 @@ const industries = [
 
 export default function ComposeNewsletter() {
   const navigate = useNavigate();
-  const { addNotification } = useNotificationStore();
+  const [sendError, setSendError] = useState<string | null>(null);
   const queryParams = new URLSearchParams(window.location.search);
   const initialSegment = queryParams.get('segment') || 'all';
   const [selectedSegments, setSelectedSegments] = useState<string[]>([initialSegment]);
@@ -62,31 +61,18 @@ export default function ComposeNewsletter() {
     if (!subject || !body) return;
     try {
       setIsSending(true);
+      setSendError(null);
       await newsletterService.send({
         subject,
         body,
         segments: selectedSegments,
         status: selectedStatus,
       });
-      addNotification({
-        id: Date.now().toString(),
-        title: 'Newsletter',
-        message: 'Newsletter scheduled/sent successfully',
-        read: false,
-        createdAt: new Date().toISOString(),
-        type: 'system',
-      });
-      navigate('/admin/newsletter');
+      // Newsletter sends are recorded only; no email is delivered yet (RISKS R-14).
+      navigate('/admin/newsletter', { state: { flash: 'Newsletter recorded.' } });
     } catch (err) {
       console.error('Failed to send newsletter:', err);
-      addNotification({
-        id: Date.now().toString(),
-        title: 'Newsletter Error',
-        message: 'Failed to send newsletter',
-        read: false,
-        createdAt: new Date().toISOString(),
-        type: 'system',
-      });
+      setSendError('Failed to send newsletter. Please try again.');
     } finally {
       setIsSending(false);
     }
@@ -106,6 +92,11 @@ export default function ComposeNewsletter() {
 
   return (
     <PageWrapper title="Compose Newsletter">
+      {sendError && (
+        <div className="alert-banner" role="alert" style={{ marginBottom: 24, background: 'var(--color-status-pending-bg)' }}>
+          <span style={{ color: 'var(--color-status-pending-text)', fontWeight: 500 }}>{sendError}</span>
+        </div>
+      )}
       <button onClick={() => navigate('/admin/newsletter')} className="btn-back">
         <ArrowLeft size={18} />
         Back to Newsletter

@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
+import { moduleGuard, requireActiveAdmin } from '../../middleware/permissions';
 
 const router = Router();
+
+router.use(adminMiddleware, requireActiveAdmin, moduleGuard('reports'));
 
 const getPeriodFilter = (period: string): string => {
   switch (period) {

@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 import { hasModuleAccess, getDefaultRouteForRole } from '@/utils/rolePermissions';
 import AdminLogin from '@/pages/auth/AdminLogin';
+import AcceptInvite from '@/pages/auth/AcceptInvite';
 import Overview from '@/pages/admin/Overview';
 import Customers from '@/pages/admin/Customers';
 import CustomerDetail from '@/pages/admin/Customers/CustomerDetail';
@@ -38,6 +39,8 @@ export function AppRouter() {
   return (
     <Routes>
       <Route path="/admin/login" element={<AdminLogin />} />
+      {/* Public: the invitation token is the credential. */}
+      <Route path="/admin/accept-invite" element={<AcceptInvite />} />
       <Route path="/admin" element={<AdminRoute module="overview"><Overview /></AdminRoute>} />
       <Route path="/admin/customers" element={<AdminRoute module="customers"><Customers /></AdminRoute>} />
       <Route path="/admin/customers/:id" element={<AdminRoute module="customers"><CustomerDetail /></AdminRoute>} />
