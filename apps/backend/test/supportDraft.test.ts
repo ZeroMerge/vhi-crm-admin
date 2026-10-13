@@ -109,7 +109,7 @@ describe('cancel wording and who gets guidance', () => {
   test('guidance text per status (VHI-created drafts have their own sentence)', () => {
     assert.equal(wording.guidanceMessage('CL1', 'processing'), "Shipment CL1 is already processing, so it can't be changed or cancelled here. Send VHI Support a message and they'll help.");
     assert.match(wording.guidanceMessage('CL1', 'in_transit'), /is already in transit, so/);
-    assert.match(wording.guidanceMessage('CL1', 'clearance'), /is already customs clearance, so/);
+    assert.match(wording.guidanceMessage('CL1', 'clearance'), /is already in customs clearance, so/);
     assert.equal(wording.guidanceMessage('CL1', 'draft'), 'Shipment CL1 was set up by VHI, so changes or cancellation go through VHI Support.');
     assert.equal(wording.guidanceMessage('CL1', 'DRAFT'), wording.guidanceMessage('CL1', 'draft'));
   });
