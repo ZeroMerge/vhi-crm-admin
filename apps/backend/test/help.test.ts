@@ -283,6 +283,7 @@ describe('help search', () => {
     assert.equal(first('unsubscribe'), 'unsubscribe');
     assert.equal(first('create account'), 'create-account');
     assert.equal(first('sign out'), 'log-out');
+    assert.equal(first('customs clearance'), 'status-meanings'); // a keyword that is the phrase
     assert.ok(ids('junk', helpContent).includes('no-emails'));
     assert.deepEqual(ids('xqzvw', helpContent), []);
   });
