@@ -14,7 +14,7 @@ import { SeriesChart } from './SeriesChart';
 import type { ChartPoint } from './SeriesChart';
 import { customerLink, invoicesLink, shipmentsLink } from './drilldown';
 import type { DrillFilters, ShipmentMetric } from './drilldown';
-import { compactNumber, formatInt, formatMoneyText, humanize } from './format';
+import { compactNumber, formatInt, formatMoneyText, humanize, plural } from './format';
 import { useReportData, useReportFilters } from './useReportFilters';
 
 const drill = (f: ResolvedFilters): DrillFilters => ({
@@ -177,7 +177,7 @@ export default function Reports() {
             {(d) => (
               <SeriesChart
                 title="Shipments created and completed per period"
-                seriesA="Created" seriesB="Completed (solid and hatched bars)"
+                seriesA="Created" seriesB="Completed"
                 points={shipPoints(d.filters, d.points)}
                 axisFormat={compactNumber}
                 summary={`${formatInt(d.totals.created)} created and ${formatInt(d.totals.completed)} completed across ${d.points.length} periods.`}
@@ -210,18 +210,18 @@ export default function Reports() {
                         <div key={c} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                           {many && <h3 className="rpt-currency-title">{c}</h3>}
                           <div className="rpt-cards">
-                            <Metric label="Revenue (collected)" value={formatMoneyText(v.collected, c)} note={`${formatInt(v.paymentCount)} payments in range`} href={invoicesLink('collected', f, c)} />
-                            <Metric label="Invoiced" value={formatMoneyText(v.invoiced, c)} note={`${formatInt(v.invoiceCount)} invoices issued in range`} href={invoicesLink('invoiced', f, c)} />
-                            <Metric label="Outstanding (all open invoices, as of today)" value={formatMoneyText(v.outstandingOpen, c)} note={`${formatInt(v.outstandingOpenCount)} invoices; not limited by the date range`} href={invoicesLink('outstandingOpen', f, c)} />
-                            <Metric label="Outstanding (invoices issued in range)" value={formatMoneyText(v.outstandingIssuedInRange, c)} note={`${formatInt(v.outstandingIssuedInRangeCount)} invoices; balance today`} href={invoicesLink('outstandingIssued', f, c)} />
+                            <Metric label="Revenue (collected)" value={formatMoneyText(v.collected, c)} note={`${plural(v.paymentCount, 'payment')} in range`} href={invoicesLink('collected', f, c)} />
+                            <Metric label="Invoiced" value={formatMoneyText(v.invoiced, c)} note={`${plural(v.invoiceCount, 'invoice')} issued in range`} href={invoicesLink('invoiced', f, c)} />
+                            <Metric label="Outstanding (all open invoices, as of today)" value={formatMoneyText(v.outstandingOpen, c)} note={`${plural(v.outstandingOpenCount, 'invoice')}; not limited by the date range`} href={invoicesLink('outstandingOpen', f, c)} />
+                            <Metric label="Outstanding (invoices issued in range)" value={formatMoneyText(v.outstandingIssuedInRange, c)} note={`${plural(v.outstandingIssuedInRangeCount, 'invoice')}; balance today`} href={invoicesLink('outstandingIssued', f, c)} />
                           </div>
                         </div>
                       );
                     })}
                     <p className="rpt-note">
                       Currencies are never added together. Outstanding is worked out from recorded payments, not from invoice status.
-                      {rev.dataQuality.paymentsDatedByFallback > 0 && ` ${formatInt(rev.dataQuality.paymentsDatedByFallback)} payment(s) have no paid date and count on the day they were recorded.`}
-                      {rev.dataQuality.paidStatusWithOutstanding > 0 && ` ${formatInt(rev.dataQuality.paidStatusWithOutstanding)} invoice(s) are marked paid but still show a balance.`}
+                      {rev.dataQuality.paymentsDatedByFallback > 0 && ` ${plural(rev.dataQuality.paymentsDatedByFallback, 'payment')} with no paid date count on the day they were recorded.`}
+                      {rev.dataQuality.paidStatusWithOutstanding > 0 && ` ${plural(rev.dataQuality.paidStatusWithOutstanding, 'invoice')} marked paid still show a balance.`}
                     </p>
                   </>
                 );
@@ -232,7 +232,7 @@ export default function Reports() {
                 <>
                   <SeriesChart
                     title={`Invoiced and collected per period (${primaryCurrency})`}
-                    seriesA="Invoiced" seriesB="Collected (hatched bars)"
+                    seriesA="Invoiced" seriesB="Collected"
                     points={revPoints(d.filters, d.points)}
                     axisFormat={compactNumber}
                     summary={`Invoiced ${formatMoneyText(d.totals[primaryCurrency]?.invoiced, primaryCurrency)}, collected ${formatMoneyText(d.totals[primaryCurrency]?.collected, primaryCurrency)}.`}

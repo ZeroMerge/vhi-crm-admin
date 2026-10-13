@@ -32,3 +32,6 @@ export const prettyRange = (from: string, to: string) => (from === to ? prettyDa
 
 export const humanize = (value: string | null | undefined, empty = 'Not set') =>
   value ? value.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()) : empty;
+
+/** "1 invoice", "2 invoices". */
+export const plural = (n: number, noun: string) => `${formatInt(n)} ${noun}${n === 1 ? '' : 's'}`;
