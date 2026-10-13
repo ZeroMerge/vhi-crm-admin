@@ -7,6 +7,7 @@ import { moduleGuard, requireActiveAdmin } from '../../middleware/permissions';
 import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
 import { emit } from '../notifications/notification.service';
 import { generateOrderId } from '../../utils/generateOrderId';
+import { parseShipmentListExtras, shipmentListConditions } from '../reports/listFilters';
 import { assertInitialStatus, assertTransition, assertValidStatus, conflictError, getAllowedTransitions } from './shipmentStatus';
 
 const router = Router();
@@ -154,6 +155,12 @@ router.get('/', adminMiddleware, async (req, res, next) => {
       params.push(`%${search}%`);
       paramIdx++;
     }
+
+    // Drill-down filters from the reports (additive, validated; local dates in APP_TIMEZONE).
+    const extras = parseShipmentListExtras(req.query as Record<string, unknown>);
+    if (!extras.ok) return res.status(400).json({ success: false, message: 'Invalid filters', errors: extras.issues });
+    for (const condition of shipmentListConditions(extras.value, params)) sql += ` AND ${condition}`;
+    paramIdx = params.length + 1;
 
     const countResult = await pool.query(`SELECT COUNT(*) FROM (${sql}) AS count_query`, params);
     const total = parseInt(countResult.rows[0].count);

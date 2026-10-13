@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
-import { CROSS_READS, moduleGuard, requireActiveAdmin } from '../../middleware/permissions';
+import { CROSS_READS, moduleGuard, requireActiveAdmin, roleHasModule } from '../../middleware/permissions';
 import { logAuditEvent } from '../../utils/audit';
 
 const router = Router();
@@ -141,14 +141,16 @@ router.get('/:id', adminMiddleware, async (req, res, next) => {
     const totalInvoicedAmount = parseFloat(totalInvoiced.rows[0].total);
     const totalPaidAmount = parseFloat(paymentTotal.rows[0].total);
 
+    // Money totals belong to the invoices module (they sum every currency and include drafts: RISKS R-70); omitted for other roles.
+    const money = roleHasModule(req.admin!.activeRole, 'invoices')
+      ? { totalInvoiced: totalInvoicedAmount, totalPaid: totalPaidAmount, outstandingBalance: Math.max(totalInvoicedAmount - totalPaidAmount, 0) }
+      : {};
     res.json({
       success: true,
       data: {
         ...mapCustomer(result.rows[0]),
         shipmentCount: parseInt(shipmentCount.rows[0].count),
-        totalInvoiced: totalInvoicedAmount,
-        totalPaid: totalPaidAmount,
-        outstandingBalance: Math.max(totalInvoicedAmount - totalPaidAmount, 0),
+        ...money,
       },
     });
   } catch (err) { next(err); }

@@ -3,6 +3,7 @@ import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
 import { CROSS_READS, moduleGuard, requireActiveAdmin } from '../../middleware/permissions';
 import { logAuditEvent } from '../../utils/audit';
+import { invoiceListConditions, parseInvoiceListExtras } from '../reports/listFilters';
 
 const router = Router();
 
@@ -19,6 +20,7 @@ function mapInvoice(row: any) {
     currency: row.currency,
     status: row.status,
     dueDate: row.due_date,
+    issuedAt: row.issued_at,
     followUpDate: row.follow_up_date,
     notes: row.notes,
     createdAt: row.created_at,
@@ -47,7 +49,7 @@ router.get('/', adminMiddleware, async (req, res, next) => {
     let paramIdx = 1;
 
     if (status && status !== 'all') { sql += ` AND i.status = $${paramIdx}`; params.push(status); paramIdx++; }
-    if (currency && currency !== 'all') { sql += ` AND i.currency = $${paramIdx}`; params.push(currency); paramIdx++; }
+    if (currency && currency !== 'all') { sql += ` AND upper(btrim(i.currency)) = upper(btrim($${paramIdx}::text))`; params.push(currency); paramIdx++; }
     if (customerId) { sql += ` AND i.customer_id = $${paramIdx}`; params.push(customerId); paramIdx++; }
     
     if (dateFrom) {
@@ -70,6 +72,12 @@ router.get('/', adminMiddleware, async (req, res, next) => {
       params.push(`%${search}%`);
       paramIdx++;
     }
+
+    // Drill-down filters from the reports (additive, validated; local dates in APP_TIMEZONE).
+    const extras = parseInvoiceListExtras(req.query as Record<string, unknown>);
+    if (!extras.ok) return res.status(400).json({ success: false, message: 'Invalid filters', errors: extras.issues });
+    for (const condition of invoiceListConditions(extras.value, params)) sql += ` AND ${condition}`;
+    paramIdx = params.length + 1;
 
     const countResult = await pool.query(`SELECT COUNT(*) FROM (${sql}) AS count_query`, params);
     const total = parseInt(countResult.rows[0].count);
