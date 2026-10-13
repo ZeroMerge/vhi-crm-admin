@@ -9,6 +9,7 @@ import { ExportModal } from '@/components/shared/ExportModal';
 import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { shipmentService } from '@/services/shipment.service';
+import { DrillDownChips, drillParams } from '@/components/shared/DrillDownChips';
 import { useAuthStore } from '@/store/authStore';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { SearchX } from 'lucide-react';
@@ -31,6 +32,7 @@ const modes = [
   { value: 'groupage', label: 'Groupage' },
   { value: 'consolidation', label: 'Consolidation' },
   { value: 'china_groupage', label: 'China Groupage' },
+  { value: 'sea_freight', label: 'Sea Freight' },
   { value: 'cargo_clearing', label: 'Cargo Clearing' },
   { value: 'export', label: 'Export' },
 ];
@@ -41,6 +43,8 @@ const sorts = [
   { value: 'price_desc', label: 'Price: High-Low' },
   { value: 'price_asc', label: 'Price: Low-High' },
 ];
+
+const DRILL_KEYS = ['customerId', 'industry', 'createdFrom', 'createdTo', 'dateField', 'statusGroup', 'excludeDraft'] as const;
 
 export default function Shipments() {
   const navigate = useNavigate();
@@ -58,6 +62,9 @@ export default function Shipments() {
   const sortBy = searchParams.get('sortBy') || 'newest';
   const page = parseInt(searchParams.get('page') || '1');
   const pageSize = 10;
+  // Filters that come from a report drill-down (shown as chips, passed to the API unchanged).
+  const drill = drillParams(searchParams, DRILL_KEYS);
+  const drillKey = JSON.stringify(drill);
 
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [total, setTotal] = useState(0);
@@ -78,6 +85,7 @@ export default function Shipments() {
           sortBy,
           page,
           pageSize,
+          ...drill,
         });
         if (active) {
           setShipments(response.data);
@@ -93,7 +101,7 @@ export default function Shipments() {
     return () => {
       active = false;
     };
-  }, [search, status, mode, dateFrom, dateTo, sortBy, page]);
+  }, [search, status, mode, dateFrom, dateTo, sortBy, page, drillKey]);
 
   const updateFilter = (key: string, value: string) => {
     const newParams = new URLSearchParams(searchParams);
@@ -123,7 +131,7 @@ export default function Shipments() {
 
   return (
     <PageWrapper title="Shipments">
-      {}
+      <DrillDownChips keys={DRILL_KEYS} />
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', background: 'var(--color-primary)', borderRadius: 'var(--radius-badge)', marginBottom: 20 }}>
         <Package size={18} color="white" />
         <span style={{ color: 'white', fontWeight: 600, fontSize: 'var(--font-size-sm)' }}>

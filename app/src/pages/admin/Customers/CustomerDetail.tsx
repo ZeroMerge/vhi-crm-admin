@@ -179,6 +179,8 @@ export default function CustomerDetail() {
         </div>
       </div>
 
+      {/* Money totals come only with the invoices module (the API omits them for other roles). */}
+      {customer.totalInvoiced !== undefined && (
       <div className="card" style={{ marginBottom: 24 }}>
         <h3 className="card-title" style={{ marginBottom: 16 }}>Financial Summary</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
@@ -202,6 +204,7 @@ export default function CustomerDetail() {
           </div>
         </div>
       </div>
+      )}
 
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1.5px solid var(--color-border)', overflowX: 'auto' }}>
         {tabs.map((tab) => (

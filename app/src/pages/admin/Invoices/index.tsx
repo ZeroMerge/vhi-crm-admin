@@ -9,6 +9,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { invoiceService } from '@/services/invoice.service';
+import { DrillDownChips, drillParams } from '@/components/shared/DrillDownChips';
 import { customerService } from '@/services/customer.service';
 import { shipmentService } from '@/services/shipment.service';
 import { useAuthStore } from '@/store/authStore';
@@ -43,6 +44,8 @@ const sorts = [
   { value: 'amount_asc', label: 'Amount: Low-High' },
 ];
 
+const DRILL_KEYS = ['customerId', 'industry', 'mode', 'issuedFrom', 'issuedTo', 'paidFrom', 'paidTo', 'excludeDraft', 'hasOutstanding'] as const;
+
 export default function Invoices() {
   const navigate = useNavigate();
   const admin = useAuthStore((s) => s.admin);
@@ -61,6 +64,9 @@ export default function Invoices() {
   const sortBy = searchParams.get('sortBy') || 'newest';
   const page = parseInt(searchParams.get('page') || '1');
   const pageSize = 10;
+  // Filters that come from a report drill-down (shown as chips, passed to the API unchanged).
+  const drill = drillParams(searchParams, DRILL_KEYS);
+  const drillKey = JSON.stringify(drill);
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [total, setTotal] = useState(0);
@@ -96,6 +102,7 @@ export default function Invoices() {
           sortBy,
           page,
           pageSize,
+          ...drill,
         });
         if (active) {
           setInvoices(response.data);
@@ -111,7 +118,7 @@ export default function Invoices() {
     return () => {
       active = false;
     };
-  }, [search, status, currency, dateFrom, dateTo, overdue, sortBy, page]);
+  }, [search, status, currency, dateFrom, dateTo, overdue, sortBy, page, drillKey]);
 
   
   useEffect(() => {
@@ -238,7 +245,7 @@ export default function Invoices() {
 
   return (
     <PageWrapper title="Invoices">
-      {}
+      <DrillDownChips keys={DRILL_KEYS} />
       <div className="two-col-layout" style={{ gap: 20, marginBottom: 24 }}>
         <div>
           {}

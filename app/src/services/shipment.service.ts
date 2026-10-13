@@ -11,6 +11,13 @@ interface ShipmentFilters {
   sortBy?: string;
   page?: number;
   pageSize?: number;
+  // Report drill-down filters (local dates, validated by the API)
+  industry?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  dateField?: string;
+  statusGroup?: string;
+  excludeDraft?: string;
 }
 
 export const shipmentService = {
