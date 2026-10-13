@@ -51,13 +51,13 @@ export function rolesWithModule(module: string): string[] {
 
 // Approved cross-module reads (Phase 0, Item 6 audit): pages that read another module's list.
 //   Shipments → Compose loads the customers list (logistics_officer has no customers module)
-//   Reports page loads the invoices list (support_staff has no invoices module)
 //   CustomerDetail loads a communications thread (finance_officer has no communications module)
 //   ShipmentDetail "Add note" posts a tracking note (finance_officer/support_staff have no tracking module)
 // Search result groups use the same rules (see READABLE_LIST).
 export const CROSS_READS = {
   customersList: ['customers', 'shipments'],
-  invoicesList: ['invoices', 'reports'],
+  // The old Reports page needed 'reports' here; the rebuilt one does not, and support_staff must not read invoices (RPT-2).
+  invoicesList: ['invoices'],
   communicationsThread: ['communications', 'customers'],
   trackingNote: ['tracking', 'shipments'],
   shipmentsList: ['shipments'],
