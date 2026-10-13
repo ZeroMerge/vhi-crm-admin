@@ -12,7 +12,7 @@ const FORMATS: Array<{ value: ExportFormat; label: string; icon: typeof FileText
   { value: 'xlsx', label: 'Excel (.xlsx)', icon: FileSpreadsheet },
 ];
 
-export function ExportMenu({ filters, capabilities, disabled }: { filters: ReportFilterParams; capabilities: Capabilities; disabled?: boolean }) {
+export function ExportMenu({ filters, capabilities, today, disabled }: { filters: ReportFilterParams; capabilities: Capabilities; today?: string; disabled?: boolean }) {
   const [busy, setBusy] = useState<ExportFormat | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,7 +21,7 @@ export function ExportMenu({ filters, capabilities, disabled }: { filters: Repor
     setError(null);
     try {
       const sections: ExportSection[] = capabilities.revenue ? ['summary', 'shipments', 'revenue', 'customers'] : ['summary', 'shipments', 'customers'];
-      const { blob, filename } = await reportService.exportReport(format, sections, filters);
+      const { blob, filename } = await reportService.exportReport(format, sections, filters, today);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;

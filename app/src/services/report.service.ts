@@ -161,13 +161,13 @@ export const reportService = {
   customers: (filters: ReportFilterParams, list: ListParams, signal?: AbortSignal) => page<CustomerReportRow>('/customers', filters, list, signal),
 
   /** Downloads through the authenticated axios instance (a plain link could not send the Bearer token). */
-  exportReport: async (format: ExportFormat, sections: ExportSection[], filters: ReportFilterParams): Promise<{ blob: Blob; filename: string }> => {
+  exportReport: async (format: ExportFormat, sections: ExportSection[], filters: ReportFilterParams, today?: string): Promise<{ blob: Blob; filename: string }> => {
     const res = await api.get('/api/admin/reports/export', {
       params: clean({ ...filters, format, sections: sections.join(',') }),
       responseType: 'blob',
     });
     const disposition = String(res.headers['content-disposition'] ?? '');
-    const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? `vhi-report.${format}`;
+    const filename = /filename="([^"]+)"/.exec(disposition)?.[1] ?? `vhi-report${today ? `-${today}` : ''}.${format}`;
     return { blob: res.data as Blob, filename };
   },
 };

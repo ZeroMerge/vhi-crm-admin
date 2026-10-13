@@ -147,7 +147,7 @@ export default function Reports() {
           <p className="rpt-sub" style={{ maxWidth: 640 }}>
             Every figure, bar and row opens the list behind it with the same filters. Dates are in the business time zone{meta.data ? ` (${meta.data.timezone})` : ''}.
           </p>
-          <ExportMenu filters={filters} capabilities={caps} disabled={!ready} />
+          <ExportMenu filters={filters} capabilities={caps} today={meta.data?.today} disabled={!ready} />
         </div>
 
         {meta.data ? (
