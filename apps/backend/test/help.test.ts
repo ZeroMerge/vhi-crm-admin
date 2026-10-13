@@ -314,8 +314,40 @@ describe('help deep links', () => {
   });
 
   test('ids that support may have shared stay put', () => {
-    for (const id of ['create-account', 'confirm-email', 'sign-in', 'forgot-password', 'cancel-shipment', 'edit-shipment', 'status-meanings', 'email-settings', 'message-support']) {
+    for (const id of ['create-account', 'confirm-email', 'sign-in', 'forgot-password', 'cancel-shipment', 'edit-shipment', 'status-meanings', 'email-settings', 'message-support', 'already-processing']) {
       assert.ok(ids.includes(id), `${id} was renamed or removed`);
     }
+  });
+});
+
+describe('help: cancellation wording', () => {
+  const wording = load('lib/cancelWording.ts');
+  const text = (id: string) => search.answerText(allItems().find((i) => i.id === id));
+  const question = (id: string) => allItems().find((i) => i.id === id).question;
+
+  test('the cancel answers use the action label from lib/cancelWording.ts (rename it there, Help follows) and no longer say Delete', () => {
+    const { CANCEL_WORDING } = wording;
+    const cancel = text('cancel-shipment');
+    for (const expected of [CANCEL_WORDING.action, CANCEL_WORDING.dialogTitle, CANCEL_WORDING.confirm, CANCEL_WORDING.keep]) assert.ok(cancel.includes(expected), `missing ${expected}`);
+    assert.doesNotMatch(cancel, /Delete/);
+    assert.doesNotMatch(cancel + text('no-edit-button') + question('no-edit-button'), /Delete/);
+    assert.ok(question('no-edit-button').includes(CANCEL_WORDING.action));
+    assert.ok(text('no-edit-button').includes(CANCEL_WORDING.guidanceAction));
+  });
+
+  test('"My shipment is already being processed" explains the support route and links to Mail (hidden when signed out)', () => {
+    const item = allItems().find((i) => i.id === 'already-processing');
+    assert.equal(item.question, 'My shipment is already being processed. Can I cancel or change it?');
+    const answer = search.answerText(item);
+    for (const expected of [wording.CANCEL_WORDING.guidanceAction, wording.CANCEL_WORDING.messageSupport, 'Send VHI Support a message', 'Nothing is sent until you press Send']) assert.ok(answer.includes(expected), expected);
+    const mail = item.answer.find((b: Block) => b.type === 'link' && b.to === '/dashboard/mail');
+    assert.ok(mail && mail.hideWhenSignedOut === true);
+    assert.deepEqual(links.resolveLink(mail, 'public'), null);
+    assert.ok(search.searchHelp(helpContent, 'already being processed').map((h: any) => h.item.id).includes('already-processing'));
+    assert.equal(search.searchHelp(helpContent, 'cancel or change').map((h: any) => h.item.id)[0], 'already-processing');
+  });
+
+  test('no help text promises something that is not there: the old "this cancels the shipment" note about Delete is gone', () => {
+    for (const item of allItems()) assert.doesNotMatch(search.answerText(item), /choose Delete|Delete Shipment box|This cancels the shipment/i, item.id);
   });
 });
