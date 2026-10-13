@@ -163,10 +163,10 @@ export async function buildReport(ctx: BuildContext): Promise<ReportDoc> {
         rows.push([`Revenue ${c}`, 'Outstanding (invoices issued in range)', money(o?.issuedInRange ?? '0.00', c), 'Balance today of the invoices issued in range']);
       }
       if (quality.paymentsDatedByFallback || quality.paidStatusWithOutstanding) {
-        notices.push(
-          `Data quality: ${quality.paymentsDatedByFallback} successful payment(s) have no paid date and are dated by when they were recorded; ` +
-          `${quality.paidStatusWithOutstanding} invoice(s) are marked paid but still show a balance.`,
-        );
+        const parts: string[] = [];
+        if (quality.paymentsDatedByFallback) parts.push(`${quality.paymentsDatedByFallback} successful payment(s) have no paid date and are dated by when they were recorded`);
+        if (quality.paidStatusWithOutstanding) parts.push(`${quality.paidStatusWithOutstanding} invoice(s) are marked paid but still show a balance`);
+        notices.push(`Data quality: ${parts.join('; ')}.`);
       }
     }
     sections.push({
@@ -249,9 +249,10 @@ export async function buildReport(ctx: BuildContext): Promise<ReportDoc> {
     const columns: Column[] = [{ header: 'Customer', weight: 4 }];
     if (ctx.caps.contacts) columns.push({ header: 'Email', weight: 5 }, { header: 'Phone', weight: 3 });
     columns.push({ header: 'Industry', weight: 3 });
-    for (const header of ['Created', 'Pending', 'In progress', 'Completed', 'Cancelled']) columns.push({ header, weight: 1.6, align: 'right' });
+    // Wide enough that "Completed" and "Cancelled" do not break mid-word in the 13-column PDF layout.
+    for (const header of ['Created', 'Pending', 'In progress', 'Completed', 'Cancelled']) columns.push({ header, weight: 2.2, align: 'right' });
     if (columnsForMoney) {
-      columns.push({ header: 'Invoices', weight: 1.6, align: 'right' }, { header: `Invoiced (${currency})`, weight: 3, align: 'right' },
+      columns.push({ header: 'Invoices', weight: 2.2, align: 'right' }, { header: `Invoiced (${currency})`, weight: 3, align: 'right' },
         { header: `Collected (${currency})`, weight: 3, align: 'right' }, { header: `Outstanding (${currency})`, weight: 3, align: 'right' });
     }
     const rows: Cell[][] = all.rows.map((r) => {
