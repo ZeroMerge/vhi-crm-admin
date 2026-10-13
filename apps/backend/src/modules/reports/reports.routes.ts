@@ -15,6 +15,14 @@ import {
 } from './revenue';
 import { CUSTOMER_BASE_SORTS, CUSTOMER_MONEY_SORTS, customersReport } from './customers';
 import { customerNameSql, escapeLike } from './sql';
+import { rateLimit } from '../../middleware/rateLimit';
+import { logAuditEvent } from '../../utils/audit';
+import { companyName } from '../../utils/companyName';
+import { localDate } from '../../utils/appTime';
+import { EXPORT_FORMATS, EXPORT_SECTIONS, ExportFormat, ExportSection, buildReport, humanize, rowCounts } from './export/model';
+import { renderDocx } from './export/docx';
+import { renderPdf } from './export/pdf';
+import { writeXlsx } from './export/xlsx';
 
 const router = Router();
 
@@ -208,7 +216,87 @@ router.get('/customers', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// ---- legacy (kept for one release; Overview moves to /summary, then these are removed: RISKS R-69) ----
+// ---- export (PDF, Word, Excel) ----
+
+const MIME: Record<ExportFormat, string> = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+};
+
+// Per admin, per process (like the other in-memory limiters, RISKS R-58). Exports run several aggregate queries.
+export const exportLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 5,
+  key: (req) => `report-export:${req.admin?.id ?? req.ip}`,
+  message: 'Too many report exports. Wait a minute and try again.',
+});
+
+const exportQuery = z.object({
+  format: z.enum(EXPORT_FORMATS),
+  sections: z.string().max(100).optional(),
+});
+
+router.get('/export', exportLimiter, async (req, res, next) => {
+  try {
+    const admin = req.admin!;
+    const caps = reportCapabilities(admin.activeRole);
+    const raw = { ...(req.query as Record<string, unknown>) };
+    const parsed = exportQuery.safeParse({ format: raw.format, sections: raw.sections });
+    if (!parsed.success) return badRequest(res, parsed.error.issues.map((i) => ({ field: i.path.join('.'), message: i.message })));
+    delete raw.format;
+    delete raw.sections;
+
+    const names = parsed.data.sections === undefined
+      ? EXPORT_SECTIONS.filter((s) => s !== 'revenue' || caps.revenue)
+      : [...new Set(parsed.data.sections.split(',').map((s) => s.trim()).filter(Boolean))];
+    const unknown = names.filter((s) => !(EXPORT_SECTIONS as readonly string[]).includes(s));
+    if (unknown.length || names.length === 0) {
+      return badRequest(res, [{ field: 'sections', message: `must list one or more of: ${EXPORT_SECTIONS.join(', ')}` }]);
+    }
+    const sections = names as ExportSection[];
+    // Revenue is never dropped silently from a request that names it.
+    if (sections.includes('revenue') && !caps.revenue) return forbiddenRevenue(res);
+
+    const parsedFilters = parseFilters(raw); // strict: list parameters (page, sort...) mean nothing to an export, so they are rejected
+    if (!parsedFilters.ok) return badRequest(res, parsedFilters.issues);
+    const f = parsedFilters.filters;
+    const format = parsed.data.format;
+
+    const who = await pool.query('SELECT name FROM admins WHERE id = $1', [admin.id]);
+    const generatedBy = `${who.rows[0]?.name || admin.email} (${humanize(admin.activeRole)})`;
+    const doc = await buildReport({ filters: f, sections, format, caps, company: companyName(), generatedBy });
+
+    // Audited before any byte is sent, so a record exists even if the download is abandoned.
+    const counts = rowCounts(doc);
+    await logAuditEvent(admin.id, 'admin', admin.activeRole, 'EXPORT_REPORT', 'report', null, {
+      format, sections, filters: filtersView(f), rowCounts: counts,
+      truncated: Object.entries(counts).filter(([, c]) => c.shown < c.total).map(([id]) => id),
+    });
+
+    const filename = `vhi-report-${localDate(new Date(), f.timezone)}.${format}`;
+    res.setHeader('Content-Type', MIME[format]);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    if (format === 'xlsx') {
+      try {
+        await writeXlsx(doc, res);
+      } catch (err) {
+        // Headers are already out: the only honest signal left is a broken download.
+        console.error('Report export failed while streaming:', err);
+        res.destroy(err as Error);
+      }
+      return;
+    }
+    const body = format === 'pdf' ? await renderPdf(doc) : await renderDocx(doc);
+    res.setHeader('Content-Length', String(body.length));
+    res.end(body);
+  } catch (err) { next(err); }
+});
+
+// ---- legacy (kept for one release; Overview moves to /summary, then this is removed: RISKS R-69) ----
 
 const getPeriodFilter = (period: string): string => {
   switch (period) {
@@ -255,31 +343,5 @@ router.get('/:period', adminMiddleware, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-
-router.get('/export', adminMiddleware, async (req, res, next) => {
-  try {
-    const period = (req.query.period as string) || 'monthly';
-    const filter = getPeriodFilter(period);
-
-    const newUsers = await pool.query(`SELECT COUNT(*) FROM customers WHERE ${filter}`);
-    const pendingShipments = await pool.query(`SELECT COUNT(*) FROM shipments WHERE status = 'pending' AND ${filter}`);
-    const totalEnquiries = await pool.query(`SELECT COUNT(*) FROM shipments WHERE ${filter}`);
-    const revenue = await pool.query(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE payment_status = 'success' AND ${filter}`);
-
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename=report-${period}.csv`);
-    
-    const today = new Date().toISOString().split('T')[0];
-    const csvRows = [
-      'Date,Metric,Value',
-      `${today},New Users,${parseInt(newUsers.rows[0].count)}`,
-      `${today},Pending Shipments,${parseInt(pendingShipments.rows[0].count)}`,
-      `${today},Total Shipments,${parseInt(totalEnquiries.rows[0].count)}`,
-      `${today},Revenue,${parseFloat(revenue.rows[0].total)}`
-    ];
-
-    res.send(csvRows.join('\n') + '\n');
-  } catch (err) { next(err); }
-});
 
 export default router;

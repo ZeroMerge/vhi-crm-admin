@@ -48,9 +48,9 @@ describe('module helpers', () => {
     assert.deepEqual(rolesWithModule('settings').sort(), Object.keys(ROLE_MODULES).sort());
   });
 
-  test('cross-reads are the four approved ones and always include the owning module', () => {
+  test('cross-reads are the approved ones and always include the owning module (invoices has none since RPT-2)', () => {
     assert.deepEqual(CROSS_READS.customersList, ['customers', 'shipments']);
-    assert.deepEqual(CROSS_READS.invoicesList, ['invoices', 'reports']);
+    assert.deepEqual(CROSS_READS.invoicesList, ['invoices']);
     assert.deepEqual(CROSS_READS.communicationsThread, ['communications', 'customers']);
     assert.deepEqual(CROSS_READS.trackingNote, ['tracking', 'shipments']);
   });
