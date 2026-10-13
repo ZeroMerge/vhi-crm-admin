@@ -12,25 +12,22 @@ import pool from '../src/config/db';
 import reportsRoutes, { exportLimiter } from '../src/modules/reports/reports.routes';
 import { BuildContext, buildReport } from '../src/modules/reports/export/model';
 import { renderPdf } from '../src/modules/reports/export/pdf';
-import { safeText, writeXlsx } from '../src/modules/reports/export/xlsx';
+import { writeXlsx } from '../src/modules/reports/export/xlsx';
 import { parseFilters } from '../src/modules/reports/filters';
 import { companyName } from '../src/utils/companyName';
 import { localDate } from '../src/utils/appTime';
 
 const FORMULA_NAME = '=HYPERLINK("http://evil.example/steal","click me")';
+// Text a spreadsheet could read as a formula, stored in a name and a phone number. Each must come back from the file unchanged.
+const RISKY: Array<{ key: string; first: string; last: string; phone: string }> = [
+  { key: 'plus', first: '+Plus', last: 'Ltd', phone: '+2348012345678' },
+  { key: 'dash', first: '-Dash', last: 'Co', phone: '-5551234' },
+  { key: 'at', first: '@Mention', last: 'Ltd', phone: '@SUM(1+1)' },
+  { key: 'tab', first: '\tTabbed', last: 'Name', phone: '\t=1+1' },
+  { key: 'cr', first: '\rCarriage', last: 'Return', phone: '=cmd|\' /C calc\'!A0' },
+];
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-
-describe('safeText (formula-injection guard)', () => {
-  test('anything a spreadsheet could read as a formula gets a leading apostrophe; ordinary text is untouched', () => {
-    for (const bad of ['=1+1', '+1', '-1', '@SUM(A1)', '\t=1', '\r=1', ' =1', '  @x', FORMULA_NAME, '-cmd|calc']) {
-      assert.equal(safeText(bad), `'${bad}`, JSON.stringify(bad));
-    }
-    for (const fine of ['Ada Obi', 'a=b', 'x+y', 'Acme-Corp', '1=1', '', 'O\'Neil', '₦100', 'Ọláwálé']) {
-      assert.equal(safeText(fine), fine, JSON.stringify(fine));
-    }
-  });
-});
 
 describe('COMPANY_NAME', () => {
   test('defaults to VHI, drops control characters and long values', () => {
@@ -68,6 +65,11 @@ describe('report exports', dbTest, () => {
          VALUES ($1, $2, 10.00, 'NGN', 'sent', '2026-10-14T10:00:00Z', '2026-10-14T10:00:00Z')`, [`INV-${key}`, c]);
     }
     evilId = ids.evil;
+    for (const r of RISKY) {
+      await pool.query(
+        `INSERT INTO customers (user_id, firstname, lastname, email, phone, password_hash, industry, is_active)
+         VALUES ($1, $2, $3, $4, $5, 'x', 'others', true)`, [`VHI-${r.key}`, r.first, r.last, `${r.key}@test.local`, r.phone]);
+    }
     const f = await insertAdmin({ assignedRoles: ['finance_officer'] });
     financeId = f.id;
     finance = adminToken({ id: f.id, email: f.email, activeRole: 'finance_officer' });
@@ -187,21 +189,48 @@ describe('report exports', dbTest, () => {
       assert.equal(created.getCell(3).value, ((await api2.json()) as any).data.shipments.created);
     });
 
-    test('formula injection: a customer named like a formula is text, never a formula', async () => {
+    test('formula injection: risky text is a typed string, unchanged, with no apostrophe and no formula anywhere', async () => {
       const { wb, body } = await loadXlsx(OCT);
-      const row = findRow(wb.getWorksheet('Customers')!, (v) => typeof v === 'string' && v.includes('HYPERLINK'))!;
-      const cell = row.getCell(1);
-      assert.equal(cell.type, ExcelJS.ValueType.String);
-      assert.equal(cell.value, `'${FORMULA_NAME} Evil`);
-      for (const ws of wb.worksheets) {
-        ws.eachRow((r) => r.eachCell((c) => assert.notEqual(c.type, ExcelJS.ValueType.Formula, `${ws.name} ${c.address}`)));
+      const customers = wb.getWorksheet('Customers')!;
+      const byEmail = (email: string) => rowsOf(customers).find((r) => r.getCell(2).value === email)!;
+
+      // =HYPERLINK(...) round-trips unchanged
+      const evil = byEmail('evil@test.local').getCell(1);
+      assert.equal(evil.type, ExcelJS.ValueType.String);
+      assert.equal(evil.value, `${FORMULA_NAME} Evil`);
+      // +234... displays exactly as stored, as text
+      const plusPhone = byEmail('plus@test.local').getCell(3);
+      assert.equal(plusPhone.type, ExcelJS.ValueType.String);
+      assert.equal(plusPhone.value, '+2348012345678');
+      // every risky name and phone: the original text, a string, no leading apostrophe
+      for (const r of RISKY) {
+        const row = byEmail(`${r.key}@test.local`);
+        const name = row.getCell(1);
+        const phone = row.getCell(3);
+        assert.equal(name.type, ExcelJS.ValueType.String, `${r.key} name type`);
+        // A literal CR in XML is read back as LF by every XML parser (Excel included); everything else is byte for byte.
+        const lf = (text: string) => text.replace(/\r\n?/g, '\n');
+        assert.equal(name.value, lf(`${r.first} ${r.last}`), `${r.key} name`);
+        assert.equal(phone.type, ExcelJS.ValueType.String, `${r.key} phone type`);
+        assert.equal(phone.value, lf(r.phone), `${r.key} phone`);
+        assert.ok(!String(name.value).startsWith("'") && !String(phone.value).startsWith("'"), `${r.key}: no apostrophe`);
       }
-      // And in the raw file: no <f> element on any sheet, and the text sits in the shared strings.
+      for (const ws of wb.worksheets) {
+        ws.eachRow((row) => row.eachCell((c) => {
+          assert.notEqual(c.type, ExcelJS.ValueType.Formula, `${ws.name} ${c.address}`);
+          assert.ok(!(typeof c.value === 'string' && /^'[=+\-@\t\r]/.test(c.value)), `${ws.name} ${c.address} has an apostrophe guard`);
+        }));
+      }
+
+      // The raw file: no <f> element on any sheet; the originals sit in the shared strings, none behind an apostrophe.
       const zip = await JSZip.loadAsync(body);
       const sheets = Object.keys(zip.files).filter((n) => /^xl\/worksheets\/sheet\d+\.xml$/.test(n));
       assert.ok(sheets.length >= 6);
       for (const name of sheets) assert.doesNotMatch(await zip.file(name)!.async('string'), /<f[\s>]/, name);
-      assert.ok((await zip.file('xl/sharedStrings.xml')!.async('string')).includes('HYPERLINK'));
+      const shared = await zip.file('xl/sharedStrings.xml')!.async('string');
+      assert.ok(shared.includes('+2348012345678'), 'phone is in the shared strings');
+      assert.ok(shared.includes('HYPERLINK'), 'formula text is in the shared strings');
+      assert.doesNotMatch(shared, /'\+2348012345678|'=HYPERLINK/);
     });
 
     test('the formula-like customer in the FILTER block is text too', async () => {
@@ -240,6 +269,7 @@ describe('report exports', dbTest, () => {
       const zip = await JSZip.loadAsync(body);
       const xml = await zip.file('word/document.xml')!.async('string');
       const text = xml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+      assert.ok(!text.includes("'+2348012345678") && !text.includes("'=HYPERLINK") && text.includes('+2348012345678'), 'DOCX: phone unchanged, no apostrophe');
       for (const expected of ['Reports', 'VHI', 'Date range: 1 Oct 2026 to 31 Oct 2026 (Africa/Lagos)', 'Customer: All', 'Generated:', '(Finance officer)',
         'Shipments by customer', 'Ada Obi', '₦2,000.00', '$350.50', 'Ọláwálé', 'Çelik-Muñoz', FORMULA_NAME.replace(/&/g, '&amp;')]) {
         assert.ok(text.includes(expected.replace(/"/g, '&quot;')) || text.includes(expected), `missing: ${expected}`);

@@ -321,7 +321,9 @@ export function formatMoney(m: Money): string {
 export function cellText(cell: Cell): string {
   if (cell === null || cell === undefined) return '';
   if (typeof cell === 'number') return cell.toLocaleString('en-US');
-  if (typeof cell === 'string') return cell;
+  // Control characters (tab, CR, LF...) have no glyph in the PDF font and would print as boxes; as text they are only whitespace.
+  // Everything else, including = + - @ at the start, is shown exactly as stored (the XLSX writer does not use this function).
+  if (typeof cell === 'string') return cell.replace(/[\x00-\x1f\x7f]+/g, ' ');
   if ('money' in cell) return formatMoney(cell);
   return prettyDate(cell.date);
 }

@@ -7,14 +7,14 @@ import type { Cell, Column, ReportDoc, TableData } from './model';
 
 const HEADER_ROWS = 6; // rows above the table header on every sheet (row 6 is the table header)
 
-/**
- * Text that a spreadsheet could read as a formula (= + - @, tab, CR, even after leading blanks) is written as a plain string with a
- * leading apostrophe, so it stays text for Excel, LibreOffice and Sheets alike, and survives being copied or edited.
- * (The cell is also a typed string, never a formula object; the apostrophe covers re-entry and other consumers.)
+/*
+ * Formula-injection guard. Text such as =HYPERLINK(...), +2348012345678, -x, @x, a tab or a CR is written exactly as stored, as a
+ * TYPED STRING cell (a shared string, never a formula object), so Excel, LibreOffice and Sheets show it as text and never evaluate
+ * it; a customer phone number like +2348012345678 displays exactly as stored. No apostrophe is added. exceljs has no `quotePrefix`
+ * cell style (checked in its source and typings), so the string type is the whole guard. Residual case, accepted (RISKS R-76): a
+ * user who edits such a cell in Excel (F2, Enter) makes Excel re-parse it. There is no CSV export, where this would matter more.
+ * The tests re-read the file and check the raw sheet XML for <f> elements.
  */
-export function safeText(value: string): string {
-  return /^[\s\u0000-\u001f]*[=+\-@]/.test(value) || /^[\t\r]/.test(value) ? `'${value}` : value;
-}
 
 const MONEY_FORMATS: Record<string, string> = {
   NGN: '"₦"#,##0.00', USD: '"$"#,##0.00', GBP: '"£"#,##0.00', EUR: '"€"#,##0.00',
@@ -52,7 +52,7 @@ function writeTable(wb: ExcelJS.stream.xlsx.WorkbookWriter, doc: ReportDoc, tabl
   ws.columns = table.columns.map((_, i) => ({ width: w[i] }));
 
   const line = (text: string, bold = false, size = 11) => {
-    const row = ws.addRow([safeText(text)]);
+    const row = ws.addRow([text]);
     row.getCell(1).font = { bold, size };
     row.commit();
   };
@@ -73,7 +73,7 @@ function writeTable(wb: ExcelJS.stream.xlsx.WorkbookWriter, doc: ReportDoc, tabl
   header.commit();
 
   for (const values of table.rows) {
-    const row = ws.addRow(values.map((v) => (v === null || v === undefined ? null : typeof v === 'string' ? safeText(v) : typeof v === 'number' ? v : 'money' in v ? Number(v.money) : new Date(`${v.date}T00:00:00Z`))));
+    const row = ws.addRow(values.map((v) => (v === null || v === undefined ? null : typeof v === 'string' ? v : typeof v === 'number' ? v : 'money' in v ? Number(v.money) : new Date(`${v.date}T00:00:00Z`))));
     values.forEach((v, i) => {
       const cell = row.getCell(i + 1);
       if (typeof v === 'number') cell.numFmt = INT_FORMAT;
@@ -87,7 +87,7 @@ function writeTable(wb: ExcelJS.stream.xlsx.WorkbookWriter, doc: ReportDoc, tabl
   const general = doc.notices.filter((n) => !doc.sections.some((sec) => sec.tables.some((t) => n.startsWith(`${t.title}:`))));
   if (general.length) {
     ws.addRow([]).commit();
-    for (const n of general) ws.addRow([safeText(n)]).commit();
+    for (const n of general) ws.addRow([n]).commit();
   }
 
   ws.autoFilter = { from: { row: HEADER_ROWS, column: 1 }, to: { row: HEADER_ROWS + Math.max(table.rows.length, 1), column: table.columns.length } };
