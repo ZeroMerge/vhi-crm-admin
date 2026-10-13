@@ -137,7 +137,7 @@ describe('cancel wording and who gets guidance', () => {
     assert.equal(count(src, /isClientEditable\(row\.original\.status\)/g), 2, 'desktop menu and mobile cards');
     assert.equal(count(src, /isSupportGuidanceStatus\(row\.original\.status\)/g), 2);
     // every Edit / Cancel control sits after an isClientEditable check, before the guidance branch
-    for (const marker of ['onEdit(row.original)', 'onCancel(row.original)', 'setCancelTarget(row.original)']) {
+    for (const marker of ['onEdit(row.original)', 'onCancel(row.original)', 'openCancel(row.original)']) {
       const at = src.indexOf(marker);
       assert.ok(at > 0, marker);
       const before = src.slice(0, at);
