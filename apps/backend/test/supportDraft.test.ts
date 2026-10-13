@@ -61,6 +61,85 @@ describe('Mail draft for ?shipment=<orderId>', () => {
   });
 });
 
+describe('Mail draft for delivered and cancelled shipments (neutral question) vs the rest (change or cancel)', () => {
+  const QUESTION = (id: string) => `Hello, I have a question about shipment ${id}.`;
+  const own = (status: string) => [{ orderId: 'CL1', status }, { orderId: '#2', status: 'processing' }];
+
+  test('delivered and cancelled get the question draft, any casing; every other status keeps the change-or-cancel draft', () => {
+    for (const s of ['delivered', 'cancelled', 'DELIVERED', 'Cancelled']) assert.equal(draftLib.draftForShipmentParam('CL1', own(s)), QUESTION('CL1'), s);
+    for (const s of status.SHIPMENT_STATUSES.filter((x: string) => x !== 'delivered' && x !== 'cancelled')) {
+      assert.equal(draftLib.draftForShipmentParam('CL1', own(s)), DRAFT('CL1'), s);
+    }
+    assert.equal(draftLib.draftForShipmentParam('CL1', [{ orderId: 'CL1' }]), DRAFT('CL1'), 'status unknown');
+    assert.equal(draftLib.draftForShipmentParam('CL1', [{ orderId: 'CL1', status: '' }]), DRAFT('CL1'), 'empty status');
+    assert.equal(wording.questionDraft('X'), QUESTION('X'));
+  });
+
+  test('the same ownership and format checks apply: foreign, malformed or crafted IDs give nothing, whatever the status', () => {
+    const mine = own('delivered');
+    assert.equal(draftLib.draftForShipmentParam('CL9', mine), '');
+    assert.equal(draftLib.draftForShipmentParam('cl1', mine), '');
+    assert.equal(draftLib.draftForShipmentParam('CL1 Reason: x', mine), '');
+    assert.equal(draftLib.draftForShipmentParam(null, mine), '');
+    assert.equal(draftLib.draftForShipmentParam('CL1', []), '');
+    // a status never changes which ID is accepted, and the draft is still only the template plus the owned ID
+    assert.equal(draftLib.draftForShipmentParam('#2', mine), DRAFT('#2'));
+    assert.equal(draftLib.draftForShipmentParam('CL1', mine).replace('CL1', '<ID>'), 'Hello, I have a question about shipment <ID>.');
+  });
+
+  test('isFinalStatus is exactly delivered and cancelled', () => {
+    const final = status.SHIPMENT_STATUSES.filter((s: string) => status.isFinalStatus(s)).sort();
+    assert.deepEqual(final, ['cancelled', 'delivered']);
+    assert.equal(status.isFinalStatus('DELIVERED'), true);
+    assert.equal(status.isFinalStatus('weird'), false);
+  });
+
+  test('Mail passes each shipment status to the draft function', () => {
+    const mail = read('pages/dashboard/mail/Mail.tsx');
+    assert.match(mail, /orderId: String\(s\.order_id \?\? s\.orderId \?\? ""\), status: String\(s\.status \?\? ""\)/);
+  });
+});
+
+describe('Edit page status guard', () => {
+  const w = wording.CANCEL_WORDING;
+  const page = read('pages/dashboard/manage-shipment/EditShipmentPage.tsx');
+
+  test('finalMessage and the fallback wording', () => {
+    assert.equal(wording.finalMessage(), 'This shipment can no longer be changed.');
+    assert.equal(w.backToManage, 'Back to Manage Shipment');
+    assert.equal(wording.noLongerPendingMessage('CL1'), "Shipment CL1 is no longer pending, so it can't be changed or cancelled here. Send VHI Support a message and they'll help.");
+  });
+
+  test('the page renders a form only for an exactly-Pending shipment, decided from fresh data and kept after a refused save', () => {
+    assert.match(page, /isClientEditable\(String\(raw\.status/);
+    assert.match(page, /showForm === null && raw && !isFetching/);
+    assert.match(page, /!showForm \? \(\s*<StatusGuidance/);
+    // every form can only be reached through the showForm branch
+    assert.equal(count(page, /<(AirFreightEditForm|GroupageEditForm|ExportEditForm) raw=/g), 3);
+    assert.ok(page.indexOf('<ExportEditForm raw=') > page.indexOf('!showForm ?'));
+    // unknown or foreign IDs keep today's behaviour
+    assert.match(page, /isError \|\| !raw\) \{[\s\S]*?Shipment not found\./);
+  });
+
+  test('guidance reuses the row-action wording and Mail link; delivered and cancelled get the short text and the way back', () => {
+    assert.match(page, /guidanceMessage\(orderId, status\)/);
+    assert.match(page, /finalMessage\(\)/);
+    assert.match(page, /mailLinkForShipment\(orderId\)/);
+    assert.match(page, /to="\/dashboard\/manage-shipment"/);
+    assert.equal(wording.guidanceMessage('CL1', 'draft'), 'Shipment CL1 was set up by VHI, so changes or cancellation go through VHI Support.');
+  });
+
+  test('a 403 on save shows the guidance instead of the error toast, locks Save and keeps the form mounted; other errors still toast', () => {
+    assert.equal(count(page, /guard\.onForbidden\(\)/g), 3, 'all three forms');
+    assert.equal(count(page, /response\?\.status === 403/g), 1);
+    assert.equal(count(page, /disabled=\{isPending \|\| guard\.locked\}/g), 3);
+    assert.equal(count(page, /if \(guard\.locked\) return;/g), 3);
+    assert.match(page, /\{refused && <StatusGuidance/);
+    const api = read('lib/api.ts');
+    assert.match(api, /if \(onError\?\.\(error as AppError\) !== true\) handleError\(error as AppError\);/);
+  });
+});
+
 describe('Mail never sends by itself and reads one URL parameter', () => {
   const mail = read('pages/dashboard/mail/Mail.tsx');
   const chat = read('components/ChatInterface.tsx');
