@@ -140,6 +140,39 @@ describe('Edit page status guard', () => {
   });
 });
 
+describe('staff-created order IDs that start with # survive every URL they travel in', () => {
+  const HASH = '#A-1895-67-fw';
+  const notif = load('lib/notificationLinks.ts');
+
+  test('builders encode the #: Mail link and notification link, and both read back to the same ID', () => {
+    assert.equal(draftLib.mailLinkForShipment(HASH), '/dashboard/mail?shipment=%23A-1895-67-fw');
+    const link = notif.notificationLink({ entityType: 'shipment', data: { orderId: HASH } });
+    assert.equal(link, '/dashboard/tracking?order=%23A-1895-67-fw');
+    assert.equal(new URL(link, 'http://localhost').searchParams.get('order'), HASH);
+    assert.equal(new URL(draftLib.mailLinkForShipment(HASH), 'http://localhost').searchParams.get('shipment'), HASH);
+    // a path segment built the same way reads back through the URL parser as the original ID, with no fragment
+    const path = `/dashboard/manage-shipment/edit/${encodeURIComponent(HASH)}`;
+    assert.equal(path, '/dashboard/manage-shipment/edit/%23A-1895-67-fw');
+    assert.equal(decodeURIComponent(new URL(path, 'http://localhost').pathname.split('/').pop() as string), HASH);
+    assert.equal(new URL(path, 'http://localhost').hash, '');
+  });
+
+  test('no client code puts an order ID in a URL path unencoded (edit links and every /client/shipments|tracking request)', () => {
+    const api = read('lib/api.ts');
+    assert.doesNotMatch(api, /\/client\/(shipments|tracking)\/\$\{orderId\}/);
+    assert.equal(count(api, /\/client\/shipments\/\$\{encodeURIComponent\(orderId\)\}/g), 4);
+    assert.equal(count(api, /\/client\/tracking\/\$\{encodeURIComponent\(orderId\)\}/g), 1);
+    const rows = read('pages/dashboard/overview/components/RecentActivities.tsx');
+    assert.doesNotMatch(rows, /manage-shipment\/edit\/\$\{row(\.original)?\.orderId\}/);
+    assert.equal(count(rows, /manage-shipment\/edit\/\$\{encodeURIComponent\(row(\.original)?\.orderId\)\}/g), 2);
+  });
+
+  test('displayOrderId never doubles the #', () => {
+    assert.equal(draftLib.displayOrderId(HASH), HASH);
+    assert.equal(draftLib.displayOrderId('CL1-2-ab'), '#CL1-2-ab');
+  });
+});
+
 describe('Mail never sends by itself and reads one URL parameter', () => {
   const mail = read('pages/dashboard/mail/Mail.tsx');
   const chat = read('components/ChatInterface.tsx');
