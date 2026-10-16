@@ -24,7 +24,8 @@ interface Base {
 export type NotificationEvent =
   | (Base & { type: 'shipment.created'; shipment: ShipmentRef & { shippingMode: string } })
   | (Base & { type: 'shipment.created_for_customer'; shipment: ShipmentRef & { status: string } })
-  | (Base & { type: 'shipment.cancelled_by_client'; shipment: ShipmentRef })
+  /** `reason` is the customer's optional plain-text reason; the bell shows its first 200 characters, the audit row keeps all of it. */
+  | (Base & { type: 'shipment.cancelled_by_client'; shipment: ShipmentRef; reason?: string | null })
   | (Base & {
       type: 'shipment.status_changed';
       shipment: ShipmentRef;
@@ -118,6 +119,9 @@ export const durationLabel = (hours: number) =>
   hours % 24 === 0 ? `${hours / 24} day${hours === 24 ? '' : 's'}` : `${hours} hour${hours === 1 ? '' : 's'}`;
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
+/** Characters of a customer's cancellation reason shown in the admin bell (the full text is on the shipment page). */
+export const CANCEL_REASON_EXCERPT = 200;
+
 // Excerpt by grapheme cluster (never splits emoji or combined characters), whitespace collapsed.
 export function excerpt(text: string, max = 120): string {
   const collapsed = text.replace(/\s+/g, ' ').trim();
@@ -180,7 +184,7 @@ export const CATALOG: { [T in NotificationType]: CatalogEntry<T> } = {
     customerId: shipmentOwner,
     render: (e, ctx) => ({
       title: `Shipment ${e.shipment.orderId} cancelled by customer`,
-      body: `${fullName(ctx.customer)} cancelled this pending shipment.`,
+      body: `${fullName(ctx.customer)} cancelled this pending shipment.${e.reason ? ` Reason: ${excerpt(e.reason, CANCEL_REASON_EXCERPT)}` : ''}`,
       data: { orderId: e.shipment.orderId },
     }),
   },

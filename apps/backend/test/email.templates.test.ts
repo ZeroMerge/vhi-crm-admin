@@ -5,7 +5,7 @@ import { SAMPLES, XSS, CAPPED_MESSAGES } from '../src/modules/email/templates/sa
 import { emailConfigFromEnv } from '../src/modules/email/config';
 import { formatSentAt, selectMessages, MESSAGE_GROUP_MAX } from '../src/modules/email/templates/messages';
 import { cleanSubject, escapeHtml, html, maskEmail, rawHtml, SUBJECT_MAX } from '../src/modules/email/templates/html';
-import { buildUrl, normaliseBase } from '../src/modules/email/templates/urls';
+import { buildUrl, links, normaliseBase } from '../src/modules/email/templates/urls';
 import { unsubscribeConfirmPage, unsubscribeInvalidPage } from '../src/modules/email/templates/pages';
 
 const BASES = { client: 'https://client.example.test', admin: 'https://admin.example.test', api: 'https://api.example.test' };
@@ -120,6 +120,13 @@ describe('email templates', () => {
     const long = 'word '.repeat(2000).trim();
     const big = render('customer.message', { firstname: 'Ada', count: 1, hasPortal: true, messages: [{ sentAt: '2026-10-06T14:00:00.000Z', subject: 's', body: long }] });
     assert.ok(big.text.includes(long), 'no truncation');
+  });
+
+  test('tracking link encodes a staff-created # order ID', () => {
+    const b = { client: 'https://client.example.test', admin: 'https://admin.example.test', api: 'https://api.example.test' };
+    const url = links(b).tracking('#A-1895-67-fw');
+    assert.equal(url, 'https://client.example.test/dashboard/tracking?order=%23A-1895-67-fw');
+    assert.equal(new URL(url).searchParams.get('order'), '#A-1895-67-fw');
   });
 
   test('links: tracking deep link, client mail route (R-25), admin shipment, admin comms, verify/reset with token', () => {

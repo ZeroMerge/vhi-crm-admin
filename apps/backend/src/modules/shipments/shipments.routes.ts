@@ -8,6 +8,7 @@ import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
 import { emit } from '../notifications/notification.service';
 import { generateOrderId } from '../../utils/generateOrderId';
 import { parseShipmentListExtras, shipmentListConditions } from '../reports/listFilters';
+import { appTimezone, formatDateTime } from '../../utils/appTime';
 import { assertInitialStatus, assertTransition, assertValidStatus, conflictError, getAllowedTransitions } from './shipmentStatus';
 
 const router = Router();
@@ -205,6 +206,27 @@ router.get('/:id', adminMiddleware, async (req, res, next) => {
     const documents = await pool.query('SELECT * FROM shipment_documents WHERE shipment_id = $1', [req.params.id]);
     const tracking = await pool.query('SELECT * FROM tracking_updates WHERE shipment_id = $1 ORDER BY created_at ASC', [req.params.id]);
 
+    // Cancelled by the customer: the latest customer CANCEL_SHIPMENT audit row that belongs to the current cancellation (written in the
+    // same transaction that set status_changed_at, so a later admin cancellation or reopening is never mistaken for it).
+    let customerCancellation: { at: string; atText: string; reason: string | null } | null = null;
+    if (shipment.status === 'cancelled') {
+      const audit = await pool.query(
+        `SELECT created_at, metadata->>'reason' AS reason
+           FROM audit_logs
+          WHERE resource_type = 'shipment' AND resource_id = $1 AND action = 'CANCEL_SHIPMENT' AND actor_type = 'customer'
+          ORDER BY created_at DESC LIMIT 1`,
+        [shipment.id]
+      );
+      const row = audit.rows[0];
+      if (row && row.created_at >= shipment.status_changed_at) {
+        customerCancellation = {
+          at: new Date(row.created_at).toISOString(),
+          atText: formatDateTime(row.created_at, appTimezone()),
+          reason: row.reason ?? null,
+        };
+      }
+    }
+
     res.json({
       success: true,
       data: {
@@ -215,6 +237,7 @@ router.get('/:id', adminMiddleware, async (req, res, next) => {
           trackingUpdates: tracking.rows
         }),
         allowedTransitions,
+        customerCancellation,
       },
     });
   } catch (err) { next(err); }

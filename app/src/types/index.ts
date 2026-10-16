@@ -116,8 +116,17 @@ export interface AllowedTransition {
   requiresReason: boolean;
 }
 
+/** Present when the customer cancelled the shipment (and it has not been changed since). `reason` is plain text, null when none was given. */
+export interface CustomerCancellation {
+  at: string;
+  /** Already formatted in the business time zone (APP_TIMEZONE) by the server. */
+  atText: string;
+  reason: string | null;
+}
+
 export interface Shipment {
   allowedTransitions?: AllowedTransition[];
+  customerCancellation?: CustomerCancellation | null;
   id: string;
   orderId: string;
   customerId: string;

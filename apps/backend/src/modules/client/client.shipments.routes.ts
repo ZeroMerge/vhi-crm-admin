@@ -7,6 +7,7 @@ import { customerMiddleware } from '../../middleware/customerMiddleware';
 import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
 import { emit } from '../notifications/notification.service';
 import { generateOrderId } from '../../utils/generateOrderId';
+import { parseCancelReason } from '../../utils/cancelReason';
 import { uploadToCloudinary } from '../../utils/uploadToCloudinary';
 import { lockShipmentForUpdate, mapShipment } from '../shipments/shipments.routes';
 import { assertTransition, ShipmentTransitionError } from '../shipments/shipmentStatus';
@@ -362,6 +363,10 @@ router.put('/:orderId', customerMiddleware, async (req, res, next) => {
 
 router.delete('/:orderId', customerMiddleware, async (req, res, next) => {
   const customerId = req.customer!.id;
+  // Optional plain-text reason (<= 500 characters). Validated before anything is locked or changed.
+  const parsedReason = parseCancelReason(req.body);
+  if (!parsedReason.ok) return res.status(400).json({ success: false, message: parsedReason.message });
+  const reason = parsedReason.reason;
   let client;
   try {
     client = await pool.connect();
@@ -393,7 +398,7 @@ router.delete('/:orderId', customerMiddleware, async (req, res, next) => {
       orderId: shipment.order_id,
       from: transition.from,
       to: transition.to,
-      reason: null,
+      reason,
       isCorrection: transition.isCorrection,
     });
     await emit(
@@ -402,6 +407,7 @@ router.delete('/:orderId', customerMiddleware, async (req, res, next) => {
         actor: { type: 'customer', id: customerId },
         sourceId: auditId,
         shipment: { id: shipment.id, orderId: shipment.order_id, customerId },
+        reason,
       },
       client
     );

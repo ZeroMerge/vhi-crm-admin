@@ -180,6 +180,24 @@ export default function ShipmentDetail() {
         </span>
       </div>
 
+      {/* Cancelled by the customer: the full reason, as plain text (never HTML). */}
+      {shipment.customerCancellation && (
+        <div
+          className="card"
+          role="note"
+          style={{ marginBottom: 20, borderLeft: '4px solid var(--color-status-pending-text)' }}
+        >
+          <div style={{ fontWeight: 600, marginBottom: 6 }}>
+            Cancelled by the customer on {shipment.customerCancellation.atText}.
+          </div>
+          <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', color: 'var(--color-text-secondary)' }}>
+            {shipment.customerCancellation.reason
+              ? <>Reason: {shipment.customerCancellation.reason}</>
+              : 'No reason given'}
+          </div>
+        </div>
+      )}
+
       {/* Two Column Layout */}
       <div className="two-col-layout flex-mobile-col">
         {/* Left Column */}
