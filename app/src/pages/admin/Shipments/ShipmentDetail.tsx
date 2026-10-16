@@ -4,14 +4,13 @@ import { ArrowLeft, Upload, Download, Trash2, Clock, Package, MapPin, Plus, File
 import { PageWrapper } from '@/components/layout/PageWrapper';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
-import { CustomSelect } from '@/components/ui/CustomSelect';
+import { ShipmentStatusModal, reportStatusChangeError, transitionsFor } from '@/components/shared/ShipmentStatusModal';
+import { trackingService } from '@/services/tracking.service';
 import { formatDate, formatDateTime } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { shipmentService } from '@/services/shipment.service';
 import { useAuthStore } from '@/store/authStore';
-import type { Shipment, ShipmentStatus } from '@/types';
-
-const statusOptions: ShipmentStatus[] = ['draft', 'pending', 'processing', 'in_transit', 'clearance', 'delivered', 'cancelled'];
+import type { Shipment } from '@/types';
 
 export default function ShipmentDetail() {
   const navigate = useNavigate();
@@ -21,9 +20,11 @@ export default function ShipmentDetail() {
   const { id } = useParams();
   const [shipment, setShipment] = useState<Shipment | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [newStatus, setNewStatus] = useState<ShipmentStatus>('pending');
-  const [statusMessage, setStatusMessage] = useState('');
+  const [statusModal, setStatusModal] = useState<'update' | 'correct' | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
   const [awbNumber, setAwbNumber] = useState('');
   const [bolNumber, setBolNumber] = useState('');
   const [uniqueId, setUniqueId] = useState('');
@@ -41,7 +42,6 @@ export default function ShipmentDetail() {
         const data = await shipmentService.getById(id);
         if (active) {
           setShipment(data);
-          setNewStatus(data.status);
           setAwbNumber(data.awbNumber || '');
           setBolNumber(data.bolNumber || '');
           setUniqueId(data.uniqueId || '');
@@ -54,17 +54,24 @@ export default function ShipmentDetail() {
     };
     fetchShipment();
     return () => { active = false; };
-  }, [id]);
+  }, [id, reloadKey]);
 
-  const handleAddStatus = async () => {
-    if (!shipment) return;
+  const handleAddNote = async () => {
+    if (!shipment || !noteText.trim()) return;
+    setSavingNote(true);
     try {
-      const updated = await shipmentService.updateStatus(shipment.id, newStatus, statusMessage);
-      setShipment(updated);
-      setShowStatusModal(false);
-      setStatusMessage('');
+      await trackingService.addNote(shipment.id, noteText.trim(), shipment.status);
+      setShowNoteModal(false);
+      setNoteText('');
+      setReloadKey((k) => k + 1);
     } catch (err) {
-      console.error('Failed to update status', err);
+      console.error('Failed to add tracking note', err);
+      if (reportStatusChangeError(err)) {
+        setShowNoteModal(false);
+        setReloadKey((k) => k + 1);
+      }
+    } finally {
+      setSavingNote(false);
     }
   };
 
@@ -404,9 +411,21 @@ export default function ShipmentDetail() {
             <div className="card-header">
               <h3 className="card-title">Status Timeline</h3>
               {!isSupportStaff && (
-                <button className="btn btn-primary btn-sm" onClick={() => setShowStatusModal(true)}>
-                  Add Update
-                </button>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-outline btn-sm" onClick={() => setShowNoteModal(true)}>
+                    Add note
+                  </button>
+                  {transitionsFor(shipment, 'correct').length > 0 && (
+                    <button className="btn btn-outline btn-sm" onClick={() => setStatusModal('correct')}>
+                      Correct status
+                    </button>
+                  )}
+                  {transitionsFor(shipment, 'update').length > 0 && (
+                    <button className="btn btn-primary btn-sm" onClick={() => setStatusModal('update')}>
+                      Update Status
+                    </button>
+                  )}
+                </div>
               )}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -458,39 +477,41 @@ export default function ShipmentDetail() {
         </div>
       </div>
 
-      {/* Status Update Modal */}
       <Modal
-        isOpen={showStatusModal}
-        onClose={() => setShowStatusModal(false)}
-        title="Add Tracking Update"
+        isOpen={showNoteModal}
+        onClose={() => setShowNoteModal(false)}
+        title="Add Tracking Note"
         footer={
           <>
-            <button className="btn btn-outline" onClick={() => setShowStatusModal(false)}>Cancel</button>
-            <button className="btn btn-primary" onClick={handleAddStatus}>Add Update</button>
+            <button className="btn btn-outline" onClick={() => setShowNoteModal(false)}>Cancel</button>
+            <button className="btn btn-primary" onClick={handleAddNote} disabled={savingNote || !noteText.trim()}>
+              {savingNote ? 'Saving...' : 'Add Note'}
+            </button>
           </>
         }
       >
         <div className="form-group">
-          <label className="form-label">Status</label>
-          <CustomSelect
-            value={newStatus}
-            onChange={(val) => setNewStatus(val as ShipmentStatus)}
-            options={statusOptions.map((s) => ({ value: s, label: s.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) }))}
-            width="100%"
-          />
-        </div>
-        <div className="form-group">
-          <label className="form-label">Message</label>
+          <label className="form-label">Note (status stays {shipment.status.replace(/_/g, ' ')})</label>
           <textarea
             className="input"
-            value={statusMessage}
-            onChange={(e) => setStatusMessage(e.target.value)}
-            placeholder="Enter update message..."
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            placeholder="e.g. Arrived at transit hub, Paris..."
             rows={3}
             style={{ resize: 'vertical', width: '100%' }}
           />
         </div>
       </Modal>
+
+      {statusModal && (
+        <ShipmentStatusModal
+          isOpen
+          mode={statusModal}
+          shipment={shipment}
+          onClose={() => setStatusModal(null)}
+          onChanged={() => setReloadKey((k) => k + 1)}
+        />
+      )}
     </PageWrapper>
   );
 }

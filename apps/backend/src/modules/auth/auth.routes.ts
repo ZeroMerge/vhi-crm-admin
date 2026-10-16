@@ -3,9 +3,79 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
-import { logAuditEvent } from '../../utils/audit';
+import { requireActiveAdmin } from '../../middleware/permissions';
+import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
+import { enqueueEmail } from '../email/outbox';
+import { ADMIN_EMAIL_PREF_KEYS, adminPrefsUpdateSchema, normaliseAdminPrefs } from '../email/preferences';
+import { passwordProblem } from '../../utils/passwordPolicy';
+import { rateLimit } from '../../middleware/rateLimit';
+import { findInvite, INVITE_MESSAGES, INVITE_PENDING } from '../admin/invites';
 
 const router = Router();
+
+// ---- Admin invitations (Phase 4). Public, so rate-limited per IP. The token travels only in POST bodies (never a GET URL), and
+// responses carry Referrer-Policy: no-referrer and Cache-Control: no-store.
+export const inviteInspectLimiter = rateLimit({ windowMs: 60_000, max: 10 });
+export const inviteAcceptLimiter = rateLimit({ windowMs: 60_000, max: 10 });
+
+const noStore: import('express').RequestHandler = (_req, res, next) => {
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+};
+
+// Who the invitation is for, so the accept page can say "Set a password for {email}". Changes nothing.
+router.post('/admin/invite/inspect', noStore, inviteInspectLimiter, async (req, res, next) => {
+  try {
+    const client = await pool.connect();
+    try {
+      const invite = await findInvite(client, req.body?.token);
+      if (invite.state === 'expired') return res.status(410).json({ success: false, code: 'expired', message: INVITE_MESSAGES.expired });
+      if (invite.state !== 'valid') return res.status(400).json({ success: false, code: 'invalid', message: INVITE_MESSAGES.invalid });
+      res.json({ success: true, data: { email: invite.email, name: invite.name } });
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Sets the password and uses up the invitation (single use). No session is created: the page sends the admin to the login form.
+router.post('/admin/accept-invite', noStore, inviteAcceptLimiter, async (req, res, next) => {
+  try {
+    const { token, password, confirmPassword } = req.body ?? {};
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const invite = await findInvite(client, token, true);
+      if (invite.state !== 'valid') {
+        await client.query('ROLLBACK');
+        return invite.state === 'expired'
+          ? res.status(410).json({ success: false, code: 'expired', message: INVITE_MESSAGES.expired })
+          : res.status(400).json({ success: false, code: 'invalid', message: INVITE_MESSAGES.invalid });
+      }
+      const problem = passwordProblem(password, invite.email) ?? (password !== confirmPassword ? 'Passwords do not match' : null);
+      if (problem) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, code: 'password', message: problem });
+      }
+      const hash = await bcrypt.hash(password, 10);
+      await client.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hash, invite.adminId]);
+      await client.query('UPDATE admin_invites SET used_at = NOW() WHERE id = $1', [invite.inviteId]);
+      await insertAuditEvent(client, invite.adminId, 'admin', null, 'ACCEPT_ADMIN_INVITE', 'admin', invite.adminId);
+      await client.query('COMMIT');
+      res.json({ success: true, message: 'Password set. Sign in to continue.', data: { email: invite.email } });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  } catch (err) {
+    next(err);
+  }
+});
 
 
 router.post('/admin/verify-email', async (req, res, next) => {
@@ -51,7 +121,15 @@ router.post('/admin/login', async (req, res, next) => {
     }
 
     const admin = result.rows[0];
+    // An invited admin has no password until the invitation is accepted: same answer as a wrong password.
+    if (admin.password_hash === INVITE_PENDING) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
     const valid = await bcrypt.compare(password, admin.password_hash);
+    // Inactive or deleted accounts get the same answer as a wrong password (no account-state disclosure).
+    if (valid && (admin.is_active === false || admin.deleted_at)) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
     console.log('[DEBUG] Password bcrypt comparison result:', valid);
     if (!valid) {
       console.log('[DEBUG] Password hash mismatch');
@@ -110,7 +188,7 @@ router.post('/admin/login', async (req, res, next) => {
 });
 
 
-router.post('/admin/switch-role', adminMiddleware, async (req, res, next) => {
+router.post('/admin/switch-role', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
     const { role } = req.body;
     if (!role) {
@@ -172,7 +250,7 @@ router.post('/admin/switch-role', adminMiddleware, async (req, res, next) => {
 });
 
 
-router.get('/admin/me', adminMiddleware, async (req, res, next) => {
+router.get('/admin/me', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
     const adminId = req.admin!.id;
     const result = await pool.query('SELECT id, name, email, assigned_roles, notification_prefs FROM admins WHERE id = $1', [adminId]);
@@ -197,7 +275,7 @@ router.get('/admin/me', adminMiddleware, async (req, res, next) => {
 });
 
 
-router.post('/admin/logout', adminMiddleware, async (req, res, next) => {
+router.post('/admin/logout', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
     if (req.admin) {
       await logAuditEvent(req.admin.id, 'admin', req.admin.activeRole, 'LOGOUT', 'admin', req.admin.id);
@@ -209,7 +287,7 @@ router.post('/admin/logout', adminMiddleware, async (req, res, next) => {
 });
 
 
-router.put('/admin/change-password', adminMiddleware, async (req, res, next) => {
+router.put('/admin/change-password', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const adminId = req.admin!.id;
@@ -220,16 +298,33 @@ router.put('/admin/change-password', adminMiddleware, async (req, res, next) => 
       return res.status(404).json({ success: false, message: 'Admin not found' });
     }
 
-    const valid = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
+    const valid = typeof currentPassword === 'string' && (await bcrypt.compare(currentPassword, result.rows[0].password_hash));
     if (!valid) {
       return res.status(400).json({ success: false, message: 'Current password is incorrect' });
     }
+    const problem = passwordProblem(newPassword, result.rows[0].email);
+    if (problem) {
+      return res.status(400).json({ success: false, message: problem });
+    }
 
     const hash = await bcrypt.hash(newPassword, 10);
-    await pool.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hash, adminId]);
-
-    
-    await logAuditEvent(adminId, 'admin', activeRole, 'CHANGE_PASSWORD', 'admin', adminId);
+    // One transaction: new hash, audit row and the "password changed" notice (outbox).
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('UPDATE admins SET password_hash = $1 WHERE id = $2', [hash, adminId]);
+      await insertAuditEvent(client, adminId, 'admin', activeRole, 'CHANGE_PASSWORD', 'admin', adminId);
+      const me = result.rows[0];
+      if (me.email) {
+        await enqueueEmail(client, { kind: 'admin.password_changed', to: me.email, adminId, params: { adminName: me.name ?? '' } });
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
 
     res.json({ success: true, message: 'Password updated' });
   } catch (err) {
@@ -238,7 +333,7 @@ router.put('/admin/change-password', adminMiddleware, async (req, res, next) => 
 });
 
 
-router.put('/admin/profile', adminMiddleware, async (req, res, next) => {
+router.put('/admin/profile', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
     const { name, phone } = req.body;
     const adminId = req.admin!.id;
@@ -256,17 +351,46 @@ router.put('/admin/profile', adminMiddleware, async (req, res, next) => {
 });
 
 
-router.put('/admin/notification-preferences', adminMiddleware, async (req, res, next) => {
+// Saved email preferences, normalised (unreadable values fall back to the defaults the Settings page has always shown).
+// emailKeys = the keys that currently gate an email; the others are stored for later phases.
+router.get('/admin/notification-preferences', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
   try {
-    const { notificationPrefs } = req.body;
-    const adminId = req.admin!.id;
-    const activeRole = req.admin!.activeRole;
-
-    await pool.query('UPDATE admins SET notification_prefs = $1 WHERE id = $2', [JSON.stringify(notificationPrefs), adminId]);
-
-    res.json({ success: true, message: 'Notification preferences updated successfully' });
+    const { rows } = await pool.query('SELECT notification_prefs FROM admins WHERE id = $1', [req.admin!.id]);
+    if (rows.length === 0) return res.status(404).json({ success: false, message: 'Admin not found' });
+    res.json({ success: true, data: { prefs: normaliseAdminPrefs(rows[0].notification_prefs), emailKeys: ADMIN_EMAIL_PREF_KEYS } });
   } catch (err) {
     next(err);
+  }
+});
+
+// Body { notificationPrefs: { <known key>: boolean, ... } }. Unknown keys or non-boolean values → 400.
+// Merged into the saved preferences (a partial update never resets the other keys).
+router.put('/admin/notification-preferences', adminMiddleware, requireActiveAdmin, async (req, res, next) => {
+  const parsed = adminPrefsUpdateSchema.safeParse(req.body?.notificationPrefs);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, message: 'Invalid notification preferences', errors: parsed.error.flatten() });
+  }
+  const client = await pool.connect().catch((err) => {
+    next(err);
+    return null;
+  });
+  if (!client) return;
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query('SELECT notification_prefs FROM admins WHERE id = $1 FOR UPDATE', [req.admin!.id]);
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Admin not found' });
+    }
+    const prefs = { ...normaliseAdminPrefs(rows[0].notification_prefs), ...parsed.data };
+    await client.query('UPDATE admins SET notification_prefs = $1 WHERE id = $2', [JSON.stringify(prefs), req.admin!.id]);
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Notification preferences updated successfully', data: { prefs, emailKeys: ADMIN_EMAIL_PREF_KEYS } });
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    next(err);
+  } finally {
+    client.release();
   }
 });
 

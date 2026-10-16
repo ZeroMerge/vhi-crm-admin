@@ -20,6 +20,11 @@ export const trackingService = {
     const res = await api.post<ApiResponse<TrackingUpdate>>(`/api/admin/tracking/${shipmentId}/update`, { status, message });
     return res.data.data;
   },
+  // Tracking note without a status change (the API keeps the current status).
+  addNote: async (shipmentId: string, message: string, expectedStatus?: string): Promise<TrackingUpdate> => {
+    const res = await api.post<ApiResponse<TrackingUpdate>>(`/api/admin/tracking/${shipmentId}/update`, { message, expectedStatus });
+    return res.data.data;
+  },
   getEvents: async (shipmentId: string): Promise<TrackingUpdate[]> => {
     const res = await api.get<ApiResponse<TrackingUpdate[]>>(`/api/admin/tracking/${shipmentId}/events`);
     return res.data.data;

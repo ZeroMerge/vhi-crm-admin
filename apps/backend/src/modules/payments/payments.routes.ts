@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
+import { requireModule, requireActiveAdmin } from '../../middleware/permissions';
 
 const router = Router();
 
 
-router.get('/', adminMiddleware, async (req, res, next) => {
+router.get('/', adminMiddleware, requireActiveAdmin, requireModule('payments'), async (req, res, next) => {
   try {
     const { status, page = '1', pageSize = '10' } = req.query;
     let sql = 'SELECT p.*, c.firstname, c.lastname FROM payments p LEFT JOIN customers c ON p.customer_id = c.id WHERE 1=1';

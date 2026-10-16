@@ -1,10 +1,16 @@
 import { Router } from 'express';
+import { setShipmentStatus } from '../shipments/statusUpdate';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
-import { logAuditEvent } from '../../utils/audit';
-import { mapShipment } from '../shipments/shipments.routes';
+import { CROSS_READS, moduleGuard, requireActiveAdmin } from '../../middleware/permissions';
+import { insertAuditEvent, logAuditEvent } from '../../utils/audit';
+import { emit } from '../notifications/notification.service';
+import { UUID_RE, lockShipmentForUpdate, mapShipment } from '../shipments/shipments.routes';
+import { assertTransition, assertValidStatus, conflictError } from '../shipments/shipmentStatus';
 
 const router = Router();
+
+router.use(adminMiddleware, requireActiveAdmin, moduleGuard('tracking', [{ method: 'POST', path: '/:shipmentId/update', anyOf: CROSS_READS.trackingNote }]));
 
 
 router.get('/', adminMiddleware, async (req, res, next) => {
@@ -70,28 +76,103 @@ router.get('/pending', adminMiddleware, async (req, res, next) => {
 });
 
 
+// Body: { status?, message?, reason?, expectedStatus? }.
+// - status omitted/empty or equal to the current status → note-only: one tracking row, shipment untouched (message required).
+// - otherwise the change goes through the shipment state machine (../shipments/shipmentStatus.ts).
+// Everything is one transaction: on any failure nothing is written.
 router.post('/:shipmentId/update', adminMiddleware, async (req, res, next) => {
+  const { status, message, reason, expectedStatus } = req.body;
+  const statusGiven = status !== undefined && status !== null && status !== '';
+  const text = typeof message === 'string' ? message.trim() : '';
   try {
-    const { status, message } = req.body;
-    const result = await pool.query(
+    if (statusGiven) assertValidStatus(status);
+    if (message !== undefined && message !== null && typeof message !== 'string') {
+      return res.status(400).json({ success: false, message: 'message must be a string' });
+    }
+  } catch (err) { return next(err); }
+  if (!UUID_RE.test(req.params.shipmentId)) return res.status(404).json({ success: false, message: 'Shipment not found' });
+
+  let client;
+  try {
+    client = await pool.connect();
+  } catch (err) { return next(err); }
+  let trackingRow;
+  try {
+    await client.query('BEGIN');
+
+    const current = await lockShipmentForUpdate(client, 'id = $1', [req.params.shipmentId]);
+    if (!current) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ success: false, message: 'Shipment not found' });
+    }
+    if (expectedStatus !== undefined && expectedStatus !== current.status) throw conflictError();
+
+    const noteOnly = !statusGiven || status === current.status;
+    if (noteOnly) {
+      if (!text) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, message: 'A message is required for a tracking note without a status change' });
+      }
+    } else {
+      const transition = assertTransition({
+        from: current.status,
+        to: status,
+        actorType: 'admin',
+        actorRole: req.admin!.activeRole,
+        reason,
+      });
+      await setShipmentStatus(client, current.id, transition.to);
+      const auditId = await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'ADD_TRACKING_UPDATE', 'shipment', current.id, {
+        noteOnly: false,
+        from: transition.from,
+        to: transition.to,
+        reason: reason ?? null,
+        isCorrection: transition.isCorrection,
+        isReopen: transition.isReopen,
+        message: text || null,
+      });
+      if (current.customer_id) {
+        await emit(
+          {
+            type: 'shipment.status_changed',
+            actor: { type: 'admin', id: req.admin!.id },
+            sourceId: auditId,
+            shipment: { id: current.id, orderId: current.order_id, customerId: current.customer_id },
+            from: transition.from,
+            to: transition.to,
+            reason: typeof reason === 'string' ? reason.trim() : null,
+            isCorrection: transition.isCorrection,
+            isReopen: transition.isReopen,
+          },
+          client
+        );
+      }
+    }
+
+    const result = await client.query(
       'INSERT INTO tracking_updates (shipment_id, status, message, updated_by) VALUES ($1, $2, $3, $4) RETURNING *',
-      [req.params.shipmentId, status, message || '', req.admin!.id]
+      [current.id, noteOnly ? current.status : status, text, req.admin!.id]
     );
-    await pool.query('UPDATE shipments SET status = $1, updated_at = NOW() WHERE id = $2', [status, req.params.shipmentId]);
+    trackingRow = result.rows[0];
+    // Note-only updates are audited in the same transaction but do not notify in Phase 1 (deferred until the
+    // client UI shows tracking history).
+    if (noteOnly) {
+      await insertAuditEvent(client, req.admin!.id, 'admin', req.admin!.activeRole, 'ADD_TRACKING_UPDATE', 'shipment', current.id, {
+        noteOnly: true,
+        status: current.status,
+        message: text,
+      });
+    }
 
-    
-    await logAuditEvent(
-      req.admin!.id,
-      'admin',
-      req.admin!.activeRole,
-      'ADD_TRACKING_UPDATE',
-      'shipment',
-      req.params.shipmentId,
-      { status, message }
-    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    return next(err);
+  } finally {
+    client.release();
+  }
 
-    res.json({ success: true, data: result.rows[0] });
-  } catch (err) { next(err); }
+  res.json({ success: true, data: trackingRow });
 });
 
 

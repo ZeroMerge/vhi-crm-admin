@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowRight } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { authService } from '@/services/auth.service';
@@ -10,8 +10,12 @@ export default function AdminLogin() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
   
+  // After accepting an invitation (/admin/accept-invite) the page arrives with ?email=…&invited=1.
+  const [searchParams] = useSearchParams();
+  const invited = searchParams.get('invited') === '1';
+
   const [step, setStep] = useState<1 | 2>(1);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => searchParams.get('email') ?? '');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -82,6 +86,24 @@ export default function AdminLogin() {
             {step === 1 ? 'Enter your email to continue.' : email}
           </p>
         </div>
+
+        {invited && !error && (
+          <div
+            role="status"
+            style={{
+              padding: '12px 16px',
+              background: '#E8F5E9',
+              color: '#2E7D32',
+              borderRadius: 'var(--border-radius-sm)',
+              fontSize: 'var(--font-size-sm)',
+              fontWeight: 500,
+              marginBottom: '24px',
+              textAlign: 'center',
+            }}
+          >
+            Password set. Sign in to continue.
+          </div>
+        )}
 
         {error && (
           <div

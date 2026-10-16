@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import pool from '../../config/db';
 import { adminMiddleware } from '../../middleware/adminMiddleware';
+import { CROSS_READS, moduleGuard, requireActiveAdmin, roleHasModule } from '../../middleware/permissions';
 import { logAuditEvent } from '../../utils/audit';
 
 const router = Router();
+
+router.use(adminMiddleware, requireActiveAdmin, moduleGuard('customers', [{ method: 'GET', path: '/', anyOf: CROSS_READS.customersList }]));
 
 function mapCustomer(row: any) {
   if (!row) return null;
@@ -94,12 +97,30 @@ router.put('/:id', adminMiddleware, async (req, res, next) => {
   try {
     const { firstname, lastname, email, phone, industry, status } = req.body;
     
-    const result = await pool.query(
-      `UPDATE customers 
-       SET firstname = $1, lastname = $2, email = $3, phone = $4, industry = $5, status = $6, updated_at = NOW() 
-       WHERE id = $7 RETURNING *`,
-      [firstname, lastname, email, phone, industry, status, req.params.id]
-    );
+    // One transaction: a new address starts clean, so its suppression (if any) is removed with the change (Phase 4).
+    const client = await pool.connect();
+    let result;
+    try {
+      await client.query('BEGIN');
+      const before = await client.query('SELECT email FROM customers WHERE id = $1 FOR UPDATE', [req.params.id]);
+      result = await client.query(
+        `UPDATE customers
+         SET firstname = $1, lastname = $2, email = $3, phone = $4, industry = $5, status = $6, updated_at = NOW()
+         WHERE id = $7 RETURNING *`,
+        [firstname, lastname, email, phone, industry, status, req.params.id]
+      );
+      const previous: string | undefined = before.rows[0]?.email;
+      const updated: string | undefined = result.rows[0]?.email;
+      if (updated && previous?.toLowerCase() !== updated.toLowerCase()) {
+        await client.query('DELETE FROM email_suppressions WHERE address = lower($1)', [updated]);
+      }
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
 
     if (result.rows.length === 0) return res.status(404).json({ success: false, message: 'Customer not found' });
 
@@ -120,14 +141,16 @@ router.get('/:id', adminMiddleware, async (req, res, next) => {
     const totalInvoicedAmount = parseFloat(totalInvoiced.rows[0].total);
     const totalPaidAmount = parseFloat(paymentTotal.rows[0].total);
 
+    // Money totals belong to the invoices module (they sum every currency and include drafts: RISKS R-70); omitted for other roles.
+    const money = roleHasModule(req.admin!.activeRole, 'invoices')
+      ? { totalInvoiced: totalInvoicedAmount, totalPaid: totalPaidAmount, outstandingBalance: Math.max(totalInvoicedAmount - totalPaidAmount, 0) }
+      : {};
     res.json({
       success: true,
       data: {
         ...mapCustomer(result.rows[0]),
         shipmentCount: parseInt(shipmentCount.rows[0].count),
-        totalInvoiced: totalInvoicedAmount,
-        totalPaid: totalPaidAmount,
-        outstandingBalance: Math.max(totalInvoicedAmount - totalPaidAmount, 0),
+        ...money,
       },
     });
   } catch (err) { next(err); }

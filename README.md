@@ -1,4 +1,4 @@
-# VHI CRM Admin Panel
+# Updated VHI CRM Admin Panel
 
 A comprehensive admin panel for ValueHandlers International (VHI) — a freight/logistics company. Built with React 18 + Vite + TypeScript frontend and Node.js + Express + PostgreSQL backend.
 

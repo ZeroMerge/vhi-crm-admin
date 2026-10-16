@@ -12,6 +12,15 @@ interface InvoiceFilters {
   sortBy?: string;
   page?: number;
   pageSize?: number;
+  // Report drill-down filters (local dates, validated by the API)
+  industry?: string;
+  mode?: string;
+  issuedFrom?: string;
+  issuedTo?: string;
+  paidFrom?: string;
+  paidTo?: string;
+  excludeDraft?: string;
+  hasOutstanding?: string;
 }
 
 interface CreateInvoiceData {

@@ -10,7 +10,7 @@ router.get('/:orderId', customerMiddleware, async (req, res, next) => {
     const customerId = req.customer!.id;
 
     const shipmentResult = await pool.query(
-      `SELECT s.id, s.order_id, s.status, s.created_at,
+      `SELECT s.id, s.order_id, s.status, s.created_at, s.awb_number, s.bol_number,
               s.shipping_mode, s.delivery_mode, s.nature_of_item,
               s.origin_address, s.destination_address,
               s.weight_unit,
@@ -46,6 +46,8 @@ router.get('/:orderId', customerMiddleware, async (req, res, next) => {
         destinationAddress: row.destination_address,
         totalWeight:        parseFloat(row.total_weight),
         weightUnit:         row.weight_unit,
+        awbNumber:          row.awb_number,
+        bolNumber:          row.bol_number,
         trackingUpdates:    trackingResult.rows.map(t => ({
           status:    t.status,
           message:   t.message,

@@ -10,3 +10,6 @@ dist/
 !.vscode/extensions.json
 .tokensave
 supabase/.temp//*
+# Rendered email previews (npm run email:preview in apps/backend)
+**/.email-preview/
+CLAUDE.md
