@@ -164,10 +164,9 @@ describe('help content: links', () => {
     };
     const sidebar = [...fromArray('mainNavItems'), ...fromArray('bottomNavItems')];
     assert.ok(sidebar.length >= 9, `parsed ${sidebar.length} sidebar items`);
-    // A sidebar item with no route would send customers to a 404, so the guide cannot list it. The only one allowed is the Report tab,
-    // which exists on this branch's base (feat/notification-system) and is removed by the reports branch (client [RPT-6]).
+    // A sidebar item with no route would send customers to a 404, so the guide cannot list it, and no such item is allowed.
     const unrouted = sidebar.filter(([, to]) => !routes.has(to));
-    assert.deepEqual(unrouted.map(([, to]) => to).filter((to) => to !== '/dashboard/report'), [], `sidebar items without a route: ${JSON.stringify(unrouted)}`);
+    assert.deepEqual(unrouted.map(([, to]) => to), [], `sidebar items without a route: ${JSON.stringify(unrouted)}`);
     const routed = sidebar.filter(([, to]) => routes.has(to));
     assert.deepEqual(helpContent.navigate.map((e: any) => [e.title, e.to]), routed);
   });
