@@ -10,6 +10,7 @@ import { invoiceService } from '@/services/invoice.service';
 import { customerService } from '@/services/customer.service';
 import { shipmentService } from '@/services/shipment.service';
 import { reportService } from '@/services/report.service';
+import { formatMoneyText } from '@/pages/admin/Reports/format';
 import { useAuthStore } from '@/store/authStore';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import type { Shipment } from '@/types';
@@ -34,7 +35,8 @@ export default function Overview() {
   const pageSize = 5;
 
   const [customerCount, setCustomerCount] = useState<number>(0);
-  const [revenue, setRevenue] = useState<number>(0);
+  // Collected this year in the most-used currency (new /reports/summary; the old all-time sum mixed currencies).
+  const [revenue, setRevenue] = useState<{ amount: string; currency: string }>({ amount: '0.00', currency: 'NGN' });
   const [inTransitCount, setInTransitCount] = useState<number>(0);
   const [pendingCount, setPendingCount] = useState<number>(0);
   const [overdueCount, setOverdueCount] = useState<number>(0);
@@ -70,14 +72,15 @@ export default function Overview() {
           overdueRes
         ] = await Promise.all([
           customerService.list({ pageSize: 1 }),
-          reportService.getReport('all').catch(() => ({ revenue: 0 })),
+          reportService.summary({ range: 'this_year' }).catch(() => null),
           shipmentService.list({ status: 'in_transit', pageSize: 1 }),
           shipmentService.list({ status: 'pending', pageSize: 1 }),
           invoiceService.list({ overdue: 'true', pageSize: 1 })
         ]);
 
         setCustomerCount(customersRes.total || 0);
-        setRevenue(reportRes.revenue || 0);
+        const currency = reportRes?.revenue?.currencies[0];
+        if (currency) setRevenue({ amount: reportRes!.revenue!.byCurrency[currency].collected, currency });
         setInTransitCount(inTransitRes.total || 0);
         setPendingCount(pendingRes.total || 0);
         setOverdueCount(overdueRes.total || 0);
@@ -114,7 +117,7 @@ export default function Overview() {
 
   const adminStats = useMemo(() => [
     { label: 'Customers', value: customerCount.toLocaleString(), icon: Users, trend: '9.8%', trendUp: true, color: 'var(--color-primary)', link: '/admin/customers' },
-    { label: 'Revenue', value: formatCurrency(revenue, 'NGN'), icon: DollarSign, trend: '5.9%', trendUp: true, color: 'var(--color-primary)', link: '/admin/invoices' },
+    { label: 'Revenue (this year)', value: formatMoneyText(revenue.amount, revenue.currency), icon: DollarSign, trend: '5.9%', trendUp: true, color: 'var(--color-primary)', link: '/admin/invoices' },
     { label: 'In Transit', value: inTransitCount.toLocaleString(), icon: Activity, trend: '2.1%', trendUp: false, color: 'var(--color-primary)', link: '/admin/shipments' },
     { 
       label: 'Attention', 

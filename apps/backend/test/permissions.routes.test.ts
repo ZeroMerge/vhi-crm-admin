@@ -88,7 +88,7 @@ describe('server-side role permissions', dbTest, () => {
     { name: 'tracking list', method: 'GET', path: () => '/api/admin/tracking', modules: ['tracking'], write: false },
     { name: 'tracking note (cross: shipments)', method: 'POST', path: () => `/api/admin/tracking/${ids.shipment}/update`, body: { message: 'note' }, modules: ['tracking', 'shipments'], write: true },
     { name: 'invoices detail', method: 'GET', path: () => `/api/admin/invoices/${ids.invoice}`, modules: ['invoices'], write: false },
-    { name: 'invoices list (cross-read: reports)', method: 'GET', path: () => '/api/admin/invoices', modules: ['invoices', 'reports'], write: false },
+    { name: 'invoices list', method: 'GET', path: () => '/api/admin/invoices', modules: ['invoices'], write: false },
     { name: 'invoices reminder', method: 'PUT', path: () => `/api/admin/invoices/${ids.invoice}/reminder`, body: { followUpDate: null }, modules: ['invoices'], write: true },
     { name: 'payments list', method: 'GET', path: () => '/api/admin/payments', modules: ['payments'], write: false },
     { name: 'communications list', method: 'GET', path: () => '/api/admin/communications', modules: ['communications'], write: false },
@@ -154,7 +154,7 @@ describe('server-side role permissions', dbTest, () => {
         const expected = [
           uiHas(role, ['customers', 'shipments']) ? 'customers' : null,
           uiHas(role, ['shipments']) ? 'shipments' : null,
-          uiHas(role, ['invoices', 'reports']) ? 'invoices' : null,
+          uiHas(role, ['invoices']) ? 'invoices' : null,
         ].filter(Boolean);
         for (const q of ['Test', '']) {
           const res = await request(app, 'GET', `/api/admin/search?q=${q}`, { token: tokens[role] });
